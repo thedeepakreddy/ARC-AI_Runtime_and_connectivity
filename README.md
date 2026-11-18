@@ -4,10 +4,10 @@ One intelligence layer for every application. ARC gives Echo, Aira, Data Science
 future apps a single OpenAI-compatible API, while it manages providers, multiple keys per
 provider, routing, fallback, security and monitoring behind it.
 
-> Status: **Phase 1 — control plane.** Owner login, encrypted vault, provider registry with
-> multiple keys per provider, model catalogue. No inference endpoints yet. See
-> [docs/plan.md](docs/plan.md), [docs/admin-api.md](docs/admin-api.md) and
-> [docs/operations.md](docs/operations.md).
+> Status: **Phase 2 — fast-path inference.** OpenAI-compatible `/v1` API (chat with streaming,
+> embeddings, models) with ARC keys, on top of the Phase 1 control plane. See
+> [docs/plan.md](docs/plan.md), [docs/inference-api.md](docs/inference-api.md),
+> [docs/admin-api.md](docs/admin-api.md) and [docs/operations.md](docs/operations.md).
 
 ## Layout
 
@@ -42,6 +42,9 @@ Integration tests need a PostgreSQL server:
 TEST_DATABASE_URL=postgres://arc:arc@127.0.0.1:5432/postgres pnpm test
 ```
 
+Add `LITELLM_TEST_URL=http://127.0.0.1:4000` (and `LITELLM_TEST_MASTER_KEY`) to run the
+inference suite through a real LiteLLM proxy instead of the built-in stand-in.
+
 Run the API on the host against containerised dependencies:
 
 ```bash
@@ -49,6 +52,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres re
 DATABASE_URL=postgres://arc:<password>@127.0.0.1:5432/arc \
 REDIS_URL=redis://127.0.0.1:6379 \
 LITELLM_BASE_URL=http://127.0.0.1:4000 \
+LITELLM_MASTER_KEY=<from .env> \
 ARC_VAULT_KEY_FILE=./secrets/vault-keys.json COOKIE_SECURE=false \
 pnpm dev
 ```

@@ -52,6 +52,9 @@ const updateModelSchema = z
 export async function catalogueRoutes(app: FastifyInstance, deps: AdminDeps): Promise<void> {
   const { db } = deps;
   app.addHook('preHandler', requireUser(db));
+  app.addHook('onResponse', async (req, reply) => {
+    if (req.method !== 'GET' && reply.statusCode < 400) deps.onRoutingChange?.();
+  });
 
   app.get('/providers', async () => {
     const { rows } = await db.query(

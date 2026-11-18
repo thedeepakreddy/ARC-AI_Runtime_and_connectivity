@@ -1,7 +1,15 @@
-# LiteLLM is ARC's execution gateway only. ARC owns identity, policy, routing
-# and the provider/account registry; models are registered by ARC in later phases.
+# LiteLLM is ARC's execution gateway only. ARC owns identity, policy, routing and the
+# provider/account registry, and chooses the provider, model and key for every request.
 # No provider keys belong in this file.
-model_list: []
+#
+# Verified with LiteLLM 1.110.0: a wildcard route plus client-side credentials lets ARC pass
+# the chosen provider key and base URL per request. This is safe only because LiteLLM is
+# reachable solely on ARC's private network with the master key, and ARC forwards an
+# allow-list of request fields (applications can never set api_key/api_base).
+model_list:
+  - model_name: '*'
+    litellm_params:
+      model: '*'
 
 litellm_settings:
   # Metadata-only: never log prompt or response bodies.
@@ -11,3 +19,4 @@ litellm_settings:
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
+  allow_client_side_credentials: true
