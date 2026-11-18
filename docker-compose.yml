@@ -66,6 +66,12 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-arc}
       REDIS_URL: redis://redis:6379
       LITELLM_BASE_URL: http://litellm:4000
+      # Vault keys live outside Postgres, mounted read-only. See docs/operations.md.
+      ARC_VAULT_KEY_FILE: /run/secrets/arc/vault-keys.json
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    volumes:
+      - ./secrets:/run/secrets/arc:ro
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

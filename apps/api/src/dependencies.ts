@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis';
-import pg from 'pg';
 import type { ApiConfig } from './config.js';
+import type { Db } from './db/pool.js';
 import type { DependencyCheck } from './readiness.js';
 
 export interface Dependencies {
@@ -8,16 +8,7 @@ export interface Dependencies {
   close(): Promise<void>;
 }
 
-export function createDependencies(config: ApiConfig): Dependencies {
-  const pool = new pg.Pool({
-    connectionString: config.DATABASE_URL,
-    max: 10,
-    connectionTimeoutMillis: config.READINESS_TIMEOUT_MS,
-    idleTimeoutMillis: 30_000,
-  });
-  // Pool errors on idle clients must not crash the process.
-  pool.on('error', () => undefined);
-
+export function createDependencies(config: ApiConfig, db: Db): Dependencies {
   const redis = new Redis(config.REDIS_URL, {
     lazyConnect: true,
     enableOfflineQueue: false,
@@ -32,7 +23,7 @@ export function createDependencies(config: ApiConfig): Dependencies {
     {
       name: 'postgres',
       async check() {
-        await pool.query('SELECT 1');
+        await db.query('SELECT 1');
       },
     },
     {
@@ -55,7 +46,7 @@ export function createDependencies(config: ApiConfig): Dependencies {
   return {
     checks,
     async close() {
-      await Promise.allSettled([pool.end(), redis.quit()]);
+      await Promise.allSettled([redis.quit()]);
     },
   };
 }

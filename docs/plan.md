@@ -33,14 +33,33 @@ international, Chinese, local, speech/embeddings.
 - [ ] Full `docker compose up` verified on a machine with a Docker daemon (not available in the
       build container; compose files validated with `docker compose config`)
 
-## Decisions needing owner approval
+## Phase 1 status
 
-1. **Name:** ARC = "AI Runtime & Connectivity" (the addendum overrides "Adaptive Reasoning Core").
-   Trademark/domain check still outstanding.
-2. **Model alias:** propose `auto` (ARC picks the model) plus `arc/fast`, `arc/balanced`,
-   `arc/deep` for execution modes; explicit model IDs allowed where policy permits.
-3. **LiteLLM version:** pin a specific release/digest before production (currently `main-stable`).
-4. **Envelope encryption key source for the pilot:** propose a key file mounted from outside
-   Postgres with documented off-site backup; move to a KMS when available.
-5. **Proposed RTO/RPO for the pilot:** RTO 4h, RPO 24h (daily encrypted off-site backups) —
-   targets only until a restore drill proves them.
+- [x] Schema + migration runner (advisory-locked, idempotent): tenants, users, memberships,
+      sessions, applications, providers, credentials, provider accounts, models, audit events
+- [x] Envelope-encrypted credential vault with versioned key file, AAD binding and rotation CLI
+- [x] Owner bootstrap CLI; email/password login, sessions, logout, login throttling
+- [x] Provider catalogue: all providers from `providers.md` (incl. Chinese), with jurisdiction
+      tags — **all marked unverified**
+- [x] **Unlimited keys per provider**: add, list (hint only), rename, enable/disable, replace,
+      delete, validate (health + model discovery)
+- [x] Model catalogue: discovered models are `UNKNOWN` + disabled; classification requires an
+      evidence URL; `UNKNOWN` can never be enabled (enforced in API and database)
+- [x] Applications registry (first-party apps in the platform tenant only), audit log
+- [x] Integration tests on real PostgreSQL incl. cross-tenant isolation; CI runs them
+- [ ] Owner MFA, password reset, invitations/signup — deferred to customer auth (Phase 7)
+- [ ] Login throttling in Redis — needed before running multiple API instances
+- [ ] Background re-validation of keys — moves to the worker in Phase 3
+
+## Approved decisions
+
+1. **Name:** ARC = **AI Runtime & Connectivity** (approved). Trademark/domain check still outstanding.
+2. **Model aliases:** `auto` (ARC picks the model) plus `arc/fast`, `arc/balanced`, `arc/deep` for
+   execution modes; explicit model IDs allowed where policy permits (approved).
+3. **Vault key source for the pilot:** versioned key file mounted from outside Postgres, with a
+   separate off-site backup; move to a KMS later (approved).
+4. **Pilot RTO/RPO:** RTO 4h, RPO 24h — targets only until a restore drill proves them (approved).
+
+## Open decisions
+
+1. **LiteLLM version:** pin a specific release/digest before production (currently `main-stable`).

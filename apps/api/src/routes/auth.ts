@@ -1,0 +1,87 @@
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import { recordAudit } from '../audit.js';
+import { currentUser, requireUser } from '../auth/context.js';
+import { PASSWORD_MAX_LENGTH, verifyAgainstDummy, verifyPassword } from '../auth/password.js';
+import { SESSION_COOKIE, createSession, revokeSession } from '../auth/sessions.js';
+import { AttemptLimiter } from '../auth/throttle.js';
+import { ArcError, parseInput } from '../errors.js';
+import type { AdminDeps } from './deps.js';
+
+const loginSchema = z.object({
+  email: z.email().max(320),
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+});
+
+export async function authRoutes(app: FastifyInstance, deps: AdminDeps): Promise<void> {
+  const { db } = deps;
+  const perEmail = new AttemptLimiter(10, 15 * 60_000);
+  const perIp = new AttemptLimiter(50, 15 * 60_000);
+  const invalid = () => new ArcError(401, 'invalid_credentials', 'Email or password is incorrect');
+
+  app.post('/auth/login', async (req, reply) => {
+    const body = parseInput(loginSchema, req.body);
+    const emailKey = body.email.toLowerCase();
+    if (!perIp.hit(req.ip) || !perEmail.hit(emailKey)) {
+      throw new ArcError(429, 'too_many_attempts', 'Too many sign-in attempts. Try again later.');
+    }
+
+    const { rows } = await db.query<{
+      id: string;
+      password_hash: string;
+      disabled_at: Date | null;
+    }>('SELECT id, password_hash, disabled_at FROM users WHERE lower(email) = $1', [emailKey]);
+    const user = rows[0];
+    const ok = user
+      ? await verifyPassword(body.password, user.password_hash)
+      : await verifyAgainstDummy(body.password);
+    if (!user || !ok || user.disabled_at) {
+      await recordAudit(db, {
+        tenantId: null,
+        actorUserId: user?.id ?? null,
+        action: 'auth.login_failed',
+      });
+      throw invalid();
+    }
+
+    perEmail.reset(emailKey);
+    const token = await createSession(db, user.id, deps.sessionTtlMs, req.headers['user-agent']);
+    await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
+    await recordAudit(db, { tenantId: null, actorUserId: user.id, action: 'auth.login' });
+
+    reply.setCookie(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: deps.cookieSecure,
+      sameSite: 'strict',
+      path: '/admin',
+      maxAge: Math.floor(deps.sessionTtlMs / 1000),
+    });
+    return { ok: true };
+  });
+
+  app.register(async (authed) => {
+    authed.addHook('preHandler', requireUser(db));
+
+    authed.get('/auth/me', async (req) => {
+      const user = currentUser(req);
+      const { rows } = await db.query(
+        `SELECT t.id, t.kind, t.name, m.role
+           FROM memberships m JOIN tenants t ON t.id = m.tenant_id
+          WHERE m.user_id = $1 ORDER BY t.created_at`,
+        [user.userId],
+      );
+      return {
+        user: { id: user.userId, email: user.email, isSuperadmin: user.isSuperadmin },
+        tenants: rows,
+      };
+    });
+
+    authed.post('/auth/logout', async (req, reply) => {
+      const user = currentUser(req);
+      await revokeSession(db, user.sessionId);
+      await recordAudit(db, { tenantId: null, actorUserId: user.userId, action: 'auth.logout' });
+      reply.clearCookie(SESSION_COOKIE, { path: '/admin' });
+      return { ok: true };
+    });
+  });
+}
