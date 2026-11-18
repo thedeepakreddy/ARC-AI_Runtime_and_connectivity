@@ -1,0 +1,13 @@
+# LiteLLM is ARC's execution gateway only. ARC owns identity, policy, routing
+# and the provider/account registry; models are registered by ARC in later phases.
+# No provider keys belong in this file.
+model_list: []
+
+litellm_settings:
+  # Metadata-only: never log prompt or response bodies.
+  turn_off_message_logging: true
+  drop_params: true
+  request_timeout: 600
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
