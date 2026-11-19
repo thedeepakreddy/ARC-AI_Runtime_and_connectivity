@@ -6,6 +6,7 @@ import { withTransaction } from '../db/pool.js';
 import { ArcError, notFound, parseInput } from '../errors.js';
 import { type AdminDeps, isUniqueViolation } from './deps.js';
 import { assertPublicHttpsUrl } from '../providers/url-guard.js';
+import { validateAccount } from '../providers/validation.js';
 
 const ACCOUNT_COLUMNS = `a.id, a.provider_id AS "providerId", a.label, a.scope, a.base_url AS "baseUrl",
   a.enabled, a.health_status AS "healthStatus", a.last_validated_at AS "lastValidatedAt",
@@ -247,58 +248,13 @@ export async function accountRoutes(app: FastifyInstance, deps: AdminDeps): Prom
     const account = await loadAccount(t.tenantId, id);
     // Re-check at use time: DNS may have changed since the URL was saved.
     await checkBaseUrl(t.tenantKind, account.baseUrl);
-    const secret = await credentials.reveal(db, t.tenantId, account.credentialId);
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), deps.probeTimeoutMs);
-    let result;
-    try {
-      result = await probe.probe({
-        providerId: account.providerId,
-        adapter: account.adapter,
-        baseUrl: account.baseUrl ?? account.defaultBaseUrl,
-        apiKey: secret,
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timer);
-    }
-
-    let discovered = 0;
-    await withTransaction(db, async (tx) => {
-      await tx.query(
-        `UPDATE provider_accounts SET health_status = $3, last_validated_at = now(),
-                last_validation_error = $4, updated_at = now()
-          WHERE id = $1 AND tenant_id = $2`,
-        [id, t.tenantId, result.status, result.error?.slice(0, 300) ?? null],
-      );
-      if (result.status === 'healthy') {
-        // New models arrive as UNKNOWN and disabled: validated before anyone can enable them.
-        for (const modelId of result.models) {
-          const { rows } = await tx.query<{ id: string }>(
-            `INSERT INTO models (provider_id, model_id, source) VALUES ($1, $2, 'discovered')
-             ON CONFLICT (provider_id, model_id) DO UPDATE SET updated_at = models.updated_at
-             RETURNING id`,
-            [account.providerId, modelId],
-          );
-          await tx.query(
-            `INSERT INTO account_models (account_id, model_id) VALUES ($1, $2)
-             ON CONFLICT (account_id, model_id) DO UPDATE SET seen_at = now()`,
-            [id, rows[0]!.id],
-          );
-          discovered++;
-        }
-      }
-      await recordAudit(tx, {
-        tenantId: t.tenantId,
-        actorUserId: user.userId,
-        action: 'provider_account.validated',
-        targetType: 'provider_account',
-        targetId: id,
-        metadata: { status: result.status, models: discovered },
-      });
-    });
-
-    return { status: result.status, modelsSeen: discovered, error: result.error ?? null };
+    return validateAccount(
+      db,
+      credentials,
+      probe,
+      { ...account, tenantId: t.tenantId },
+      deps.probeTimeoutMs,
+      user.userId,
+    );
   });
 }

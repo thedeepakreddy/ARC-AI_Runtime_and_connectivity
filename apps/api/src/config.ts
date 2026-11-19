@@ -34,6 +34,9 @@ export const apiEnvSchema = baseEnvSchema.extend({
   /** Per ARC API key, per API instance. */
   /** On shutdown, wait this long for in-flight streams before force-closing connections. */
   SHUTDOWN_GRACE_MS: z.coerce.number().int().min(0).max(120_000).default(15_000),
+  /** Provider attempts per request (first try + fallbacks), bounded by the deadline. */
+  MAX_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(3),
+  MIN_ATTEMPT_MS: z.coerce.number().int().min(50).max(60_000).default(250),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100_000).default(600),
 });
 

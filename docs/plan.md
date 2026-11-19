@@ -68,6 +68,23 @@ international, Chinese, local, speech/embeddings.
 - [ ] Single LiteLLM worker saturates around 65 req/s locally: size workers in Phase 4
 - [ ] Fallback across keys/models, performance ranking, jurisdiction policy — Phase 3
 
+## Phase 3 status
+
+- [x] Routing policies per tenant and per app: allowed jurisdictions (e.g. exclude CN), and
+      paid use of owner keys only with explicit platform-owner approval
+- [x] Deterministic gates → ranking by health, free-before-paid, then measured expected latency
+- [x] Bounded fallback: same model on other keys, then compatible models (aliases only); capped
+      attempts; never past the deadline; no fallback on request errors; policy rechecked each step
+- [x] LiteLLM retries disabled (they re-hit rate-limited keys with ~4 s backoff); ARC owns retries
+- [x] Cooldowns honouring Retry-After; auth failures mark keys invalid
+- [x] Outcome telemetry recorded off the request path; worker computes route scores
+- [x] Worker process: route scoring, background key re-validation (with SSRF guard), pruning;
+      advisory-locked jobs; proven not to block inference
+- [x] Route explanations: admin dry-run endpoint and `x-arc-explain` header
+- [x] Fixed Phase 0 compose bug: LiteLLM had no internet egress (internal-only network)
+- [ ] Redis-backed cooldowns/rate limits for multiple API instances — Phase 4
+- [ ] Load tests and regression gates — Phase 4
+
 ## Approved decisions
 
 1. **Name:** ARC = **AI Runtime & Connectivity** (approved). Trademark/domain check still outstanding.

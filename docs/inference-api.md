@@ -43,11 +43,22 @@ are ignored.
 | ------------------- | ----------------------------------------------------------------- |
 | `x-arc-deadline-ms` | Overall deadline for this request (min 100, capped by the server) |
 | `x-request-id`      | Your correlation ID (8–128 chars `[A-Za-z0-9._-]`), echoed back   |
+| `x-arc-explain`     | `true` → response includes `x-arc-route-explain` (why this route) |
+
+## Fallback
+
+If a provider key fails in a way another key could fix (auth failure, rate limit, server error,
+timeout), ARC retries on the same model's other keys and — for `auto`/`arc/*` only — on other
+compatible models. At most 3 attempts, never past your deadline, and only before any output has
+been sent. A specific `<provider>/<model>` request never switches model. Errors about the request
+itself (e.g. context too long) come back immediately.
 
 ## Response headers
 
 `x-arc-route-provider`, `x-arc-route-model`, `x-arc-route-account`, `x-arc-route-alternatives`,
-`x-arc-mode`, `x-arc-overhead-ms` (time ARC spent before calling the provider), `x-request-id`.
+`x-arc-route-attempts`, `x-arc-mode`, `x-arc-overhead-ms` (time ARC spent before calling the
+provider), `x-request-id`. After a fallback: `x-arc-fallback` (comma-separated reasons) and
+`x-arc-fallback-ms` (time spent on failed attempts).
 
 ## Errors
 

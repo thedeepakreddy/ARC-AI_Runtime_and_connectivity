@@ -49,6 +49,10 @@ export class LiteLLMGateway implements InferenceGateway {
       ...input.body,
       model: target.model,
       api_key: input.apiKey,
+      // ARC owns retries and fallback (bounded by the request deadline). LiteLLM's default
+      // retries would re-hit a rate-limited key with backoff (verified on 1.110.0: a 429 took
+      // 3 provider calls and ~4.3 s instead of 1 call and ~30 ms).
+      num_retries: 0,
       ...(target.apiBase ? { api_base: target.apiBase } : {}),
       ...(input.endpoint === 'chat/completions' ? { stream: input.stream } : {}),
     };
