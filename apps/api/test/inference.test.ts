@@ -20,6 +20,7 @@ import { CredentialService } from '../src/vault/credentials.js';
 import { generateKeyFile, parseKeyRing } from '../src/vault/vault.js';
 import { TEST_DATABASE_URL, createTestDatabase } from './helpers/db.js';
 import { type MockProvider, startMockProvider } from './helpers/mock-provider.js';
+import { tamperLastChar } from './helpers/tamper.js';
 
 /**
  * Stand-in for LiteLLM when no LiteLLM is running: forwards to the OpenAI-compatible
@@ -252,7 +253,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
         const bad = await app.inject({
           method: 'GET',
           url: '/v1/models',
-          headers: { authorization: `Bearer ${arcKey.slice(0, -1)}x` },
+          headers: { authorization: `Bearer ${tamperLastChar(arcKey)}` },
         });
         expect(bad.json().error.code).toBe('invalid_api_key');
       });

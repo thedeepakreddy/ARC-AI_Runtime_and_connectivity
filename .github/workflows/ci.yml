@@ -21,9 +21,15 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U arc" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       # Integration tests create and drop their own databases on this server.
       TEST_DATABASE_URL: postgres://arc:arc@localhost:5432/postgres
+      TEST_REDIS_URL: redis://localhost:6379/1
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -51,6 +57,11 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U arc" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       TEST_DATABASE_URL: postgres://arc:arc@localhost:5432/postgres
       LITELLM_TEST_URL: http://127.0.0.1:4000
@@ -70,14 +81,78 @@ jobs:
         env:
           LITELLM_MASTER_KEY: sk-ci-only-master-key
         run: |
-          litellm --config infra/litellm/config.yaml --port 4000 > litellm.log 2>&1 &
+          litellm --config infra/litellm/config.yaml --port 4000 --num_workers 2 > litellm.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:4000/health/liveliness && exit 0; sleep 2; done
           cat litellm.log; exit 1
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm --filter @arc/api exec vitest run test/inference.test.ts
+      - name: Load test and regression gate (ARC overhead p95, error rate)
+        working-directory: apps/api
+        env:
+          LITELLM_URL: http://127.0.0.1:4000
+          LITELLM_MASTER_KEY: sk-ci-only-master-key
+          BENCH_DATABASE_URL: postgres://arc:arc@localhost:5432/postgres
+          BENCH_REDIS_URL: redis://localhost:6379/2
+        run: node --import tsx bench/run.ts --gate --requests 300 --concurrency 10 --out bench-results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-results
+          path: apps/api/bench-results.json
+          if-no-files-found: ignore
       - name: LiteLLM log must not contain provider keys
-        run: '! grep -q "local-provider-key" litellm.log'
+        run: '! grep -qE "local-provider-key|bench-provider-key" litellm.log'
+
+  # Operations: scripts, alert rules and a real backup → restore → decrypt drill.
+  ops:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Same major as the runner's pg_dump (17+): a dump from a newer pg_dump can contain
+        # settings an older server rejects on restore (e.g. SET transaction_timeout).
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: arc
+          POSTGRES_PASSWORD: arc
+          POSTGRES_DB: arc
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U arc" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: shellcheck scripts/ops/*.sh scripts/ops/tests/*.sh
+      - name: Deploy script tests (stubbed docker/git/curl)
+        run: scripts/ops/tests/deploy.test.sh
+      - name: Prometheus config and alert rules
+        run: |
+          docker run --rm -v "$PWD/infra/prometheus:/etc/prometheus:ro" --entrypoint promtool \
+            prom/prometheus:v2.55.1 check config /etc/prometheus/prometheus.yml
+          docker run --rm -v "$PWD/infra/prometheus:/etc/prometheus:ro" --entrypoint promtool \
+            prom/prometheus:v2.55.1 test rules /etc/prometheus/alerts.test.yml
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Restore drill
+        env:
+          DATABASE_URL: postgres://arc:arc@localhost:5432/arc
+          ADMIN_DATABASE_URL: postgres://arc:arc@localhost:5432/postgres
+        run: |
+          sudo apt-get install -y --no-install-recommends postgresql-client gnupg >/dev/null
+          pg_dump --version
+          psql "$DATABASE_URL" -tAc 'SHOW server_version'
+          umask 077
+          openssl rand -base64 32 > "$RUNNER_TEMP/backup-pass"
+          node apps/api/dist/cli/vault-keygen.js > "$RUNNER_TEMP/vault.json"
+          export BACKUP_PASSPHRASE_FILE="$RUNNER_TEMP/backup-pass" ARC_VAULT_KEY_FILE="$RUNNER_TEMP/vault.json"
+          node apps/api/dist/cli/migrate.js
+          node scripts/ops/tests/seed-drill.mjs
+          scripts/ops/restore-drill.sh
 
   compose:
     runs-on: ubuntu-latest

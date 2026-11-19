@@ -1,0 +1,75 @@
+groups:
+  - name: arc-availability
+    rules:
+      - alert: ArcApiDown
+        expr: up{job="arc-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: ARC API is not being scraped (down or unreachable)
+
+      - alert: ArcDependencyDown
+        expr: arc_dependency_up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: 'ARC dependency {{ $labels.name }} is failing readiness checks'
+
+      - alert: ArcWorkerStalled
+        expr: arc_worker_heartbeat_age_seconds > 120 or arc_worker_heartbeat_age_seconds == -1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: No worker heartbeat — route scoring and key health checks have stopped
+
+      - alert: ArcWorkerJobFailing
+        expr: increase(arc_worker_job_failures_total[30m]) > 3
+        labels: { severity: warning }
+        annotations:
+          summary: 'Worker job {{ $labels.job }} keeps failing'
+
+  - name: arc-latency
+    rules:
+      # Blueprint target: ARC pre-provider overhead p95 <= 30 ms.
+      - alert: ArcOverheadP95High
+        expr: histogram_quantile(0.95, sum by (le) (rate(arc_overhead_ms_bucket[5m]))) > 30
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'ARC overhead p95 is {{ $value | printf "%.1f" }} ms (target <= 30 ms)'
+
+      - alert: ArcFallbackSpike
+        expr: sum(rate(arc_fallbacks_total[5m])) / clamp_min(sum(rate(arc_requests_total[5m])), 0.001) > 0.2
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: More than 20% of requests need a fallback — a provider or key is degraded
+
+  - name: arc-errors
+    rules:
+      - alert: ArcHighErrorRate
+        expr: |
+          sum(rate(arc_requests_total{outcome!~"ok|client_cancelled"}[5m]))
+            / clamp_min(sum(rate(arc_requests_total[5m])), 0.001) > 0.05
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: More than 5% of inference requests are failing
+
+      - alert: ArcNoEligibleRoutes
+        expr: sum by (app) (increase(arc_routing_failures_total{reason="no_eligible_key"}[10m])) > 5
+        labels: { severity: critical }
+        annotations:
+          summary: 'App {{ $labels.app }} is getting "no eligible route" — keys unhealthy, cooling down or blocked by policy'
+
+      - alert: ArcProviderKeyRejected
+        expr: increase(arc_provider_attempts_total{result="auth_failed"}[15m]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: 'Provider {{ $labels.provider }} rejected key {{ $labels.account }} — replace or disable it'
+
+      - alert: ArcTelemetryDropping
+        expr: increase(arc_telemetry_dropped_total[30m]) > 0
+        labels: { severity: info }
+        annotations:
+          summary: Outcome telemetry is being dropped (database slow or buffer full); ranking may be stale

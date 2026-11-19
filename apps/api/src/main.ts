@@ -1,5 +1,10 @@
 import { REDACT_PATHS } from '@arc/shared';
+import { Redis } from 'ioredis';
 import { buildApp } from './app.js';
+import { type CoordinationBus, LocalBus, RedisBus } from './coordination/bus.js';
+import { RedisRateLimiter } from './coordination/rate-limit.js';
+import { ArcMetrics, startMetricsServer } from './observability/metrics.js';
+import { startHealthMonitor } from './observability/monitor.js';
 import { syncProviderCatalogue } from './catalogue/providers.js';
 import { cookieSecure, loadConfig } from './config.js';
 import { migrate } from './db/migrate.js';
@@ -24,6 +29,25 @@ const candidates = new CandidateStore(db);
 const cooldowns = new Cooldowns();
 const observations = new ObservationRecorder(db);
 observations.start();
+const metrics = new ArcMetrics({ defaultMetrics: true });
+
+// Cross-instance coordination (Redis). Nothing on the request path waits for these.
+const bus: CoordinationBus =
+  config.COORDINATION === 'redis' ? new RedisBus(config.REDIS_URL) : new LocalBus();
+const limiterRedis = new Redis(config.REDIS_URL, {
+  maxRetriesPerRequest: 1,
+  enableOfflineQueue: false,
+  connectTimeout: 2000,
+});
+limiterRedis.on('error', () => undefined);
+const rateLimiter = new RedisRateLimiter(limiterRedis, config.RATE_LIMIT_PER_MINUTE);
+bus.subscribe((event) => {
+  if (event.type === 'api_key_revoked') verifier.invalidate(event.keyId);
+  else if (event.type === 'routing_changed') candidates.invalidate();
+  else if (event.type === 'cooldown') cooldowns.apply(event.accountId, event.reason, event.seconds);
+});
+cooldowns.onCooldown = (accountId, reason, seconds) =>
+  bus.publish({ type: 'cooldown', accountId, reason, seconds });
 
 const app = buildApp({
   checks: deps.checks,
@@ -37,8 +61,14 @@ const app = buildApp({
     cookieSecure: cookieSecure(config),
     sessionTtlMs: config.SESSION_TTL_HOURS * 3_600_000,
     probeTimeoutMs: config.PROBE_TIMEOUT_MS,
-    onRoutingChange: () => candidates.invalidate(),
-    onApiKeyRevoked: (keyId) => verifier.invalidate(keyId),
+    onRoutingChange: () => {
+      candidates.invalidate();
+      bus.publish({ type: 'routing_changed' });
+    },
+    onApiKeyRevoked: (keyId) => {
+      verifier.invalidate(keyId);
+      bus.publish({ type: 'api_key_revoked', keyId });
+    },
     routing: { candidates, cooldowns },
   },
   inference: {
@@ -54,6 +84,8 @@ const app = buildApp({
     bodyLimitBytes: config.INFERENCE_BODY_LIMIT_MB * 1024 * 1024,
     requestsPerMinute: config.RATE_LIMIT_PER_MINUTE,
     maxAttempts: config.MAX_ATTEMPTS,
+    metrics,
+    rateLimiter,
     minAttemptMs: config.MIN_ATTEMPT_MS,
   },
 });
@@ -63,6 +95,16 @@ if (config.MIGRATE_ON_START) {
   if (applied.length) app.log.info({ applied }, 'migrations applied');
 }
 await syncProviderCatalogue(db);
+const stopMonitor = startHealthMonitor({
+  db,
+  checks: deps.checks,
+  metrics,
+  timeoutMs: config.READINESS_TIMEOUT_MS,
+  telemetryDropped: () => observations.dropped,
+});
+const metricsServer = config.METRICS_PORT
+  ? await startMetricsServer(metrics.registry, config.METRICS_HOST, config.METRICS_PORT)
+  : null;
 
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
@@ -75,6 +117,10 @@ async function shutdown(signal: string): Promise<void> {
   try {
     await app.close();
     await observations.stop();
+    stopMonitor();
+    metricsServer?.close();
+    await bus.close();
+    await limiterRedis.quit().catch(() => undefined);
     await deps.close();
     await db.end();
     process.exit(0);
