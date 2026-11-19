@@ -11,6 +11,10 @@ export interface AdminDeps {
   probeTimeoutMs: number;
   /** Override the SSRF URL guard (tests only). */
   assertPublicUrl?: (url: string) => Promise<void>;
+  /** Called after changes that affect routing (keys, models), to drop cached candidates. */
+  onRoutingChange?: () => void;
+  /** Called when an ARC API key is revoked, to drop it from the verifier cache. */
+  onApiKeyRevoked?: (keyId: string) => void;
 }
 
 export const isUniqueViolation = (err: unknown) =>

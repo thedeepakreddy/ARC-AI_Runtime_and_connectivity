@@ -24,6 +24,17 @@ export const apiEnvSchema = baseEnvSchema.extend({
   TRUST_PROXY: bool.default(false),
   MIGRATE_ON_START: bool.default(true),
   PROBE_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5000),
+  /** Internal key ARC uses to call LiteLLM. Never given to applications. */
+  LITELLM_MASTER_KEY: z.string().min(8),
+  /** Request deadline: default and hard maximum. Apps may lower it with x-arc-deadline-ms. */
+  DEFAULT_DEADLINE_MS: z.coerce.number().int().min(1000).max(3_600_000).default(300_000),
+  MAX_DEADLINE_MS: z.coerce.number().int().min(1000).max(3_600_000).default(600_000),
+  /** Max inference request body (images/audio are passed through transiently). */
+  INFERENCE_BODY_LIMIT_MB: z.coerce.number().min(1).max(100).default(20),
+  /** Per ARC API key, per API instance. */
+  /** On shutdown, wait this long for in-flight streams before force-closing connections. */
+  SHUTDOWN_GRACE_MS: z.coerce.number().int().min(0).max(120_000).default(15_000),
+  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100_000).default(600),
 });
 
 export type ApiConfig = z.infer<typeof apiEnvSchema>;

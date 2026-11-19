@@ -66,6 +66,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-arc}
       REDIS_URL: redis://redis:6379
       LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?set in .env}
       # Vault keys live outside Postgres, mounted read-only. See docs/operations.md.
       ARC_VAULT_KEY_FILE: /run/secrets/arc/vault-keys.json
       COOKIE_SECURE: ${COOKIE_SECURE:-true}

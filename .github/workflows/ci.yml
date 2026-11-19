@@ -38,6 +38,47 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
+  # Inference suite through a real LiteLLM proxy (the version ARC's passthrough is verified on).
+  litellm:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: arc
+          POSTGRES_PASSWORD: arc
+          POSTGRES_DB: arc
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U arc" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://arc:arc@localhost:5432/postgres
+      LITELLM_TEST_URL: http://127.0.0.1:4000
+      LITELLM_TEST_MASTER_KEY: sk-ci-only-master-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'litellm[proxy]==1.110.0'
+      - name: Start LiteLLM
+        env:
+          LITELLM_MASTER_KEY: sk-ci-only-master-key
+        run: |
+          litellm --config infra/litellm/config.yaml --port 4000 > litellm.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4000/health/liveliness && exit 0; sleep 2; done
+          cat litellm.log; exit 1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @arc/api exec vitest run test/inference.test.ts
+      - name: LiteLLM log must not contain provider keys
+        run: '! grep -q "local-provider-key" litellm.log'
+
   compose:
     runs-on: ubuntu-latest
     steps:

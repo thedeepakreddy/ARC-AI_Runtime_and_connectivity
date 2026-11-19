@@ -59,6 +59,11 @@ export class CredentialService {
     return decryptSecret(this.ring, toSealed(row), binding(row.tenant_id, row.id));
   }
 
+  /** Decrypt a credential row already loaded by the caller (avoids a second query). */
+  open(tenantId: string, credentialId: string, sealed: SealedSecret): string {
+    return decryptSecret(this.ring, sealed, binding(tenantId, credentialId));
+  }
+
   async remove(q: Queryable, tenantId: string, credentialId: string): Promise<void> {
     await q.query('DELETE FROM credentials WHERE id = $1 AND tenant_id = $2', [
       credentialId,

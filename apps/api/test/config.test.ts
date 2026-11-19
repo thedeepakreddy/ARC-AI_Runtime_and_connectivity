@@ -7,6 +7,7 @@ describe('loadConfig', () => {
     REDIS_URL: 'redis://localhost:6379',
     LITELLM_BASE_URL: 'http://localhost:4000',
     ARC_VAULT_KEY_FILE: '/run/secrets/arc/vault-keys.json',
+    LITELLM_MASTER_KEY: 'sk-test-master',
   };
 
   it('loads with defaults', () => {
@@ -26,6 +27,7 @@ describe('cookieSecure', () => {
     REDIS_URL: 'redis://localhost:6379',
     LITELLM_BASE_URL: 'http://localhost:4000',
     ARC_VAULT_KEY_FILE: '/k.json',
+    LITELLM_MASTER_KEY: 'sk-test-master',
   };
   it('defaults to secure cookies in production only', () => {
     expect(cookieSecure(loadConfig({ ...valid, NODE_ENV: 'production' }))).toBe(true);

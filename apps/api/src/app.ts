@@ -4,9 +4,11 @@ import { registerErrorHandler } from './errors.js';
 import { checkReadiness, type DependencyCheck } from './readiness.js';
 import { REQUEST_ID_HEADER, genRequestId } from './request-id.js';
 import { accountRoutes } from './routes/accounts.js';
+import { apiKeyRoutes } from './routes/api-keys.js';
 import { authRoutes } from './routes/auth.js';
 import { catalogueRoutes } from './routes/catalogue.js';
 import type { AdminDeps } from './routes/deps.js';
+import { type InferenceDeps, inferenceRoutes } from './routes/inference.js';
 import { tenantRoutes } from './routes/tenant.js';
 
 export interface BuildAppOptions {
@@ -14,6 +16,8 @@ export interface BuildAppOptions {
   readinessTimeoutMs: number;
   /** Control-plane admin API. Omitted in tests that only cover health endpoints. */
   admin?: AdminDeps;
+  /** OpenAI-compatible inference API under /v1. */
+  inference?: InferenceDeps;
   logger?: FastifyServerOptions['logger'];
   trustProxy?: boolean;
 }
@@ -59,9 +63,15 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
         await scope.register((s) => catalogueRoutes(s, admin));
         await scope.register((s) => accountRoutes(s, admin));
         await scope.register((s) => tenantRoutes(s, admin));
+        await scope.register((s) => apiKeyRoutes(s, admin));
       },
       { prefix: '/admin/v1' },
     );
+  }
+
+  const inference = opts.inference;
+  if (inference) {
+    app.register((scope) => inferenceRoutes(scope, inference), { prefix: '/v1' });
   }
 
   return app;

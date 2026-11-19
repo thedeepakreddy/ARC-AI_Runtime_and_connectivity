@@ -49,6 +49,18 @@ the `x-arc-tenant: <tenant-id>` header. Superadmin does **not** bypass tenant is
 Scope is set by ARC, not the caller: keys in the platform tenant are `owner_private`; keys in
 customer tenants are `tenant_byok`. Discovered models arrive as `UNKNOWN` and disabled.
 
+## ARC API keys (for applications)
+
+| Method | Path                            | Notes                                                                 |
+| ------ | ------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/applications/:appId/api-keys` | Lists keys with `displayPrefix` only                                  |
+| POST   | `/applications/:appId/api-keys` | `{ name, scopes?, expiresInDays? }`; response contains `key` **once** |
+| POST   | `/api-keys/:id/rotate`          | Issues a replacement (same name/scopes) and revokes the old key       |
+| DELETE | `/api-keys/:id`                 | Revokes immediately                                                   |
+
+Keys look like `ARC_DEE_<17-char id>_PAK_<43-char secret>` (256-bit secret, base62). Scopes:
+`inference`, `models:read` (default: both).
+
 ## Tenant
 
 | Method | Path            | Notes                                                      |

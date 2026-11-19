@@ -38,6 +38,9 @@ export async function accountRoutes(app: FastifyInstance, deps: AdminDeps): Prom
   const { db, credentials, probe } = deps;
   const guard = deps.assertPublicUrl ?? assertPublicHttpsUrl;
   app.addHook('preHandler', requireUser(db));
+  app.addHook('onResponse', async (req, reply) => {
+    if (req.method !== 'GET' && reply.statusCode < 400) deps.onRoutingChange?.();
+  });
 
   /** Customer-supplied URLs may only reach the public internet (SSRF protection). */
   async function checkBaseUrl(tenantKind: string, url: string | null | undefined): Promise<void> {

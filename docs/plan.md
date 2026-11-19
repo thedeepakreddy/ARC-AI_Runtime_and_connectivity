@@ -51,6 +51,23 @@ international, Chinese, local, speech/embeddings.
 - [ ] Login throttling in Redis — needed before running multiple API instances
 - [ ] Background re-validation of keys — moves to the worker in Phase 3
 
+## Phase 2 status
+
+- [x] ARC API keys `ARC_DEE_<id>_PAK_<secret>`: 256-bit secret, hashed, shown once, scoped,
+      revocable, rotatable, expiring, last-used tracking; issued per application
+- [x] `/v1/models`, `/v1/chat/completions` (JSON + streaming), `/v1/embeddings`
+- [x] Request allow-listing (clients cannot inject credentials or base URLs)
+- [x] Capability matching from request shape; free-only policy for owner keys
+- [x] LiteLLM passthrough verified against LiteLLM 1.110.0 (keys, streaming, cancellation, no
+      key/content logging); CI runs the inference suite against it
+- [x] Streaming without buffering; client disconnect cancels the provider stream
+- [x] Request deadlines; OpenAI-style errors; provider 401/429 marks the key's health
+- [x] Route/timing response headers and metadata-only per-request logs
+- [x] Bounded graceful shutdown (force-closes lingering streams after a grace period)
+- [x] Early measurement: ARC overhead p95 0.56 ms (see ADR 0006) — not yet a load test
+- [ ] Single LiteLLM worker saturates around 65 req/s locally: size workers in Phase 4
+- [ ] Fallback across keys/models, performance ranking, jurisdiction policy — Phase 3
+
 ## Approved decisions
 
 1. **Name:** ARC = **AI Runtime & Connectivity** (approved). Trademark/domain check still outstanding.
@@ -63,3 +80,4 @@ international, Chinese, local, speech/embeddings.
 ## Open decisions
 
 1. **LiteLLM version:** pin a specific release/digest before production (currently `main-stable`).
+   ARC's passthrough is verified against **1.110.0**; pin that version (or re-verify a newer one).
