@@ -14,8 +14,15 @@ const FAILING_S = 30;
 export class Cooldowns {
   private readonly until = new Map<string, { at: number; reason: CooldownReason }>();
   private readonly consecutiveFailures = new Map<string, number>();
+  /** Called when this instance starts a cooldown (e.g. to broadcast it to other instances). */
+  onCooldown: ((accountId: string, reason: CooldownReason, seconds: number) => void) | null = null;
 
   constructor(private readonly now: () => number = Date.now) {}
+
+  /** Apply a cooldown learned from another instance (does not re-broadcast). */
+  apply(accountId: string, reason: CooldownReason, seconds: number): void {
+    this.set(accountId, Math.min(Math.max(seconds, 1), AUTH_FAILED_S), reason, false);
+  }
 
   get(accountId: string): CooldownReason | null {
     const entry = this.until.get(accountId);
@@ -58,8 +65,9 @@ export class Cooldowns {
     this.consecutiveFailures.clear();
   }
 
-  private set(accountId: string, seconds: number, reason: CooldownReason): void {
+  private set(accountId: string, seconds: number, reason: CooldownReason, broadcast = true): void {
     this.until.set(accountId, { at: this.now() + seconds * 1000, reason });
+    if (broadcast) this.onCooldown?.(accountId, reason, seconds);
     if (this.until.size > 50_000) {
       const oldest = this.until.keys().next();
       if (!oldest.done) this.until.delete(oldest.value);

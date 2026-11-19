@@ -4,11 +4,11 @@ One intelligence layer for every application. ARC gives Echo, Aira, Data Science
 future apps a single OpenAI-compatible API, while it manages providers, multiple keys per
 provider, routing, fallback, security and monitoring behind it.
 
-> Status: **Phase 3 — intelligent routing.** OpenAI-compatible `/v1` API with ARC keys, bounded
-> fallback across keys and models, jurisdiction and paid-use policies, performance ranking
-> computed by a background worker, and route explanations. See [docs/plan.md](docs/plan.md),
-> [docs/inference-api.md](docs/inference-api.md), [docs/admin-api.md](docs/admin-api.md) and
-> [docs/operations.md](docs/operations.md).
+> Status: **Phase 4 — operations.** OpenAI-compatible `/v1` API with intelligent routing, plus
+> Prometheus metrics and alerts, Redis coordination for multiple instances, a load-test gate,
+> encrypted backups with a restore drill, and controlled deploys with rollback. See
+> [docs/plan.md](docs/plan.md), [docs/operations.md](docs/operations.md),
+> [docs/inference-api.md](docs/inference-api.md) and [docs/admin-api.md](docs/admin-api.md).
 
 ## Layout
 
@@ -16,7 +16,9 @@ provider, routing, fallback, security and monitoring behind it.
 apps/api         Fastify + Zod API: control plane, /v1 inference, and the worker entrypoint
                  (src/worker: route scoring, key health checks — kept off the request path)
 packages/shared  Config validation and log redaction shared by services
-infra/           LiteLLM config, Postgres init
+apps/api/bench   Load test and regression gate
+infra/           LiteLLM, Prometheus (alerts), Postgres init
+scripts/ops/     Backup, restore, restore drill, controlled deploy
 docs/            Plan, ADRs, threat model, provider list
 ```
 

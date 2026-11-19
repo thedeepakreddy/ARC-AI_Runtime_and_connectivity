@@ -38,7 +38,16 @@ services:
     <<: *restart
     # Pin to a tested version/digest before any production deployment.
     image: ghcr.io/berriai/litellm:main-stable
-    command: ['--config', '/app/config.yaml', '--port', '4000']
+    # Worker count sized by load testing (see docs/adr/0008-operations.md).
+    command:
+      [
+        '--config',
+        '/app/config.yaml',
+        '--port',
+        '4000',
+        '--num_workers',
+        '${LITELLM_NUM_WORKERS:-4}',
+      ]
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?set in .env}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/litellm
@@ -59,6 +68,8 @@ services:
 
   api:
     <<: *restart
+    # Tagged per commit by scripts/ops/deploy.sh; "local" for ad-hoc builds.
+    image: arc-api:${ARC_VERSION:-local}
     build: { context: ., target: api }
     environment:
       NODE_ENV: production
@@ -72,6 +83,8 @@ services:
       ARC_VAULT_KEY_FILE: /run/secrets/arc/vault-keys.json
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+      # Metrics on 9464, reachable only on the private backend network (not published).
+      METRICS_PORT: 9464
     volumes:
       - ./secrets:/run/secrets/arc:ro
     depends_on:
@@ -83,6 +96,7 @@ services:
 
   worker:
     <<: *restart
+    image: arc-worker:${ARC_VERSION:-local}
     build: { context: ., target: worker }
     environment:
       NODE_ENV: production
@@ -96,6 +110,19 @@ services:
     # egress: the worker probes provider keys for health and model discovery.
     networks: [backend, egress]
 
+  # Optional monitoring: docker compose --profile monitoring up -d
+  prometheus:
+    <<: *restart
+    profiles: [monitoring]
+    image: prom/prometheus:v2.55.1
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.retention.time=15d']
+    volumes:
+      - ./infra/prometheus:/etc/prometheus:ro
+      - promdata:/prometheus
+    networks: [backend]
+    # UI on the host loopback only.
+    ports: ['127.0.0.1:9090:9090']
+
 networks:
   # Internal network: Postgres, Redis and LiteLLM are not reachable from outside.
   backend: { internal: true }
@@ -105,5 +132,6 @@ networks:
   egress: {}
 
 volumes:
+  promdata:
   pgdata:
   redisdata:

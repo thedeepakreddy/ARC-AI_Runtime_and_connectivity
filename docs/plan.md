@@ -85,6 +85,22 @@ international, Chinese, local, speech/embeddings.
 - [ ] Redis-backed cooldowns/rate limits for multiple API instances — Phase 4
 - [ ] Load tests and regression gates — Phase 4
 
+## Phase 4 status
+
+- [x] Prometheus metrics: ARC overhead separate from provider TTFT, end-to-end first chunk, total;
+      by provider, model, key, app, mode, outcome; internal-only metrics ports
+- [x] Background dependency monitor, worker heartbeat, worker job metrics
+- [x] Alert rules (+ promtool unit tests in CI); Prometheus under the `monitoring` profile
+- [x] Redis coordination: instant cross-instance revocation, routing invalidation and cooldowns;
+      shared per-key rate limit with local fallback (tested with two instances)
+- [x] Load-test harness (cold, Echo streaming, DSS long, degraded) and CI regression gate
+- [x] LiteLLM worker sizing measured; default 4 workers
+- [x] Encrypted backups, restore, and a restore drill (passes; fails correctly with a wrong key)
+- [x] Controlled deploy with approval, pre-deploy backup, health check and automatic rollback
+- [ ] Alertmanager destination (email/Slack/PagerDuty) — owner to choose
+- [ ] Run the drill and load test on the real Oracle VPS; confirm RTO/RPO there
+- [ ] Off-site backup target (e.g. OCI Object Storage via rclone) — owner to choose
+
 ## Approved decisions
 
 1. **Name:** ARC = **AI Runtime & Connectivity** (approved). Trademark/domain check still outstanding.

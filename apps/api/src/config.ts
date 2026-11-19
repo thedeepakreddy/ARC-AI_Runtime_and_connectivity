@@ -37,6 +37,11 @@ export const apiEnvSchema = baseEnvSchema.extend({
   /** Provider attempts per request (first try + fallbacks), bounded by the deadline. */
   MAX_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(3),
   MIN_ATTEMPT_MS: z.coerce.number().int().min(50).max(60_000).default(250),
+  /** Prometheus metrics on a separate, internal-only port (0 disables). */
+  METRICS_HOST: z.string().default('0.0.0.0'),
+  METRICS_PORT: z.coerce.number().int().min(0).max(65535).default(9464),
+  /** "redis" shares revocations, cooldowns and routing changes across API instances. */
+  COORDINATION: z.enum(['redis', 'local']).default('redis'),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100_000).default(600),
 });
 

@@ -15,6 +15,8 @@ export interface MockProvider {
   chunkDelayMs: number;
   /** Set when a client disconnected mid-stream. */
   streamAborted: boolean;
+  /** Probability (0..1) that a request fails with 503 (to simulate a degraded provider). */
+  failRate: number;
   /** Delay before any response (to test deadlines). */
   responseDelayMs: number;
   /** Last JSON body received. */
@@ -30,6 +32,7 @@ export async function startMockProvider(): Promise<MockProvider> {
     chunkDelayMs: 5,
     streamAborted: false,
     responseDelayMs: 0,
+    failRate: 0,
     lastBody: null,
   };
 
@@ -40,6 +43,10 @@ export async function startMockProvider(): Promise<MockProvider> {
       state.seenAuth.push(String(req.headers.authorization ?? ''));
       if (state.responseDelayMs) await new Promise((r) => setTimeout(r, state.responseDelayMs));
       const path = (req.url ?? '').replace(/^\/v1/, '');
+      if (!state.failWith && state.failRate > 0 && Math.random() < state.failRate) {
+        res.writeHead(503, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ error: { message: 'mock random failure', type: 'mock' } }));
+      }
       if (state.failWith) {
         res.writeHead(state.failWith, { 'content-type': 'application/json' });
         return res.end(JSON.stringify({ error: { message: 'mock failure', type: 'mock' } }));

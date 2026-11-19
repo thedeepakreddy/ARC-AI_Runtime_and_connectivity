@@ -1,7 +1,8 @@
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { AttemptLimiter } from '../auth/throttle.js';
+import type { RateLimiter } from '../coordination/rate-limit.js';
+import { LocalRateLimiter } from '../coordination/rate-limit.js';
 import type { Db } from '../db/pool.js';
 import { ArcError, parseInput } from '../errors.js';
 import {
@@ -27,6 +28,7 @@ import {
   requiredChatCapabilities,
 } from '../inference/schemas.js';
 import type { ApiKeyPrincipal, ApiKeyVerifier, Scope } from '../keys/verifier.js';
+import type { ArcMetrics } from '../observability/metrics.js';
 import type { CredentialService } from '../vault/credentials.js';
 
 export interface InferenceDeps {
@@ -42,10 +44,13 @@ export interface InferenceDeps {
   maxDeadlineMs: number;
   bodyLimitBytes: number;
   requestsPerMinute: number;
+  /** Shared (Redis) or per-instance rate limiter. Defaults to per-instance. */
+  rateLimiter?: RateLimiter;
   /** Max provider attempts per request (first try + fallbacks). */
   maxAttempts: number;
   /** Don't start a fallback attempt with less time than this left. */
   minAttemptMs: number;
+  metrics?: ArcMetrics;
 }
 
 declare module 'fastify' {
@@ -121,7 +126,8 @@ function explainHeader(
 
 export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps): Promise<void> {
   const { candidates, credentials, gateway, db, cooldowns, observations } = deps;
-  const limiter = new AttemptLimiter(deps.requestsPerMinute, 60_000);
+  const m = deps.metrics;
+  const limiter = deps.rateLimiter ?? new LocalRateLimiter(deps.requestsPerMinute);
 
   app.addHook('onRequest', async (req) => {
     req.arcStartedAt = performance.now();
@@ -130,7 +136,7 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
       throw new ArcError(401, 'missing_api_key', 'Provide an ARC API key as a Bearer token');
     const principal = await deps.verifier.verify(token);
     if (!principal) throw new ArcError(401, 'invalid_api_key', 'Invalid ARC API key');
-    if (!limiter.hit(principal.apiKeyId)) {
+    if (!(await limiter.hit(principal.apiKeyId))) {
       throw new ArcError(429, 'arc_rate_limited', 'Request rate limit for this key exceeded');
     }
     req.principal = principal;
@@ -277,6 +283,7 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
           'x-arc-route-explain',
           explainHeader(ranking.verdicts, 'rejected' in ranking ? ranking.rejected : {}, []),
         );
+      m?.routingFailures.inc({ reason: ranking.reason, app: principal.applicationSlug });
       throw selectionError(ranking, requestedModel);
     }
 
@@ -287,7 +294,15 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
     });
 
     const overheadMs = round(elapsed(req));
+    const mode =
+      isAlias(requestedModel) && requestedModel !== 'auto' ? requestedModel.slice(4) : 'fast';
+    m?.overheadMs.observe({ endpoint, mode, app: principal.applicationSlug }, overheadMs);
     const attempts: Attempt[] = [];
+    const labelsFor = (c: Candidate) => ({
+      provider: c.providerId,
+      model: publicModelName(c),
+      account: c.accountId,
+    });
     let lastError: ArcError | null = null;
     const logBase = {
       event: 'inference',
@@ -324,6 +339,7 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
         }
         if (attemptTimeout.aborted) {
           observations.record(c.accountId, c.modelUuid, 'timeout');
+          m?.attempts.inc({ ...labelsFor(c), result: 'timeout' });
           cooldowns.failed(c.accountId);
           attempts.push({ candidate: c, failure: 'timeout' });
           lastError = new ArcError(504, 'deadline_exceeded', `No response within ${deadlineMs}ms`);
@@ -333,10 +349,19 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
         throw new ArcError(502, 'gateway_unavailable', 'The inference gateway is unavailable');
       }
       const ttfbMs = round(elapsed(req));
+      m?.providerTtfbMs.observe({ ...labelsFor(c), stream: String(stream) }, ttfbMs - attemptStart);
 
       if (!upstream.ok) {
         const { error, kind } = await upstreamFailure(upstream, apiKey, c);
+        m?.attempts.inc({ ...labelsFor(c), result: kind });
         if (kind === 'client_error') {
+          m?.requests.inc({
+            endpoint,
+            ...labelsFor(c),
+            app: principal.applicationSlug,
+            mode,
+            outcome: 'provider_rejected',
+          });
           req.log.info(
             { ...logBase, outcome: 'provider_rejected', upstreamStatus: upstream.status },
             'inference',
@@ -352,14 +377,37 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
       // Success: commit to this route.
       cooldowns.succeeded(c.accountId);
       observations.record(c.accountId, c.modelUuid, 'success', ttfbMs - attemptStart);
+      m?.attempts.inc({ ...labelsFor(c), result: 'success' });
+      for (const a of attempts) m?.fallbacks.inc({ reason: a.failure });
+      if (attempts.length) m?.fallbackMs.observe(attemptStart - overheadMs);
+      const finish = (outcome: string) => {
+        const total = round(elapsed(req));
+        m?.requests.inc({
+          endpoint,
+          ...labelsFor(c),
+          app: principal.applicationSlug,
+          mode,
+          outcome,
+        });
+        m?.totalMs.observe(
+          {
+            endpoint,
+            provider: c.providerId,
+            model: publicModelName(c),
+            app: principal.applicationSlug,
+            outcome,
+          },
+          total,
+        );
+        return total;
+      };
       reply.headers({
         'x-arc-route-provider': c.providerId,
         'x-arc-route-model': publicModelName(c),
         'x-arc-route-account': c.accountId,
         'x-arc-route-alternatives': String(ranking.plan.length - 1),
         'x-arc-route-attempts': String(attempts.length + 1),
-        'x-arc-mode':
-          isAlias(requestedModel) && requestedModel !== 'auto' ? requestedModel.slice(4) : 'fast',
+        'x-arc-mode': mode,
         'x-arc-overhead-ms': String(overheadMs),
         ...(attempts.length
           ? {
@@ -397,17 +445,19 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
         );
         const out = Readable.fromWeb(timed as NodeReadableStream);
         out.on('close', () => {
-          req.log.info(
-            {
-              ...routeLog,
-              outcome: clientAbort.signal.aborted
-                ? 'client_cancelled'
-                : attemptTimeout.aborted
-                  ? 'deadline_exceeded'
-                  : 'ok',
+          const outcome = clientAbort.signal.aborted
+            ? 'client_cancelled'
+            : attemptTimeout.aborted
+              ? 'deadline_exceeded'
+              : 'ok';
+          if (firstChunkMs !== undefined) {
+            m?.firstChunkMs.observe(
+              { provider: c.providerId, model: publicModelName(c), app: principal.applicationSlug },
               firstChunkMs,
-              totalMs: round(elapsed(req)),
-            },
+            );
+          }
+          req.log.info(
+            { ...routeLog, outcome, firstChunkMs, totalMs: finish(outcome) },
             'inference',
           );
         });
@@ -429,10 +479,7 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
       } catch {
         /* forward as-is */
       }
-      req.log.info(
-        { ...routeLog, outcome: 'ok', totalMs: round(elapsed(req)), usage },
-        'inference',
-      );
+      req.log.info({ ...routeLog, outcome: 'ok', totalMs: finish('ok'), usage }, 'inference');
       return reply.code(200).header('content-type', 'application/json').send(text);
     }
 
@@ -444,6 +491,16 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
       },
       'inference',
     );
+    for (const a of attempts) m?.fallbacks.inc({ reason: a.failure });
+    m?.requests.inc({
+      endpoint,
+      provider: 'none',
+      model: requestedModel.slice(0, 100),
+      account: 'none',
+      app: principal.applicationSlug,
+      mode,
+      outcome: 'all_attempts_failed',
+    });
     if (attempts.length) reply.header('x-arc-fallback', attempts.map((a) => a.failure).join(','));
     if (explain)
       reply.header(

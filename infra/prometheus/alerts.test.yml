@@ -1,0 +1,43 @@
+# Unit tests for alerts.yml: promtool test rules infra/prometheus/alerts.test.yml
+rule_files:
+  - alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'arc_dependency_up{name="postgres"}'
+        values: '0x5'
+      - series: 'arc_dependency_up{name="redis"}'
+        values: '1x5'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: ArcDependencyDown
+        exp_alerts:
+          - exp_labels: { severity: critical, name: postgres }
+            exp_annotations: { summary: 'ARC dependency postgres is failing readiness checks' }
+
+  - interval: 1m
+    input_series:
+      - series: 'arc_worker_heartbeat_age_seconds'
+        values: '300x10'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: ArcWorkerStalled
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              { summary: 'No worker heartbeat — route scoring and key health checks have stopped' }
+
+  - interval: 1m
+    input_series:
+      - series: 'arc_provider_attempts_total{provider="groq",model="groq/x",account="k1",result="auth_failed"}'
+        values: '0 1 2'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ArcProviderKeyRejected
+        exp_alerts:
+          - exp_labels:
+              { severity: warning, provider: groq, model: groq/x, account: k1, result: auth_failed }
+            exp_annotations: { summary: 'Provider groq rejected key k1 — replace or disable it' }
