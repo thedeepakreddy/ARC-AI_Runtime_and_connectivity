@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateArcKey, hashSecret, parseArcKey, secretMatches } from '../src/keys/arc-keys.js';
+import { tamperLastChar } from './helpers/tamper.js';
 
 describe('ARC API keys', () => {
   it('uses the ARC_DEE_<id>_PAK_<secret> format with a 256-bit secret', () => {
@@ -19,7 +20,7 @@ describe('ARC API keys', () => {
     expect(k.secretHash.equals(hashSecret(secret))).toBe(true);
     expect(k.secretHash.toString('hex')).not.toContain(secret);
     expect(secretMatches(secret, k.secretHash)).toBe(true);
-    expect(secretMatches(`${secret.slice(0, -1)}x`, k.secretHash)).toBe(false);
+    expect(secretMatches(tamperLastChar(secret), k.secretHash)).toBe(false);
   });
 
   it('display prefix reveals only the id and last 4 secret characters', () => {
