@@ -6,6 +6,8 @@ import { createOwner } from '../src/auth/owner.js';
 import { hashPassword } from '../src/auth/password.js';
 import type { Db } from '../src/db/pool.js';
 import { CandidateStore } from '../src/inference/candidates.js';
+import { Cooldowns } from '../src/inference/cooldowns.js';
+import { ObservationRecorder } from '../src/inference/observations.js';
 import {
   type DispatchInput,
   type InferenceGateway,
@@ -62,6 +64,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
     const accountIds: string[] = [];
     let chatModelUuid: string;
     const candidates = { store: undefined as unknown as CandidateStore };
+    let cooldowns: Cooldowns;
 
     const admin =
       (cookie: string) =>
@@ -104,6 +107,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       const credentials = new CredentialService(parseKeyRing(generateKeyFile()));
       const verifier = new ApiKeyVerifier(db);
       candidates.store = new CandidateStore(db);
+      cooldowns = new Cooldowns();
       const gateway = LITELLM_TEST_URL
         ? new LiteLLMGateway(LITELLM_TEST_URL, LITELLM_TEST_MASTER_KEY)
         : new DirectGateway();
@@ -126,11 +130,15 @@ describe.skipIf(!TEST_DATABASE_URL)(
           credentials,
           verifier,
           candidates: candidates.store,
+          cooldowns,
+          observations: new ObservationRecorder(db),
           gateway,
           defaultDeadlineMs: 10_000,
           maxDeadlineMs: 20_000,
           bodyLimitBytes: 1024 * 1024,
           requestsPerMinute: 1000,
+          maxAttempts: 3,
+          minAttemptMs: 100,
         },
       });
       await app.listen({ host: '127.0.0.1', port: 0 });
@@ -216,6 +224,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
     });
 
     beforeEach(() => {
+      cooldowns.clear();
       mock.failWith = null;
       mock.responseDelayMs = 0;
       mock.chunks = 3;
@@ -427,29 +436,27 @@ describe.skipIf(!TEST_DATABASE_URL)(
         expect(res.statusCode).toBe(429);
         expect(res.json().error.code).toBe('provider_rate_limited');
         expect(res.body).not.toContain('local-provider-key');
-        // Reset health for later tests.
+        // Both keys were tried (fallback), each was rate limited.
+        expect(res.headers['x-arc-fallback']).toBe('rate_limited,rate_limited');
         await db.query("UPDATE provider_accounts SET health_status = 'healthy'");
         candidates.store.invalidate();
       });
 
-      it('maps provider auth failures to 502 and marks that key invalid', async () => {
+      it('maps provider auth failures to 502 and marks the failing keys invalid', async () => {
         mock.failWith = 401;
         const res = await chat();
         expect(res.statusCode).toBe(502);
         expect(res.json().error.code).toBe('provider_auth_failed');
-        const failed = res.headers['x-arc-route-account'] as string;
+        expect(res.headers['x-arc-fallback']).toBe('auth_failed,auth_failed');
         await new Promise((r) => setTimeout(r, 100));
         const { rows } = await db.query(
-          'SELECT health_status FROM provider_accounts WHERE id = $1',
-          [failed],
+          'SELECT health_status FROM provider_accounts WHERE id = ANY($1)',
+          [accountIds],
         );
-        expect(rows[0].health_status).toBe('invalid_credentials');
-
-        // The next request routes to the other key for the same provider.
-        mock.failWith = null;
-        const next = await chat();
-        expect(next.statusCode).toBe(200);
-        expect(next.headers['x-arc-route-account']).not.toBe(failed);
+        expect(rows.map((r) => r.health_status)).toEqual([
+          'invalid_credentials',
+          'invalid_credentials',
+        ]);
         await db.query("UPDATE provider_accounts SET health_status = 'healthy'");
         candidates.store.invalidate();
       });

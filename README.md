@@ -4,16 +4,17 @@ One intelligence layer for every application. ARC gives Echo, Aira, Data Science
 future apps a single OpenAI-compatible API, while it manages providers, multiple keys per
 provider, routing, fallback, security and monitoring behind it.
 
-> Status: **Phase 2 — fast-path inference.** OpenAI-compatible `/v1` API (chat with streaming,
-> embeddings, models) with ARC keys, on top of the Phase 1 control plane. See
-> [docs/plan.md](docs/plan.md), [docs/inference-api.md](docs/inference-api.md),
-> [docs/admin-api.md](docs/admin-api.md) and [docs/operations.md](docs/operations.md).
+> Status: **Phase 3 — intelligent routing.** OpenAI-compatible `/v1` API with ARC keys, bounded
+> fallback across keys and models, jurisdiction and paid-use policies, performance ranking
+> computed by a background worker, and route explanations. See [docs/plan.md](docs/plan.md),
+> [docs/inference-api.md](docs/inference-api.md), [docs/admin-api.md](docs/admin-api.md) and
+> [docs/operations.md](docs/operations.md).
 
 ## Layout
 
 ```
-apps/api         Fastify + Zod API / control plane (admin API, vault; inference in Phase 2)
-apps/worker      Background jobs kept off the inference path (discovery, health, quota, ranking)
+apps/api         Fastify + Zod API: control plane, /v1 inference, and the worker entrypoint
+                 (src/worker: route scoring, key health checks — kept off the request path)
 packages/shared  Config validation and log redaction shared by services
 infra/           LiteLLM config, Postgres init
 docs/            Plan, ADRs, threat model, provider list

@@ -6,6 +6,8 @@ import { migrate } from './db/migrate.js';
 import { createPool } from './db/pool.js';
 import { createDependencies } from './dependencies.js';
 import { CandidateStore } from './inference/candidates.js';
+import { Cooldowns } from './inference/cooldowns.js';
+import { ObservationRecorder } from './inference/observations.js';
 import { LiteLLMGateway } from './inference/gateway.js';
 import { ApiKeyVerifier } from './keys/verifier.js';
 import { HttpProviderProbe } from './providers/probe.js';
@@ -19,6 +21,9 @@ const keyRing = loadKeyRing(config.ARC_VAULT_KEY_FILE);
 const credentials = new CredentialService(keyRing);
 const verifier = new ApiKeyVerifier(db);
 const candidates = new CandidateStore(db);
+const cooldowns = new Cooldowns();
+const observations = new ObservationRecorder(db);
+observations.start();
 
 const app = buildApp({
   checks: deps.checks,
@@ -34,17 +39,22 @@ const app = buildApp({
     probeTimeoutMs: config.PROBE_TIMEOUT_MS,
     onRoutingChange: () => candidates.invalidate(),
     onApiKeyRevoked: (keyId) => verifier.invalidate(keyId),
+    routing: { candidates, cooldowns },
   },
   inference: {
     db,
     credentials,
     verifier,
     candidates,
+    cooldowns,
+    observations,
     gateway: new LiteLLMGateway(config.LITELLM_BASE_URL, config.LITELLM_MASTER_KEY),
     defaultDeadlineMs: config.DEFAULT_DEADLINE_MS,
     maxDeadlineMs: config.MAX_DEADLINE_MS,
     bodyLimitBytes: config.INFERENCE_BODY_LIMIT_MB * 1024 * 1024,
     requestsPerMinute: config.RATE_LIMIT_PER_MINUTE,
+    maxAttempts: config.MAX_ATTEMPTS,
+    minAttemptMs: config.MIN_ATTEMPT_MS,
   },
 });
 
@@ -64,6 +74,7 @@ async function shutdown(signal: string): Promise<void> {
   force.unref();
   try {
     await app.close();
+    await observations.stop();
     await deps.close();
     await db.end();
     process.exit(0);

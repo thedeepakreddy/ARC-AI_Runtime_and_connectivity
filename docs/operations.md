@@ -39,6 +39,16 @@ docker compose exec api node dist/cli/vault-rewrap.js
 Remove an old key version from the file only after `vault-rewrap` reports success and a fresh
 off-site backup of the new key file exists.
 
+## Worker
+
+The `worker` service (same image as the API, `node dist/worker/main.js`) computes route scores,
+re-validates provider keys in the background and prunes old telemetry. It needs `DATABASE_URL`,
+`ARC_VAULT_KEY_FILE` and outbound internet (the `egress` network). Tunables:
+`SCORE_INTERVAL_MS` (15 s), `REVALIDATE_INTERVAL_MS` (5 min), `REVALIDATE_STALE_MINUTES` (15),
+`PROBE_TIMEOUT_MS` (5 s). Running several workers is safe: jobs take Postgres advisory locks.
+
+API routing tunables: `MAX_ATTEMPTS` (3), `MIN_ATTEMPT_MS` (250).
+
 ## Migrations
 
 Applied automatically on API start (`MIGRATE_ON_START=true`), under a Postgres advisory lock.

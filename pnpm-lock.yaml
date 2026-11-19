@@ -50,6 +50,9 @@ importers:
       pg:
         specifier: ^8.23.1
         version: 8.23.1
+      pino:
+        specifier: ^10.4.0
+        version: 10.4.0
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -57,15 +60,6 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
-
-  apps/worker:
-    dependencies:
-      '@arc/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      zod:
-        specifier: ^4.6.7
-        version: 4.6.7
 
   packages/shared:
     dependencies:

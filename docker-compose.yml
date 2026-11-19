@@ -54,7 +54,8 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
-    networks: [backend]
+    # backend: reachable by ARC only. egress: outbound internet to model providers.
+    networks: [backend, egress]
 
   api:
     <<: *restart
@@ -86,15 +87,22 @@ services:
     environment:
       NODE_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-arc}
+      ARC_VAULT_KEY_FILE: /run/secrets/arc/vault-keys.json
+    volumes:
+      - ./secrets:/run/secrets/arc:ro
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
-    networks: [backend]
+    # egress: the worker probes provider keys for health and model discovery.
+    networks: [backend, egress]
 
 networks:
   # Internal network: Postgres, Redis and LiteLLM are not reachable from outside.
   backend: { internal: true }
+  # Public entry to the ARC API only.
   edge: {}
+  # Outbound internet for services that call model providers (LiteLLM, worker).
+  egress: {}
 
 volumes:
   pgdata:

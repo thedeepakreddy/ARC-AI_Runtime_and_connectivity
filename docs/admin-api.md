@@ -61,6 +61,20 @@ customer tenants are `tenant_byok`. Discovered models arrive as `UNKNOWN` and di
 Keys look like `ARC_DEE_<17-char id>_PAK_<43-char secret>` (256-bit secret, base62). Scopes:
 `inference`, `models:read` (default: both).
 
+## Routing
+
+| Method | Path                                  | Who   | Notes                                                                                             |
+| ------ | ------------------------------------- | ----- | ------------------------------------------------------------------------------------------------- |
+| GET    | `/routing/policy`                     | admin | Tenant-wide policy (defaults: all jurisdictions, no paid owner keys)                              |
+| PUT    | `/routing/policy`                     | owner | `{ allowedJurisdictions: [...] \| null, allowPaidOwnerKeys }`                                     |
+| GET    | `/applications/:appId/routing-policy` | admin | App override, or `inheritsTenantPolicy: true`                                                     |
+| PUT    | `/applications/:appId/routing-policy` | owner | Same body; overrides the tenant policy for that app                                               |
+| DELETE | `/applications/:appId/routing-policy` | owner | Back to the tenant policy                                                                         |
+| POST   | `/routing/explain`                    | admin | `{ model, applicationId?, capabilities? }` → per-candidate decisions and fallback order (dry run) |
+
+Jurisdictions: `US`, `EU`, `UK`, `CA`, `CN`, `SELF_HOSTED`. `allowPaidOwnerKeys: true` can only
+be set by the platform owner.
+
 ## Tenant
 
 | Method | Path            | Notes                                                      |
