@@ -73,7 +73,9 @@ DATABASE_URL=postgres://arc@127.0.0.1:5432/arc BACKUP_PASSPHRASE_FILE=/secure/ba
 BACKUP_DIR=/var/backups/arc BACKUP_RCLONE_REMOTE=oci:arc-backups scripts/ops/backup.sh
 ```
 
-- Use a `pg_dump` at least as new as the server (`pg_dump` refuses newer servers).
+- Use the same PostgreSQL major version for `pg_dump`, `pg_restore` and the servers you back up
+  and restore to: `pg_dump` refuses newer servers, and a newer `pg_dump` can write settings an
+  older server rejects on restore (e.g. `SET transaction_timeout`).
 - Back up `secrets/vault-keys.json` and the backup passphrase **separately** and off-site. A
   database backup alone cannot recover provider credentials.
 - Restore into a fresh database: `TARGET_DATABASE_URL=… BACKUP_PASSPHRASE_FILE=…

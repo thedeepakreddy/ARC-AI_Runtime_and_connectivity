@@ -109,8 +109,9 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        # Matches the runner's pg_dump (16): pg_dump refuses servers newer than itself.
-        image: postgres:16-alpine
+        # Same major as the runner's pg_dump (17+): a dump from a newer pg_dump can contain
+        # settings an older server rejects on restore (e.g. SET transaction_timeout).
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: arc
           POSTGRES_PASSWORD: arc
@@ -143,6 +144,8 @@ jobs:
           ADMIN_DATABASE_URL: postgres://arc:arc@localhost:5432/postgres
         run: |
           sudo apt-get install -y --no-install-recommends postgresql-client gnupg >/dev/null
+          pg_dump --version
+          psql "$DATABASE_URL" -tAc 'SHOW server_version'
           umask 077
           openssl rand -base64 32 > "$RUNNER_TEMP/backup-pass"
           node apps/api/dist/cli/vault-keygen.js > "$RUNNER_TEMP/vault.json"
