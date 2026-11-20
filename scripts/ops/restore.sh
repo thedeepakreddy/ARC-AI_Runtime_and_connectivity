@@ -15,7 +15,8 @@ mode="${2:-}"
 
 [[ -r "$backup" ]] || { echo "cannot read $backup" >&2; exit 1; }
 if [[ -f "$backup.sha256" ]]; then
-  (cd "$(dirname "$backup")" && sha256sum --check --quiet "$(basename "$backup").sha256")
+  # Short flags only: the ops image's BusyBox sha256sum has no --check/--quiet (GNU has both).
+  (cd "$(dirname "$backup")" && sha256sum -c "$(basename "$backup").sha256" >/dev/null)
 else
   echo "warning: no checksum file next to the backup; skipping integrity check" >&2
 fi
