@@ -55,7 +55,7 @@ export async function accountRoutes(app: FastifyInstance, deps: AdminDeps): Prom
          FROM provider_accounts a
          JOIN credentials c ON c.id = a.credential_id
          JOIN providers p ON p.id = a.provider_id
-        WHERE a.id = $1 AND a.tenant_id = $2`,
+        WHERE a.id = $1 AND a.tenant_id = $2 AND a.scope <> 'end_user'`,
       [id, tenantId],
     );
     const row = rows[0];
@@ -81,7 +81,8 @@ export async function accountRoutes(app: FastifyInstance, deps: AdminDeps): Prom
     const { rows } = await db.query(
       `SELECT ${ACCOUNT_COLUMNS}
          FROM provider_accounts a JOIN credentials c ON c.id = a.credential_id
-        WHERE a.tenant_id = $1 AND ($2::text IS NULL OR a.provider_id = $2)
+        WHERE a.tenant_id = $1 AND a.scope <> 'end_user'
+          AND ($2::text IS NULL OR a.provider_id = $2)
         ORDER BY a.provider_id, a.label`,
       [t.tenantId, q.provider ?? null],
     );

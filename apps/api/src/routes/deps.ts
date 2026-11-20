@@ -3,6 +3,7 @@ import type { CandidateStore } from '../inference/candidates.js';
 import type { Cooldowns } from '../inference/cooldowns.js';
 import type { ProviderProbe } from '../providers/probe.js';
 import type { ReadinessReport } from '../readiness.js';
+import type { ThrottleFactory } from '../coordination/throttle.js';
 import type { CredentialService } from '../vault/credentials.js';
 
 export interface AdminDeps {
@@ -11,6 +12,8 @@ export interface AdminDeps {
   probe: ProviderProbe;
   cookieSecure: boolean;
   sessionTtlMs: number;
+  /** Attempt limits (sign-in, sign-up); shared through Redis when configured. Default: local. */
+  throttle?: ThrottleFactory;
   /** Customer sign-up: invitation only (default) or open. */
   signupMode?: 'invite' | 'open';
   probeTimeoutMs: number;

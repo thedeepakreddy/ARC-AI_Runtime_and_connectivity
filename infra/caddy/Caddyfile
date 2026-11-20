@@ -1,0 +1,29 @@
+# HTTPS in front of ARC (docker compose --profile https). Caddy gets and renews the Let's Encrypt
+# certificate for ARC_DOMAIN by itself; ports 80 and 443 must reach the server.
+# ARC must trust the proxy for client addresses: set TRUST_PROXY=true in .env.
+{
+	email {$ACME_EMAIL}
+}
+
+{$ARC_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+
+	# The front door is the customer dashboard; the owner console stays at /console.
+	redir / /dashboard/ 302
+
+	reverse_proxy api:8080 {
+		# Stream model output as it arrives (server-sent events): never buffer.
+		flush_interval -1
+		# Long generations: ARC enforces its own deadlines (MAX_DEADLINE_MS).
+		transport http {
+			read_timeout 15m
+			write_timeout 15m
+		}
+	}
+}

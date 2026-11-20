@@ -4,7 +4,7 @@ import { HEALTH, JURISDICTIONS, ago } from '@arc/ui/format';
 import { useData } from '@arc/ui/hooks';
 import { AddKeySheet, KeyMenu, KeySheet, ToggleKey } from '@arc/ui/keys';
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useOrg } from '../org';
 
 export function KeysPage() {
@@ -136,7 +136,11 @@ function Keys() {
           provider={byId.get(open.providerId)}
           onClose={() => setParams({})}
           onDone={reload}
-          noModels="ARC hasn’t made any of this provider’s models available yet. Models found with your key become usable once ARC has classified them."
+          models={
+            <>
+              You choose them on the <Link to="/models">Models</Link> page.
+            </>
+          }
         />
       )}
       {adding && providers.data && (
@@ -145,7 +149,7 @@ function Keys() {
           onClose={() => setParams({})}
           onDone={reload}
           afterAdd={() =>
-            'Your apps can use this key straight away for models ARC has already classified.'
+            'Your apps can use it straight away for models ARC has classified. Choose others on the Models page.'
           }
         />
       )}

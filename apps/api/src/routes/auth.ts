@@ -4,7 +4,7 @@ import { recordAudit } from '../audit.js';
 import { currentUser, requireUser } from '../auth/context.js';
 import { PASSWORD_MAX_LENGTH, verifyAgainstDummy, verifyPassword } from '../auth/password.js';
 import { SESSION_COOKIE, createSession, revokeSession } from '../auth/sessions.js';
-import { AttemptLimiter } from '../auth/throttle.js';
+import { localThrottle } from '../coordination/throttle.js';
 import { ArcError, parseInput } from '../errors.js';
 import type { AdminDeps } from './deps.js';
 
@@ -26,14 +26,15 @@ export function setSessionCookie(reply: FastifyReply, token: string, deps: Admin
 
 export async function authRoutes(app: FastifyInstance, deps: AdminDeps): Promise<void> {
   const { db } = deps;
-  const perEmail = new AttemptLimiter(10, 15 * 60_000);
-  const perIp = new AttemptLimiter(50, 15 * 60_000);
+  const throttle = deps.throttle ?? localThrottle;
+  const perEmail = throttle('login-email', 10, 15 * 60_000);
+  const perIp = throttle('login-ip', 50, 15 * 60_000);
   const invalid = () => new ArcError(401, 'invalid_credentials', 'Email or password is incorrect');
 
   app.post('/auth/login', async (req, reply) => {
     const body = parseInput(loginSchema, req.body);
     const emailKey = body.email.toLowerCase();
-    if (!perIp.hit(req.ip) || !perEmail.hit(emailKey)) {
+    if (!(await perIp.hit(req.ip)) || !(await perEmail.hit(emailKey))) {
       throw new ArcError(429, 'too_many_attempts', 'Too many sign-in attempts. Try again later.');
     }
 
@@ -55,7 +56,7 @@ export async function authRoutes(app: FastifyInstance, deps: AdminDeps): Promise
       throw invalid();
     }
 
-    perEmail.reset(emailKey);
+    await perEmail.reset(emailKey);
     const token = await createSession(db, user.id, deps.sessionTtlMs, req.headers['user-agent']);
     await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
     await recordAudit(db, { tenantId: null, actorUserId: user.id, action: 'auth.login' });

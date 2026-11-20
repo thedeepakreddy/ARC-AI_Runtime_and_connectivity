@@ -4,6 +4,7 @@ import { Redis } from 'ioredis';
 import { buildApp } from './app.js';
 import { type CoordinationBus, LocalBus, RedisBus } from './coordination/bus.js';
 import { RedisRateLimiter } from './coordination/rate-limit.js';
+import { localThrottle, redisThrottle } from './coordination/throttle.js';
 import { ArcMetrics, startMetricsServer } from './observability/metrics.js';
 import { startHealthMonitor } from './observability/monitor.js';
 import { syncProviderCatalogue } from './catalogue/providers.js';
@@ -65,6 +66,7 @@ const app = buildApp({
     cookieSecure: cookieSecure(config),
     sessionTtlMs: config.SESSION_TTL_HOURS * 3_600_000,
     signupMode: config.SIGNUP_MODE,
+    throttle: config.COORDINATION === 'redis' ? redisThrottle(limiterRedis) : localThrottle,
     probeTimeoutMs: config.PROBE_TIMEOUT_MS,
     onRoutingChange: () => {
       candidates.invalidate();
@@ -97,6 +99,14 @@ const app = buildApp({
     metrics,
     rateLimiter,
     minAttemptMs: config.MIN_ATTEMPT_MS,
+    userKeys: {
+      probe: new HttpProviderProbe(),
+      probeTimeoutMs: config.PROBE_TIMEOUT_MS,
+      onChange: () => {
+        candidates.invalidate();
+        bus.publish({ type: 'routing_changed' });
+      },
+    },
   },
 });
 

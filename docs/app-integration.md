@@ -10,8 +10,10 @@ are separate. Apps never hold provider keys: ARC does.
 | Aira, Echo Mac, Echo web extension | —                               | Later, the same way                                                                              | Not started              |
 
 Both integrations are **opt-in**: with `ARC_BASE_URL` and `ARC_API_KEY` unset, the apps behave
-exactly as before (Gemini directly). Users' own Gemini keys (BYOK in the apps) keep going to
-Google directly — users bringing their own keys through ARC is part of Phase 6.
+exactly as before (Gemini directly). Users' own Gemini keys can now go through ARC too: the app
+stores them with `PUT /v1/user-keys/gemini` and sends `x-arc-user` on that user's requests (see
+[inference-api.md → Your users' own keys](inference-api.md#your-users-own-keys)). Switching Echo
+and the Studio over is a change in those repos.
 
 ## 1. Prepare ARC (once)
 

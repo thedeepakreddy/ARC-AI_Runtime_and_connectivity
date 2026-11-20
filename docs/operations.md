@@ -21,8 +21,15 @@ docker compose exec -e ARC_OWNER_EMAIL=you@example.com -e ARC_OWNER_PASSWORD api
   node dist/cli/create-owner.js
 ```
 
-Run ARC behind HTTPS (e.g. Caddy or Nginx). Session cookies are `Secure` by default; set
-`TRUST_PROXY=true` when a reverse proxy sets `X-Forwarded-For`.
+Run ARC behind HTTPS: the bundled Caddy does it (`docker compose --profile https up -d`, with
+`ARC_DOMAIN` and `ACME_EMAIL` in `.env`), getting and renewing a Let's Encrypt certificate. The API
+itself listens on loopback only (`ARC_HTTP_BIND`, default `127.0.0.1`). Session cookies are
+`Secure` by default; set `TRUST_PROXY=true` behind Caddy so sign-in throttling sees real client
+addresses. On Oracle Cloud, follow [deploy-oracle.md](deploy-oracle.md).
+
+Sign-in, sign-up and invitation-lookup limits are shared across API instances through Redis
+(`COORDINATION=redis`, the default), keyed by a hash of the email or address; if Redis is down
+each instance keeps limiting on its own.
 
 ## Vault key rotation
 

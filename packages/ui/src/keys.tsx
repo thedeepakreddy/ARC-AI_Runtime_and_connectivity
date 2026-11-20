@@ -372,6 +372,7 @@ export function KeySheet({
   onClose,
   onDone,
   noModels,
+  models: modelsNote,
 }: {
   account: ProviderAccount;
   provider: Provider | undefined;
@@ -379,10 +380,12 @@ export function KeySheet({
   onDone: () => void;
   /** What to say when ARC has no models turned on for this provider. */
   noModels?: ReactNode;
+  /** Replaces the "models in use" list (the dashboard links to its own Models page). */
+  models?: ReactNode;
 }) {
   const toast = useToast();
   const models = useData<{ data: Model[] }>(
-    `/models?provider=${encodeURIComponent(account.providerId)}`,
+    modelsNote === undefined ? `/models?provider=${encodeURIComponent(account.providerId)}` : null,
   );
   const { check, askDelete, dialog } = useKeyActions(account, () => {
     onDone();
@@ -515,7 +518,9 @@ export function KeySheet({
       </div>
 
       <div className="sub-head">Models in use from {provider?.displayName ?? 'this provider'}</div>
-      {!models.data ? (
+      {modelsNote !== undefined ? (
+        <p className="hint">{modelsNote}</p>
+      ) : !models.data ? (
         <div className="skeleton" />
       ) : enabledModels.length === 0 ? (
         <p className="hint">{noModels ?? 'None turned on yet.'}</p>

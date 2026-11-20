@@ -110,7 +110,7 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
       }>(
         `SELECT a.id, a.label, p.display_name AS provider, a.health_status, a.last_validation_error
              FROM provider_accounts a JOIN providers p ON p.id = a.provider_id
-            WHERE a.tenant_id = $1 AND a.enabled
+            WHERE a.tenant_id = $1 AND a.enabled AND a.scope <> 'end_user'
               AND a.health_status IN ('invalid_credentials', 'unreachable', 'rate_limited')
             ORDER BY a.health_status, p.display_name, a.label`,
         [tenantId],
@@ -266,7 +266,8 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
       `SELECT t.id, t.name, t.kind, t.created_at AS "createdAt", t.suspended_at AS "suspendedAt",
               (SELECT count(*)::int FROM memberships m WHERE m.tenant_id = t.id) AS members,
               (SELECT count(*)::int FROM applications a WHERE a.tenant_id = t.id) AS apps,
-              (SELECT count(*)::int FROM provider_accounts pa WHERE pa.tenant_id = t.id) AS "providerKeys",
+              (SELECT count(*)::int FROM provider_accounts pa
+                WHERE pa.tenant_id = t.id AND pa.scope <> 'end_user') AS "providerKeys",
               (SELECT coalesce(sum(r.requests), 0)::int FROM request_rollups r
                 WHERE r.tenant_id = t.id AND r.bucket > now() - interval '30 days') AS "requests30d"
          FROM tenants t WHERE t.kind <> 'platform' ORDER BY t.created_at DESC`,

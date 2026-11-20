@@ -47,8 +47,8 @@ international, Chinese, local, speech/embeddings.
 - [x] Applications registry (first-party apps in the platform tenant only), audit log
 - [x] Integration tests on real PostgreSQL incl. cross-tenant isolation; CI runs them
 - [x] Customer sign-up/login and invitations — Phase 6 increment 2; owner MFA and password reset — Phase 7
-- [ ] Login throttling in Redis — needed before running multiple API instances
-- [ ] Background re-validation of keys — moves to the worker in Phase 3
+- [x] Login throttling in Redis (shared across API instances; local fallback) — Phase 6
+- [x] Background re-validation of keys — done in the worker (Phase 3)
 
 ## Phase 2 status
 
@@ -64,8 +64,8 @@ international, Chinese, local, speech/embeddings.
 - [x] Route/timing response headers and metadata-only per-request logs
 - [x] Bounded graceful shutdown (force-closes lingering streams after a grace period)
 - [x] Early measurement: ARC overhead p95 0.56 ms (see ADR 0006) — not yet a load test
-- [ ] Single LiteLLM worker saturates around 65 req/s locally: size workers in Phase 4
-- [ ] Fallback across keys/models, performance ranking, jurisdiction policy — Phase 3
+- [x] Single LiteLLM worker saturates around 65 req/s locally: sized in Phase 4 (default 4)
+- [x] Fallback across keys/models, performance ranking, jurisdiction policy — done in Phase 3
 
 ## Phase 3 status
 
@@ -81,8 +81,8 @@ international, Chinese, local, speech/embeddings.
       advisory-locked jobs; proven not to block inference
 - [x] Route explanations: admin dry-run endpoint and `x-arc-explain` header
 - [x] Fixed Phase 0 compose bug: LiteLLM had no internet egress (internal-only network)
-- [ ] Redis-backed cooldowns/rate limits for multiple API instances — Phase 4
-- [ ] Load tests and regression gates — Phase 4
+- [x] Redis-backed cooldowns/rate limits for multiple API instances — done in Phase 4
+- [x] Load tests and regression gates — done in Phase 4
 
 ## Phase 4 status
 
@@ -161,15 +161,21 @@ Increment 2 — **Customer dashboard + sign-up/login + teams**: done. See
       (9, real Postgres); axe-core clean on every dashboard screen; stack smoke checks `/dashboard`
 - [ ] Email verification, password reset and MFA for customers (needs transactional email); Google
       sign-in — later increment
-- [ ] Decide: may customers enable models found by their own keys? Today the owner's global
-      classification gates every tenant (see design/dashboard.md, "Open")
+- [x] Decided: customers choose the models their own keys use (Models page; `tenant_models`),
+      including ones ARC hasn't classified, on their own keys only
 
-Increment 3 — **Users' own keys through ARC**:
+Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
 
 - [x] Customer BYOK in the dashboard (their traffic uses only their keys; routing already filters
-      by tenant)
-- [ ] Apps' end-user keys (Echo's and the studio's "your own Gemini key") through ARC — design to
-      approve first
+      by tenant), and the customer's own model choices for those keys
+- [x] Apps' end-user keys through ARC: `PUT /v1/user-keys/:provider` + `x-arc-user`; stored in
+      ARC's vault per app and hashed user id; that user's requests use only their keys
+- [x] HTTPS with Caddy (`--profile https`), API on loopback by default; Arm (`linux/arm64`) images
+      built in CI and every third-party image checked for an Arm build; Oracle deploy guide
+      ([deploy-oracle.md](deploy-oracle.md))
+- [ ] Switch Echo and the Studio to `/v1/user-keys` for their users' own Gemini keys (in those
+      repos)
+- [ ] Deploy on the Oracle VM following deploy-oracle.md (owner; needs the account and domain)
 
 ## Phase 6 scope: dashboards and users' own keys
 
@@ -210,6 +216,10 @@ Frontend, with **each screen layout approved before coding**:
    invitations are links you send yourself until ARC has transactional email.
 9. **Design system:** one package (`@arc/ui`) and one [DESIGN.md](../DESIGN.md) for the console
    and the dashboard.
+10. **Customers' models:** customers decide which models their own keys use, including ones ARC
+    hasn't classified (their key, their bill); the owner's classification governs owner keys.
+11. **End users' own keys:** the app vouches for the user with `x-arc-user` on its own ARC key;
+    ARC stores the user's key in its vault, scoped to the app and a hash of the user id.
 
 ## Open decisions
 
