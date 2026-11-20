@@ -25,7 +25,8 @@ Run ARC behind HTTPS: the bundled Caddy does it (`docker compose --profile https
 `ARC_DOMAIN` and `ACME_EMAIL` in `.env`), getting and renewing a Let's Encrypt certificate. The API
 itself listens on loopback only (`ARC_HTTP_BIND`, default `127.0.0.1`). Session cookies are
 `Secure` by default; set `TRUST_PROXY=true` behind Caddy so sign-in throttling sees real client
-addresses. On Google Cloud, follow [deploy-gcp.md](deploy-gcp.md).
+addresses. To go live for free, follow [deploy-oracle.md](deploy-oracle.md) (Oracle Always Free);
+Google Cloud: [deploy-gcp.md](deploy-gcp.md).
 
 Sign-in, sign-up and invitation-lookup limits are shared across API instances through Redis
 (`COORDINATION=redis`, the default), keyed by a hash of the email or address; if Redis is down

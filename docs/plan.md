@@ -173,10 +173,10 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       ARC's vault per app and hashed user id; that user's requests use only their keys
 - [x] HTTPS with Caddy (`--profile https`), API on loopback by default; Arm (`linux/arm64`) images
       built in CI and every third-party image checked for an Arm build; deploy guide
-      ([deploy-gcp.md](deploy-gcp.md))
+      ([deploy-oracle.md](deploy-oracle.md); paid alternative [deploy-gcp.md](deploy-gcp.md))
 - [ ] Switch Echo and the Studio to `/v1/user-keys` for their users' own Gemini keys (in those
       repos)
-- [ ] Deploy on a Google Cloud VM following deploy-gcp.md (owner; needs the project and domain)
+- [ ] Deploy on the Oracle Always Free VM following deploy-oracle.md (owner; needs the account and domain)
 
 ## Phase 6 scope: dashboards and users' own keys
 
@@ -212,9 +212,10 @@ Frontend, with **each screen layout approved before coding**:
 
 5. **Alerts:** by email (approved).
 6. **LiteLLM version:** 1.110.0, pinned by digest (done).
-7. **Hosting:** Google Cloud Compute Engine, one VM (e2-medium recommended, e2-small minimum;
-   the free e2-micro's 1 GB can't hold the stack); see [costs.md](costs.md) and
-   [deploy-gcp.md](deploy-gcp.md). Changed from Oracle Cloud by the owner.
+7. **Hosting:** Oracle Cloud Always Free, one Arm VM ($0, 24/7; see
+   [deploy-oracle.md](deploy-oracle.md)). Google Cloud was considered: its free e2-micro (1 GB)
+   can't hold the stack (~0.9–2.3 GB measured), so it stays the paid alternative
+   ([deploy-gcp.md](deploy-gcp.md)).
 8. **Customer sign-up:** invitation-only by default, `SIGNUP_MODE=open` to allow anyone;
    invitations are links you send yourself until ARC has transactional email.
 9. **Design system:** one package (`@arc/ui`) and one [DESIGN.md](../DESIGN.md) for the console
