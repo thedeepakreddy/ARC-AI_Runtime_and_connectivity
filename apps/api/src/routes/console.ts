@@ -24,6 +24,8 @@ const RANGES = {
 const rangeQuery = z.object({ range: z.enum(['24h', '7d', '30d']).default('24h') });
 const trafficQuery = rangeQuery.extend({
   by: z.enum(['app', 'provider', 'model', 'key']).default('app'),
+  /** Only this app's traffic. */
+  app: z.uuid().optional(),
 });
 const idParam = z.object({ id: z.uuid() });
 const passwordBody = z.object({
@@ -222,6 +224,11 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
       services,
       allUp: services.every((s) => s.status === 'up'),
       needsYou,
+      counts: {
+        modelsToClassify: toClassify.rows.reduce((s, r) => s + r.n, 0),
+        failingKeys: keys.rows.filter((k) => k.health_status !== 'rate_limited').length,
+        alerts: alerts.length,
+      },
       totals: {
         requests: t.requests,
         errorRate: pct(t.errors, t.requests),
@@ -249,7 +256,7 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
 
   app.get('/console/traffic', async (req) => {
     requireSuperadmin(req);
-    const { range, by } = parseInput(trafficQuery, req.query);
+    const { range, by, app: appId } = parseInput(trafficQuery, req.query);
     const { hours, step } = RANGES[range];
     const group = {
       app: {
@@ -289,8 +296,9 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
                 sum(r.duration_ms_sum) / nullif(sum(r.requests), 0) AS duration
            FROM request_rollups r ${group.join}
           WHERE r.bucket > now() - make_interval(hours => $1)
+            AND ($2::uuid IS NULL OR r.application_id = $2)
           GROUP BY 1, 2 ORDER BY requests DESC LIMIT 100`,
-        [hours],
+        [hours, appId ?? null],
       ),
       db.query<{
         t: Date;
@@ -305,8 +313,9 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
            FROM generate_series(date_trunc($2, now()) - make_interval(hours => $1) + ('1 ' || $2)::interval,
                                 date_trunc($2, now()), ('1 ' || $2)::interval) AS g(t)
            LEFT JOIN request_rollups r ON date_trunc($2, r.bucket) = g.t
+                AND ($3::uuid IS NULL OR r.application_id = $3)
           GROUP BY g.t ORDER BY g.t`,
-        [hours, step],
+        [hours, step, appId ?? null],
       ),
     ]);
     const n = (v: number | null) => (v === null ? null : Math.round(Number(v) * 100) / 100);

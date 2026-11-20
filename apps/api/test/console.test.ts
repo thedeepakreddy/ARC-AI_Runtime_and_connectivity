@@ -209,6 +209,13 @@ describe.skipIf(!TEST_DATABASE_URL)('console API (PostgreSQL)', () => {
       durationMsAvg: 400,
     });
     expect((await owner('GET', '/console/traffic?by=nope')).statusCode).toBe(400);
+    const forEcho = (await owner('GET', `/console/traffic?by=model&app=${echoAppId}`)).json();
+    expect(forEcho.rows.reduce((t: number, r: { requests: number }) => t + r.requests, 0)).toBe(3);
+    const forNobody = (
+      await owner('GET', '/console/traffic?by=model&app=00000000-0000-4000-8000-000000000000')
+    ).json();
+    expect(forNobody.rows).toEqual([]);
+    expect(forNobody.series.every((p: { requests: number }) => p.requests === 0)).toBe(true);
   });
 
   it('models keep a terms note', async () => {

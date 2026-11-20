@@ -10,6 +10,7 @@ FROM base AS build
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
+COPY apps/console/package.json apps/console/
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY packages packages
@@ -24,6 +25,9 @@ WORKDIR /app
 
 FROM runtime AS api
 COPY --from=build --chown=node:node /out/api ./
+# The owner's console, served by the API at /console.
+COPY --from=build --chown=node:node /repo/apps/console/dist ./console
+ENV CONSOLE_DIR=/app/console
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
