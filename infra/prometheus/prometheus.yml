@@ -5,10 +5,10 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
-# Wire an Alertmanager (email, Slack, PagerDuty …) here once a destination is chosen:
-# alerting:
-#   alertmanagers:
-#     - static_configs: [{ targets: ['alertmanager:9093'] }]
+# Alerts go to Alertmanager, which emails them (infra/alertmanager).
+alerting:
+  alertmanagers:
+    - static_configs: [{ targets: ['alertmanager:9093'] }]
 
 scrape_configs:
   - job_name: arc-api

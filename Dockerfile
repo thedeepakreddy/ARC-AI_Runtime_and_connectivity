@@ -33,3 +33,20 @@ CMD ["node", "dist/main.js"]
 FROM runtime AS worker
 COPY --from=build --chown=node:node /out/api ./
 CMD ["node", "dist/worker/main.js"]
+
+# Operations toolbox: backups, restores and the restore drill, run next to the stack on its
+# private network (docker compose --profile ops run --rm ops …). Built on the same PostgreSQL
+# major as the server, so pg_dump/pg_restore always match it.
+FROM postgres:17-alpine AS ops
+RUN apk add --no-cache bash gnupg nodejs rclone
+WORKDIR /repo
+COPY --from=build /out/api apps/api
+COPY scripts/ops scripts/ops
+ENTRYPOINT []
+CMD ["bash", "-c", "echo 'usage: docker compose --profile ops run --rm ops scripts/ops/<script>.sh'"]
+
+# Load test (bench/run.ts) with the full workspace and dev dependencies. Runs inside LiteLLM's
+# network namespace so the real LiteLLM can reach the benchmark's mock providers on 127.0.0.1.
+FROM build AS bench
+WORKDIR /repo/apps/api
+CMD ["node", "--import", "tsx", "bench/run.ts", "--gate"]

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'deepak/**']
+    branches: [main, 'deepak/**', 'claude/**']
   pull_request:
 
 permissions:
@@ -159,4 +159,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate docker compose files
-        run: docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+        run: docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.smoke.yml --profile monitoring --profile ops config --quiet
+
+  # The real stack, built from this commit: Postgres, Redis, LiteLLM (pinned), API, worker,
+  # Prometheus and Alertmanager. Checks inference for two apps with separate keys, scraping, an
+  # alert email, then a restore drill through the ops image, and the apps' own ARC smoke tests.
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SMOKE_WORK_DIR: ${{ runner.temp }}/arc-smoke
+      KEEP: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      # The apps that use ARC (public repos). Their smoke tests run once they ship scripts/arc-smoke.*.
+      - uses: actions/checkout@v4
+        with: { repository: thedeepakreddy/E.C.H.O-Phone, path: apps-under-test/echo-phone }
+      - uses: actions/checkout@v4
+        with:
+          { repository: thedeepakreddy/DataScienceStudio-AskDeepakAI, path: apps-under-test/dss }
+      - name: Install app dependencies
+        run: |
+          for d in apps-under-test/echo-phone apps-under-test/dss; do
+            if ls "$d"/scripts/arc-smoke.* >/dev/null 2>&1; then (cd "$d" && npm ci --no-audit --no-fund); fi
+          done
+      - name: Full-stack smoke test
+        run: |
+          [ -f apps-under-test/echo-phone/scripts/arc-smoke.mjs ] && export ECHO_DIR="$PWD/apps-under-test/echo-phone"
+          [ -f apps-under-test/dss/scripts/arc-smoke.ts ] && export DSS_DIR="$PWD/apps-under-test/dss"
+          scripts/ops/stack-smoke.sh
+      - name: Backup and restore drill through the ops image
+        run: |
+          W="$SMOKE_WORK_DIR"
+          openssl rand -base64 32 > "$W/secrets/backup-passphrase"
+          chmod 644 "$W/secrets/backup-passphrase"
+          docker compose -p arc-smoke --env-file "$W/.env" -f docker-compose.yml -f docker-compose.smoke.yml \
+            --profile ops run --rm -T ops scripts/ops/backup.sh
+          ARC_ENV_FILE="$W/.env" ARC_COMPOSE_PROJECT=arc-smoke ARC_COMPOSE_EXTRA=docker-compose.smoke.yml \
+            ARC_SECRETS_DIR="$W/secrets" scripts/ops/vps-verify.sh --drill-only
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -p arc-smoke --env-file "$SMOKE_WORK_DIR/.env" -f docker-compose.yml -f docker-compose.smoke.yml --profile monitoring logs --tail 80
+      - name: Tear down
+        if: always()
+        run: docker compose -p arc-smoke --env-file "$SMOKE_WORK_DIR/.env" -f docker-compose.yml -f docker-compose.smoke.yml --profile monitoring --profile ops down -v || true

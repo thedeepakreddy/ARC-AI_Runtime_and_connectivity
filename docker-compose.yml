@@ -36,8 +36,10 @@ services:
 
   litellm:
     <<: *restart
-    # Pin to a tested version/digest before any production deployment.
-    image: ghcr.io/berriai/litellm:main-stable
+    # Pinned by digest to the release ARC's passthrough is verified against (1.110.0). The same
+    # digest is published as ghcr.io/berriai/litellm:v1.110.0. Re-run the inference suite and the
+    # load-test gate before moving to a newer release.
+    image: litellm/litellm:v1.110.0@sha256:4295b064b22eb88f9530e616afc812edd47048891ba64896bfc3fa74e2b883c3
     # Worker count sized by load testing (see docs/adr/0008-operations.md).
     command:
       [
@@ -86,13 +88,13 @@ services:
       # Metrics on 9464, reachable only on the private backend network (not published).
       METRICS_PORT: 9464
     volumes:
-      - ./secrets:/run/secrets/arc:ro
+      - ${ARC_SECRETS_DIR:-./secrets}:/run/secrets/arc:ro
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       litellm: { condition: service_healthy }
     networks: [backend, edge]
-    ports: ['8080:8080']
+    ports: ['${ARC_HTTP_PORT:-8080}:8080']
 
   worker:
     <<: *restart
@@ -104,7 +106,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-arc}
       ARC_VAULT_KEY_FILE: /run/secrets/arc/vault-keys.json
     volumes:
-      - ./secrets:/run/secrets/arc:ro
+      - ${ARC_SECRETS_DIR:-./secrets}:/run/secrets/arc:ro
     depends_on:
       postgres: { condition: service_healthy }
     # egress: the worker probes provider keys for health and model discovery.
@@ -119,9 +121,72 @@ services:
     volumes:
       - ./infra/prometheus:/etc/prometheus:ro
       - promdata:/prometheus
-    networks: [backend]
+    # backend: scrapes ARC. admin: lets the loopback-only UI port work (Docker publishes no
+    # ports for a container that is only on an internal network).
+    networks: [backend, admin]
     # UI on the host loopback only.
     ports: ['127.0.0.1:9090:9090']
+
+  # Sends ARC's alerts by email. Settings come from .env (ALERT_*); the SMTP password is read
+  # from ${ARC_SECRETS_DIR}/smtp-password. See docs/operations.md → Alerts by email.
+  alertmanager:
+    <<: *restart
+    profiles: [monitoring]
+    image: prom/alertmanager:v0.28.1
+    entrypoint: ['/bin/sh', '/etc/alertmanager/start.sh']
+    environment:
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_SMTP_HOST: ${ALERT_SMTP_HOST:-smtp.gmail.com:587}
+      ALERT_SMTP_USER: ${ALERT_SMTP_USER:-}
+      ALERT_SMTP_REQUIRE_TLS: ${ALERT_SMTP_REQUIRE_TLS:-true}
+    volumes:
+      - ./infra/alertmanager:/etc/alertmanager:ro
+      - ${ARC_SECRETS_DIR:-./secrets}:/run/secrets/arc:ro
+      - amdata:/alertmanager
+    # backend: Prometheus reaches it. egress: it reaches your SMTP server.
+    networks: [backend, egress]
+    ports: ['127.0.0.1:9093:9093']
+
+  # Operations (not started by `up`): docker compose --profile ops run --rm ops scripts/ops/…
+  # See docs/operations.md → Backups and restore, and scripts/ops/vps-verify.sh.
+  ops:
+    profiles: [ops]
+    image: arc-ops:${ARC_VERSION:-local}
+    build: { context: ., target: ops }
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-arc}
+      ADMIN_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      ARC_VAULT_KEY_FILE: /run/secrets/arc/vault-keys.json
+      BACKUP_PASSPHRASE_FILE: /run/secrets/arc/backup-passphrase
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      # Off-site copy, e.g. "oci:arc-backups" (rclone config in ${ARC_SECRETS_DIR}/rclone.conf).
+      BACKUP_RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-}
+      RCLONE_CONFIG: /run/secrets/arc/rclone.conf
+    volumes:
+      - ${ARC_SECRETS_DIR:-./secrets}:/run/secrets/arc:ro
+      - ${ARC_BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      postgres: { condition: service_healthy }
+    # backend: the database. egress: the off-site backup target.
+    networks: [backend, egress]
+
+  bench:
+    profiles: [ops]
+    image: arc-bench:${ARC_VERSION:-local}
+    build: { context: ., target: bench }
+    environment:
+      LITELLM_URL: http://127.0.0.1:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?set in .env}
+      BENCH_DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      BENCH_REDIS_URL: redis://redis:6379/2
+    volumes:
+      - ${ARC_REPORT_DIR:-./ops-reports}:/reports
+    # Shares LiteLLM's network stack: LiteLLM reaches the benchmark's mock providers on 127.0.0.1.
+    network_mode: service:litellm
+    depends_on:
+      litellm: { condition: service_healthy }
 
 networks:
   # Internal network: Postgres, Redis and LiteLLM are not reachable from outside.
@@ -130,8 +195,11 @@ networks:
   edge: {}
   # Outbound internet for services that call model providers (LiteLLM, worker).
   egress: {}
+  # Loopback-only admin UIs (Prometheus).
+  admin: {}
 
 volumes:
+  amdata:
   promdata:
   pgdata:
   redisdata:

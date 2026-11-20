@@ -1,4 +1,3 @@
-/* global process, console */
 // Seeds a database with a tenant and an encrypted provider credential, so the restore drill in
 // CI proves that credentials survive backup → restore → decrypt. Env: DATABASE_URL, ARC_VAULT_KEY_FILE.
 import { createPool } from '../../../apps/api/dist/db/pool.js';

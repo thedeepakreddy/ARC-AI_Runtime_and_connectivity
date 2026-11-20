@@ -4,10 +4,11 @@ One intelligence layer for every application. ARC gives Echo, Aira, Data Science
 future apps a single OpenAI-compatible API, while it manages providers, multiple keys per
 provider, routing, fallback, security and monitoring behind it.
 
-> Status: **Phase 4 — operations.** OpenAI-compatible `/v1` API with intelligent routing, plus
-> Prometheus metrics and alerts, Redis coordination for multiple instances, a load-test gate,
-> encrypted backups with a restore drill, and controlled deploys with rollback. See
-> [docs/plan.md](docs/plan.md), [docs/operations.md](docs/operations.md),
+> Status: **Phase 5 — app integration.** Echo Phone and Data Science Studio use ARC, each with
+> its own ARC key. The full stack (OpenAI-compatible `/v1`, intelligent routing, metrics, email
+> alerts, Redis coordination, encrypted backups, controlled deploys) is verified end to end in
+> CI. See [docs/plan.md](docs/plan.md), [docs/app-integration.md](docs/app-integration.md),
+> [docs/operations.md](docs/operations.md), [docs/costs.md](docs/costs.md) (runs on free tiers),
 > [docs/inference-api.md](docs/inference-api.md) and [docs/admin-api.md](docs/admin-api.md).
 
 ## Layout
@@ -17,8 +18,9 @@ apps/api         Fastify + Zod API: control plane, /v1 inference, and the worker
                  (src/worker: route scoring, key health checks — kept off the request path)
 packages/shared  Config validation and log redaction shared by services
 apps/api/bench   Load test and regression gate
-infra/           LiteLLM, Prometheus (alerts), Postgres init
-scripts/ops/     Backup, restore, restore drill, controlled deploy
+infra/           LiteLLM, Prometheus (alerts), Alertmanager (email), Postgres init
+scripts/ops/     Backup, restore, restore drill, deploy, server verification, full-stack smoke,
+                 arc-admin (provider keys, models, app keys)
 docs/            Plan, ADRs, threat model, provider list
 ```
 
@@ -37,6 +39,12 @@ cp .env.example .env  # then set real secrets
 docker compose up -d --build
 curl localhost:8080/healthz   # liveness
 curl localhost:8080/readyz    # postgres, redis, litellm reachable
+```
+
+Verify the whole stack end to end (isolated; leaves your `.env` alone):
+
+```bash
+scripts/ops/stack-smoke.sh
 ```
 
 Integration tests need a PostgreSQL server:
