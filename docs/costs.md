@@ -1,12 +1,14 @@
 # ARC — Running costs
 
-**Short answer: one small Google Cloud VM, roughly $12–25 a month** (e2-small or e2-medium,
-on-demand, plus its static IPv4 address and disk), with free model-provider tiers and a free email
-account for alerts. New accounts get a **$300 credit for 90 days**, which covers the pilot. A
-domain is optional (≈ $10/year); a free subdomain (e.g. DuckDNS) works too.
+**Short answer: $0/month, 24/7, on Oracle Cloud's Always Free tier** (the owner's choice; see
+[deploy-oracle.md](deploy-oracle.md)): one free Arm VM with 12–24 GB of memory runs the whole
+stack, with free model-provider tiers and a free email account. The only optional cost is a
+domain (≈ $10/year); a free subdomain (e.g. DuckDNS) works too. Keep a $1 budget alert on.
 
-Prices change and vary by region: check the Google Cloud pricing calculator before relying on a
-number below (checked November 2026).
+Google Cloud is the paid alternative ([deploy-gcp.md](deploy-gcp.md)): one small VM, roughly
+$12–25 a month (e2-small or e2-medium, on-demand, plus its static IPv4 address and disk). New
+accounts get a $300 credit for 90 days. Prices change and vary by region: check the provider's
+pricing calculator before relying on a number below (checked November 2026).
 
 ## Why not the free e2-micro
 

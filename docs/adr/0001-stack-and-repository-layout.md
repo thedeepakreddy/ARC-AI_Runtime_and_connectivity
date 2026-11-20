@@ -1,7 +1,7 @@
 # ADR 0001 — Stack and repository layout
 
-Status: Accepted · Phase 0 · Hosting amended in Phase 6: one Google Cloud VM instead of Oracle
-Cloud (see [deploy-gcp.md](../deploy-gcp.md)); the stack and layout are unchanged.
+Status: Accepted · Phase 0 · Hosting confirmed in Phase 6: Oracle Cloud Always Free
+([deploy-oracle.md](../deploy-oracle.md)); Google Cloud documented as the paid alternative.
 
 ## Context
 
