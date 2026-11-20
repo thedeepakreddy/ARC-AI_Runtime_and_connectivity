@@ -158,6 +158,13 @@ against the RPO target (24 h), and runs the load-test gate against this server's
 checks health, the admin flow, inference for two apps with separate keys, Prometheus, an alert
 email and — with `ECHO_DIR` / `DSS_DIR` — the apps' own ARC smoke tests. CI runs it on every push.
 
+## Console
+
+The owner console is served by the API at `https://<arc-domain>/console` (same origin as the admin
+API, strict content-security policy). Sign in as the platform owner. For development:
+`pnpm --filter @arc/console dev` proxies to a local ARC; `scripts/dev/seed-demo.mjs` fills a
+**non-production** database with demo keys, models, apps and traffic.
+
 ## Connecting apps
 
 See [app-integration.md](app-integration.md): `scripts/ops/arc-admin.mjs` adds provider keys,

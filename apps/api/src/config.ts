@@ -39,6 +39,17 @@ export const apiEnvSchema = baseEnvSchema.extend({
   MIN_ATTEMPT_MS: z.coerce.number().int().min(50).max(60_000).default(250),
   /** Prometheus metrics on a separate, internal-only port (0 disables). */
   METRICS_HOST: z.string().default('0.0.0.0'),
+  /** Alertmanager, for the console's "Needs you" list (e.g. http://alertmanager:9093). Optional. */
+  ALERTMANAGER_URL: z.url().optional(),
+  /** Built console (apps/console/dist), served at /console when set. */
+  CONSOLE_DIR: z.string().optional(),
+  /** Built customer dashboard (apps/dashboard/dist), served at /dashboard. */
+  DASHBOARD_DIR: z.string().optional(),
+  /**
+   * Customer sign-up: 'invite' (default) needs an invitation link from the owner or a tenant
+   * admin; 'open' lets anyone create an organization. Customers only ever use their own keys.
+   */
+  SIGNUP_MODE: z.enum(['invite', 'open']).default('invite'),
   METRICS_PORT: z.coerce.number().int().min(0).max(65535).default(9464),
   /** "redis" shares revocations, cooldowns and routing changes across API instances. */
   COORDINATION: z.enum(['redis', 'local']).default('redis'),

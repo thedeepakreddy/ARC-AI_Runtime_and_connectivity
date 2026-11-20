@@ -82,3 +82,49 @@ be set by the platform owner.
 | GET    | `/applications` |                                                            |
 | POST   | `/applications` | `{ name, slug, firstParty? }`; first-party = platform only |
 | GET    | `/audit-events` | `?limit=` (max 200); metadata only                         |
+
+## Console (platform owner only)
+
+| Method | Path                                   | Notes                                                                                                            |
+| ------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| GET    | `/console/overview?range=24h\|7d\|30d` | Services, "needs you" (alerts, failing keys, models to classify, expiring keys), totals, series, by app/provider |
+| GET    | `/console/traffic?range=&by=&app=`     | `by`: `app`, `provider`, `model`, `key`; optional `app` id; rows + series                                        |
+| GET    | `/console/customers`                   | Customer organizations with members, apps, keys, 30-day requests                                                 |
+| POST   | `/console/customers/:id/suspend`       | Their keys stop at once on every instance; `/unsuspend` restores                                                 |
+
+## Account (any signed-in user)
+
+| Method | Path                    | Notes                                                |
+| ------ | ----------------------- | ---------------------------------------------------- |
+| GET    | `/account/sessions`     | Active sessions; `current` marks this one            |
+| DELETE | `/account/sessions/:id` | Sign out that session                                |
+| POST   | `/account/password`     | `{ currentPassword, newPassword }`; signs out others |
+
+Also: `PATCH /models/:id` accepts `termsNote` (≤ 500 chars, restricted-free terms);
+`POST /api-keys/:id/rotate` accepts `{ overlapMinutes: 0 | 60 | 1440 }` (the old key keeps working
+that long, then expires).
+
+## Customers: sign-up, invitations, team, usage
+
+Invitation tokens (`arci_…`) are shown once, stored as SHA-256, and always sent in request
+bodies; dashboard links carry them in the URL fragment (`/dashboard/invite#arci_…`), which
+browsers never send to a server. One use, 7 days, only for the invited email.
+
+| Method | Path                        | Who             | Notes                                                                                 |
+| ------ | --------------------------- | --------------- | ------------------------------------------------------------------------------------- |
+| GET    | `/auth/config`              | Anyone          | `{ signup: "invite" \| "open" }` (`SIGNUP_MODE`)                                      |
+| POST   | `/auth/invitations/preview` | Anyone          | `{ token }` → email, role, organization, `newOrganization`; throttled                 |
+| POST   | `/auth/signup`              | Anyone          | `{ email, password, organization?, inviteToken? }`; creates user, membership, session |
+| POST   | `/auth/invitations/accept`  | Signed in       | `{ token, organization? }` for an existing user; email must match                     |
+| GET    | `/tenant`                   | Member          | The organization and your role                                                        |
+| PATCH  | `/tenant`                   | Owner           | `{ name }`                                                                            |
+| GET    | `/usage?range=&by=&app=`    | Member          | Like `/console/traffic`, only this tenant's traffic                                   |
+| GET    | `/members`                  | Member          | Members with role and last sign-in; `you` marks yourself                              |
+| PATCH  | `/members/:userId`          | Owner           | `{ role }`; the last owner can't be demoted                                           |
+| DELETE | `/members/:userId`          | Admin (or self) | Removing an owner needs owner; the last owner can't leave                             |
+| GET    | `/invitations`              | Admin           | Pending invitations                                                                   |
+| POST   | `/invitations`              | Admin           | `{ email, role }` → includes `token` once; only owners invite owners                  |
+| DELETE | `/invitations/:id`          | Admin           | Revoke                                                                                |
+| GET    | `/console/invitations`      | Platform owner  | Pending invitations for new customers                                                 |
+| POST   | `/console/invitations`      | Platform owner  | `{ email }` → a link that creates a new organization owned by them                    |
+| DELETE | `/console/invitations/:id`  | Platform owner  | Revoke                                                                                |

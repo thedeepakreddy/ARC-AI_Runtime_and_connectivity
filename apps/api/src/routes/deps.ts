@@ -2,6 +2,7 @@ import type { Db } from '../db/pool.js';
 import type { CandidateStore } from '../inference/candidates.js';
 import type { Cooldowns } from '../inference/cooldowns.js';
 import type { ProviderProbe } from '../providers/probe.js';
+import type { ReadinessReport } from '../readiness.js';
 import type { CredentialService } from '../vault/credentials.js';
 
 export interface AdminDeps {
@@ -10,6 +11,8 @@ export interface AdminDeps {
   probe: ProviderProbe;
   cookieSecure: boolean;
   sessionTtlMs: number;
+  /** Customer sign-up: invitation only (default) or open. */
+  signupMode?: 'invite' | 'open';
   probeTimeoutMs: number;
   /** Override the SSRF URL guard (tests only). */
   assertPublicUrl?: (url: string) => Promise<void>;
@@ -19,6 +22,10 @@ export interface AdminDeps {
   onApiKeyRevoked?: (keyId: string) => void;
   /** Shared routing state, for the explain endpoint. */
   routing?: { candidates: CandidateStore; cooldowns: Cooldowns };
+  /** Live dependency check, for the console overview. */
+  readiness?: () => Promise<ReadinessReport>;
+  /** Alertmanager base URL, for firing alerts in the console overview. */
+  alertmanagerUrl?: string | undefined;
 }
 
 export const isUniqueViolation = (err: unknown) =>

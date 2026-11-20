@@ -85,8 +85,12 @@ services:
       ARC_VAULT_KEY_FILE: /run/secrets/arc/vault-keys.json
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+      # Customer sign-up: invite (default) or open.
+      SIGNUP_MODE: ${SIGNUP_MODE:-invite}
       # Metrics on 9464, reachable only on the private backend network (not published).
       METRICS_PORT: 9464
+      # Firing alerts in the console's "Needs you" list (monitoring profile).
+      ALERTMANAGER_URL: http://alertmanager:9093
     volumes:
       - ${ARC_SECRETS_DIR:-./secrets}:/run/secrets/arc:ro
     depends_on:

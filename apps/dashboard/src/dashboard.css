@@ -1,0 +1,177 @@
+/* Customer dashboard additions to @arc/ui (DESIGN.md). Tokens only; no new colours. */
+
+/* The organization under the wordmark. */
+.org-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 10px 6px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  background: var(--fill);
+}
+.org-name {
+  font: 600 14px/1.25 var(--font);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.org-role {
+  flex: none;
+  font: 600 12px/1 var(--font-ui);
+  color: var(--text-3);
+}
+.org-select {
+  padding: 0;
+  background: none;
+}
+.org-select .select {
+  font-weight: 600;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+}
+.link-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.warn-text {
+  color: var(--warn);
+}
+
+/* Get started: four steps, numbered by a ring that fills when done. */
+.steps {
+  counter-reset: step;
+}
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+}
+.step + .step::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 62px;
+  right: 0;
+  border-top: 0.5px solid var(--separator);
+}
+.step-mark {
+  counter-increment: step;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--text-3);
+  font: 600 13px/1 var(--font-ui);
+  color: var(--text-2);
+}
+.step-mark::before {
+  content: counter(step);
+}
+.step.done .step-mark {
+  background: var(--ok);
+  box-shadow: none;
+  color: #000;
+}
+.step.done .step-mark::before {
+  content: none;
+}
+.step.next {
+  background: rgba(85, 154, 222, 0.07);
+}
+.step.next .step-mark {
+  box-shadow: inset 0 0 0 1.5px var(--horizon);
+  color: var(--text);
+}
+.step-title {
+  font: 600 15px/1.3 var(--font);
+}
+.step.done .step-title {
+  color: var(--text-2);
+}
+.step-sub {
+  margin-top: 3px;
+  font-size: 13.5px;
+  color: var(--text-3);
+}
+.progress-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 600 13px/1 var(--font-ui);
+  color: var(--text-2);
+}
+.progress-line .bar {
+  width: 120px;
+}
+
+/* Code: the request an app sends, ready to copy. */
+.code {
+  position: relative;
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: var(--r);
+  background: #0a0a0c;
+  box-shadow: inset 0 0 0 0.5px var(--line-strong);
+  font: 400 12.5px/1.65 var(--mono);
+  font-stretch: 87.5%;
+  color: var(--text-2);
+  white-space: pre;
+  overflow-x: auto;
+}
+.code .k {
+  color: var(--accent-text);
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.env {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px 16px;
+}
+.env .mono {
+  overflow-wrap: anywhere;
+}
+
+/* Regions: a checklist of jurisdictions. */
+.region-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 2px 16px;
+}
+.region-grid .check {
+  padding: 8px 0;
+}
+
+@media (max-width: 900px) {
+  .step {
+    grid-template-columns: 28px 1fr;
+  }
+  .step > :last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .env {
+    grid-template-columns: 1fr auto;
+  }
+  .env > .label {
+    grid-column: 1 / -1;
+  }
+}

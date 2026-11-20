@@ -19,6 +19,7 @@ import {
 import { type Cooldowns, parseRetryAfter } from '../inference/cooldowns.js';
 import type { Endpoint, InferenceGateway } from '../inference/gateway.js';
 import type { ObservationRecorder, Outcome } from '../inference/observations.js';
+import type { RollupRecorder } from '../inference/rollups.js';
 import {
   type Capability,
   chatPassthrough,
@@ -51,6 +52,8 @@ export interface InferenceDeps {
   /** Don't start a fallback attempt with less time than this left. */
   minAttemptMs: number;
   metrics?: ArcMetrics;
+  /** Per-app traffic for the console and dashboards (best-effort, batched). */
+  rollups?: RollupRecorder;
 }
 
 declare module 'fastify' {
@@ -141,6 +144,33 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
     }
     req.principal = principal;
   });
+
+  // Per-app traffic, from what the request already reported in its headers: no extra work on the
+  // request path, and failures (no route, provider errors) are counted too.
+  if (deps.rollups) {
+    const rollups = deps.rollups;
+    app.addHook('onResponse', async (req, reply) => {
+      const p = req.principal;
+      if (!p || req.method !== 'POST') return;
+      const header = (name: string) => {
+        const v = reply.getHeader(name);
+        return typeof v === 'string' ? v : '';
+      };
+      const overhead = Number(header('x-arc-overhead-ms'));
+      rollups.record({
+        tenantId: p.tenantId,
+        applicationId: p.applicationId,
+        endpoint: (req.routeOptions.url ?? req.url).replace(/^\/v1\//, ''),
+        providerId: header('x-arc-route-provider'),
+        modelName: header('x-arc-route-model'),
+        accountId: header('x-arc-route-account'),
+        error: reply.statusCode >= 400,
+        fallback: header('x-arc-fallback') !== '',
+        overheadMs: header('x-arc-overhead-ms') && Number.isFinite(overhead) ? overhead : null,
+        durationMs: reply.elapsedTime,
+      });
+    });
+  }
 
   /** Background health update after a provider tells us something about a key. */
   function markAccount(

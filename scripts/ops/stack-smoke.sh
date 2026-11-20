@@ -97,6 +97,14 @@ ready=$(curl -sS "$ARC_URL/readyz")
 echo "$ready"
 echo "$ready" | grep -q '"postgres":{"ok":true' || echo "$ready" | grep -q 'ready' || die "/readyz: $ready"
 
+console_headers=$(curl -fsS -D - -o /dev/null "$ARC_URL/console/providers")
+echo "$console_headers" | grep -qi "content-security-policy: default-src 'self'" || die "console not served with its CSP"
+echo "  ok: console served at /console"
+dashboard_headers=$(curl -fsS -D - -o /dev/null "$ARC_URL/dashboard/apps")
+echo "$dashboard_headers" | grep -qi "content-security-policy: default-src 'self'" || die "dashboard not served with its CSP"
+curl -fsS "$ARC_URL/admin/v1/auth/config" | grep -q '"signup":"invite"' || die "sign-up is not invitation-only by default"
+echo "  ok: dashboard served at /dashboard; sign-up by invitation"
+
 step "owner, provider key, models, apps"
 export ARC_URL ARC_OWNER_EMAIL=owner@example.test ARC_OWNER_PASSWORD
 ARC_OWNER_PASSWORD="smoke-$(rand)"
