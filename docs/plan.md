@@ -126,7 +126,8 @@ Overview "needs you first", Providers grouped list, Models tabs + bulk classify 
 Apps list + detail with rotation overlap); the rest built to the same system.
 
 - [x] Design system "Orbit" from the ARC mark: true black, planet-limb horizon, wide-tracked uppercase
-      labels (Barlow), telemetry numbers (IBM Plex Mono), one horizon-blue accent; phone layout;
+      labels (Hubot Sans, expanded), titles and figures (Michroma), text (Mona Sans), keys (Martian
+      Mono), one horizon-blue accent; phone layout;
       Liquid Glass material for floating layers (sheets, dialogs, menus, toasts, controls); fonts
       bundled, no third-party requests (strict CSP)
 - [x] Pages: sign-in, Overview, Providers & keys, Models, Apps (+ detail), Routing (+ "what would

@@ -32,15 +32,18 @@
   --horizon: #559ade;
   --glow: rgba(85, 154, 222, 0.45);
 
-  --font: 'Barlow', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Barlow Semi Condensed', 'Barlow', -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font:
+    'Mona Sans Variable', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display:
+    'Hubot Sans Variable', 'Mona Sans Variable', -apple-system, 'Segoe UI', sans-serif;
+  --font-title: 'Michroma', 'Hubot Sans Variable', -apple-system, sans-serif;
+  --mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   --r-sm: 2px;
   --r: 3px;
   --r-lg: 4px;
   --sidebar-w: 236px;
-  --track: 0.16em;
+  --track: 0.13em;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -87,7 +90,8 @@ textarea {
 }
 .mono {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 12px;
+  font-stretch: 87.5%;
 }
 .muted {
   color: var(--text-2);
@@ -96,7 +100,7 @@ textarea {
   color: var(--text-3);
 }
 .eyebrow {
-  font: 500 11px/1 var(--font-display);
+  font: 500 semi-expanded 11px/1 var(--font-display);
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--text-3);
@@ -145,11 +149,11 @@ textarea {
   border-radius: 7px;
 }
 .brand-word {
-  font: 600 17px/1 var(--font-display);
-  letter-spacing: 0.32em;
+  font: 400 16px/1 var(--font-title);
+  letter-spacing: 0.28em;
 }
 .brand-sub {
-  font: 500 10.5px/1 var(--font-display);
+  font: 500 semi-expanded 10.5px/1 var(--font-display);
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--text-3);
@@ -162,8 +166,8 @@ textarea {
   overflow-y: auto;
 }
 .nav-group {
-  font: 500 10.5px/1 var(--font-display);
-  letter-spacing: 0.2em;
+  font: 500 semi-expanded 10.5px/1 var(--font-display);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-3);
   padding: 26px 24px 10px;
@@ -176,7 +180,7 @@ textarea {
   height: 36px;
   padding: 0 24px;
   color: var(--text-2);
-  font: 500 13px/1 var(--font-display);
+  font: 500 semi-expanded 13px/1 var(--font-display);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   transition:
@@ -222,7 +226,7 @@ textarea {
   align-items: center;
   gap: 9px;
   font: 500 11px/1.3 var(--font-display);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-2);
 }
@@ -255,8 +259,8 @@ textarea {
   min-height: 44px;
 }
 .page-title {
-  font: 500 32px/1.05 var(--font-display);
-  letter-spacing: 0.1em;
+  font: 400 26px/1.15 var(--font-title);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   margin: 0;
 }
@@ -266,7 +270,7 @@ textarea {
   max-width: 760px;
 }
 .crumb {
-  font: 500 11px/1 var(--font-display);
+  font: 500 semi-expanded 11px/1 var(--font-display);
   letter-spacing: var(--track);
   text-transform: uppercase;
   margin-bottom: 12px;
@@ -296,8 +300,8 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
-  font: 500 12px/1 var(--font-display);
-  letter-spacing: 0.2em;
+  font: 500 semi-expanded 12px/1 var(--font-display);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-2);
   margin: 0;
@@ -310,7 +314,7 @@ textarea {
 }
 .section-head a,
 .toolbar a {
-  font: 500 11.5px/1 var(--font-display);
+  font: 500 semi-expanded 11.5px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -378,7 +382,7 @@ textarea {
   height: 20px;
   padding: 0 7px;
   border-radius: var(--r-sm);
-  font: 500 10.5px/1 var(--font-display);
+  font: 500 semi-expanded 10.5px/1 var(--font-display);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-2);
@@ -421,7 +425,7 @@ textarea {
   border-radius: var(--r-sm);
   background: transparent;
   color: var(--text);
-  font: 500 12px/1 var(--font-display);
+  font: 500 semi-expanded 12px/1 var(--font-display);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   cursor: pointer;
@@ -549,7 +553,7 @@ textarea {
 }
 .field > label,
 .label {
-  font: 500 11px/1 var(--font-display);
+  font: 500 semi-expanded 11px/1 var(--font-display);
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--text-2);
@@ -584,7 +588,7 @@ textarea {
   border-left: 1px solid var(--line);
   background: transparent;
   color: var(--text-3);
-  font: 500 11px/1 var(--font-display);
+  font: 500 semi-expanded 11px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
@@ -611,7 +615,7 @@ textarea {
   background: none;
   padding: 0 0 13px;
   color: var(--text-3);
-  font: 500 12px/1 var(--font-display);
+  font: 500 semi-expanded 12px/1 var(--font-display);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   cursor: pointer;
@@ -719,7 +723,7 @@ th input[type='checkbox'] {
 }
 .radio-card strong {
   display: block;
-  font: 500 13px/1.3 var(--font-display);
+  font: 500 semi-expanded 13px/1.3 var(--font-display);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin-bottom: 2px;
@@ -763,7 +767,7 @@ table {
 }
 th {
   text-align: left;
-  font: 500 10.5px/1 var(--font-display);
+  font: 500 semi-expanded 10.5px/1 var(--font-display);
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--text-3);
@@ -795,7 +799,8 @@ td.r {
 }
 td.num {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12.5px;
+  font-stretch: 87.5%;
 }
 td.w {
   width: 1%;
@@ -820,7 +825,7 @@ table.fixed td {
   cursor: pointer;
 }
 .group-head .name {
-  font: 500 15px/1 var(--font-display);
+  font: 500 semi-expanded 15px/1 var(--font-display);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -830,7 +835,7 @@ table.fixed td {
 .group-head .meta {
   margin-left: auto;
   color: var(--text-3);
-  font: 400 12px/1 var(--mono);
+  font: 400 13px/1 var(--font);
 }
 .group + .group {
   margin-top: 14px;
@@ -874,8 +879,8 @@ table.fixed td {
   border-width: 0 1px 1px 0;
 }
 .status-hero .title {
-  font: 500 20px/1.1 var(--font-display);
-  letter-spacing: 0.16em;
+  font: 400 16px/1.2 var(--font-title);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .services {
@@ -888,7 +893,7 @@ table.fixed td {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font: 500 11px/1 var(--font-display);
+  font: 500 semi-expanded 11px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-2);
@@ -910,7 +915,7 @@ table.fixed td {
 }
 .needs-row .go {
   margin-left: auto;
-  font: 500 11.5px/1 var(--font-display);
+  font: 500 semi-expanded 11.5px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent-text);
@@ -939,19 +944,19 @@ table.fixed td {
   border-left: 0;
 }
 .stat-label {
-  font: 500 10.5px/1 var(--font-display);
-  letter-spacing: 0.2em;
+  font: 500 semi-expanded 10.5px/1 var(--font-display);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-3);
 }
 .stat-value {
-  font: 300 44px/1 var(--font-display);
-  letter-spacing: 0.01em;
+  font: 400 32px/1 var(--font-title);
+  letter-spacing: 0.02em;
   margin-top: 14px;
   font-variant-numeric: tabular-nums;
 }
 .stat-value small {
-  font: 500 12px/1 var(--font-display);
+  font: 500 semi-expanded 12px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -969,7 +974,7 @@ table.fixed td {
   display: flex;
   align-items: center;
   gap: 20px;
-  font: 500 10.5px/1 var(--font-display);
+  font: 500 semi-expanded 10.5px/1 var(--font-display);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-3);
@@ -1038,7 +1043,7 @@ table.fixed td {
   padding: 26px 28px 16px;
 }
 .sheet-title {
-  font: 500 20px/1.2 var(--font-display);
+  font: 500 semi-expanded 20px/1.2 var(--font-display);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   margin: 0;
@@ -1089,7 +1094,7 @@ table.fixed td {
   margin: 4px 0 22px;
 }
 .kv dt {
-  font: 500 10.5px/1.9 var(--font-display);
+  font: 500 semi-expanded 10.5px/1.9 var(--font-display);
   letter-spacing: var(--track);
   text-transform: uppercase;
   color: var(--text-3);
@@ -1100,8 +1105,8 @@ table.fixed td {
   overflow-wrap: anywhere;
 }
 .sub-head {
-  font: 500 10.5px/1 var(--font-display);
-  letter-spacing: 0.2em;
+  font: 500 semi-expanded 10.5px/1 var(--font-display);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-3);
   margin: 28px 0 12px;
@@ -1162,7 +1167,7 @@ table.fixed td {
   border: 0;
   border-radius: var(--r-sm);
   background: none;
-  font: 500 11.5px/1 var(--font-display);
+  font: 500 semi-expanded 11.5px/1 var(--font-display);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
@@ -1194,7 +1199,7 @@ table.fixed td {
   border-radius: var(--r-sm);
   background: var(--text);
   color: #000;
-  font: 500 12px/1.2 var(--font-display);
+  font: 500 semi-expanded 12px/1.2 var(--font-display);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   box-shadow: var(--shadow-pop);
@@ -1210,7 +1215,7 @@ table.fixed td {
 }
 .empty strong {
   display: block;
-  font: 500 14px/1.3 var(--font-display);
+  font: 500 semi-expanded 14px/1.3 var(--font-display);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text);
@@ -1236,7 +1241,7 @@ table.fixed td {
   box-shadow:
     var(--shadow-pop),
     0 0 30px rgba(85, 154, 222, 0.12);
-  font: 500 12px/1 var(--font-display);
+  font: 500 semi-expanded 12px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   animation: pop-in 0.18s var(--ease);
@@ -1293,9 +1298,9 @@ table.fixed td {
 .signin-word {
   display: block;
   text-align: center;
-  font: 500 46px/1 var(--font-display);
-  letter-spacing: 0.42em;
-  margin: 0 0 12px 0.42em;
+  font: 400 40px/1 var(--font-title);
+  letter-spacing: 0.36em;
+  margin: 0 0 16px 0.36em;
 }
 .signin .eyebrow {
   display: block;
@@ -1303,8 +1308,8 @@ table.fixed td {
   margin-bottom: 44px;
 }
 .signin h1 {
-  font: 500 13px/1 var(--font-display);
-  letter-spacing: 0.22em;
+  font: 500 semi-expanded 13px/1 var(--font-display);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-2);
   text-align: center;
@@ -1327,8 +1332,8 @@ table.fixed td {
 .signin .foot {
   margin-top: 36px;
   text-align: center;
-  font: 500 10px/1 var(--font-display);
-  letter-spacing: 0.24em;
+  font: 500 semi-expanded 10px/1 var(--font-display);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -1407,7 +1412,7 @@ table.fixed td {
     padding: 28px 16px 56px;
   }
   .page-title {
-    font-size: 26px;
+    font-size: 20px;
   }
   .page-head {
     flex-direction: column;
@@ -1423,7 +1428,7 @@ table.fixed td {
     border-top: 1px solid var(--line);
   }
   .stat-value {
-    font-size: 34px;
+    font-size: 24px;
   }
   .split {
     grid-template-columns: 1fr;
@@ -1443,7 +1448,7 @@ table.fixed td {
     display: none;
   }
   .signin-word {
-    font-size: 38px;
+    font-size: 32px;
   }
 }
 

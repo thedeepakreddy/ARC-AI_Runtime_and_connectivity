@@ -3,17 +3,14 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ToastProvider } from './ui';
-// Self-hosted type (bundled, no third-party requests): Barlow for text and labels, IBM Plex Mono for
-// telemetry numbers.
-import '@fontsource/barlow/latin-300.css';
-import '@fontsource/barlow/latin-400.css';
-import '@fontsource/barlow/latin-500.css';
-import '@fontsource/barlow/latin-600.css';
-import '@fontsource/barlow-semi-condensed/latin-300.css';
-import '@fontsource/barlow-semi-condensed/latin-500.css';
-import '@fontsource/barlow-semi-condensed/latin-600.css';
-import '@fontsource/ibm-plex-mono/latin-400.css';
-import '@fontsource/ibm-plex-mono/latin-500.css';
+// Self-hosted type (bundled with the console, no third-party requests; all SIL Open Font License):
+// Michroma — extended aerospace display face for titles and the wordmark;
+// Hubot Sans — technical grotesk, set expanded for labels, navigation and controls;
+// Mona Sans — its companion, for reading text; Martian Mono — wide technical mono for figures.
+import '@fontsource/michroma/latin-400.css';
+import '@fontsource-variable/hubot-sans/wdth.css';
+import '@fontsource-variable/mona-sans/wght.css';
+import '@fontsource-variable/martian-mono/wdth.css';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
