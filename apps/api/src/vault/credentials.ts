@@ -11,6 +11,7 @@ import {
 } from './vault.js';
 
 const binding = (tenantId: string, credentialId: string) => `${tenantId}:${credentialId}`;
+const userBinding = (userId: string) => `user:${userId}:mfa`;
 
 interface CredentialRow {
   id: string;
@@ -71,8 +72,42 @@ export class CredentialService {
     ]);
   }
 
+  /** Seal a user's TOTP secret (bound to the user, so it can't be moved to another account). */
+  sealUserSecret(userId: string, secret: string): SealedSecret {
+    return encryptSecret(this.ring, secret, userBinding(userId));
+  }
+
+  openUserSecret(userId: string, sealed: SealedSecret): string {
+    return decryptSecret(this.ring, sealed, userBinding(userId));
+  }
+
   /** Re-wrap every data key under the current KEK version. Returns rows updated. */
   async rewrapAll(db: Db): Promise<number> {
+    const users = await db.query<{
+      id: string;
+      mfa_kek_version: number;
+      mfa_wrapped_dek: Buffer;
+      mfa_ciphertext: Buffer;
+    }>(
+      `SELECT id, mfa_kek_version, mfa_wrapped_dek, mfa_ciphertext FROM users
+        WHERE mfa_ciphertext IS NOT NULL AND mfa_kek_version <> $1`,
+      [this.ring.current],
+    );
+    for (const u of users.rows) {
+      const next = rewrapSecret(
+        this.ring,
+        {
+          kekVersion: u.mfa_kek_version,
+          wrappedDek: u.mfa_wrapped_dek,
+          ciphertext: u.mfa_ciphertext,
+        },
+        userBinding(u.id),
+      );
+      await db.query(
+        'UPDATE users SET mfa_kek_version = $1, mfa_wrapped_dek = $2 WHERE id = $3 AND mfa_kek_version = $4',
+        [next.kekVersion, next.wrappedDek, u.id, u.mfa_kek_version],
+      );
+    }
     const { rows } = await db.query<CredentialRow>(
       'SELECT * FROM credentials WHERE kek_version <> $1',
       [this.ring.current],
@@ -84,6 +119,6 @@ export class CredentialService {
         [next.kekVersion, next.wrappedDek, row.id, row.kek_version],
       );
     }
-    return rows.length;
+    return rows.length + users.rows.length;
   }
 }

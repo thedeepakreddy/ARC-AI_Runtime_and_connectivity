@@ -30,7 +30,14 @@ export const setTenant = (id: string | null) => {
   tenantId = id;
 };
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/signup', '/auth/invitations/'];
+const PUBLIC_PATHS = [
+  '/auth/login',
+  '/auth/signup',
+  '/auth/invitations/',
+  '/auth/password-reset/',
+  '/auth/verify-email',
+  '/auth/google/',
+];
 
 export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
@@ -63,7 +70,7 @@ export const get = <T>(path: string) => api<T>('GET', path);
 // ---- Shapes returned by the admin API ----
 
 export interface Me {
-  user: { id: string; email: string; isSuperadmin: boolean };
+  user: { id: string; email: string; isSuperadmin: boolean; emailVerified: boolean };
   tenants: { id: string; kind: string; name: string; role: string }[];
 }
 export interface Provider {

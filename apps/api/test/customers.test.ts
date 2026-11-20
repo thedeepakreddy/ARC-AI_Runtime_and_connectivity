@@ -105,7 +105,11 @@ describe.skipIf(!TEST_DATABASE_URL)('customers: sign-up, invitations, team, usag
   });
 
   it('reports the sign-up mode and refuses sign-up without an invitation by default', async () => {
-    expect((await anon('GET', '/auth/config')).json()).toEqual({ signup: 'invite' });
+    expect((await anon('GET', '/auth/config')).json()).toEqual({
+      signup: 'invite',
+      passwordReset: false,
+      google: false,
+    });
     const res = await anon('POST', '/auth/signup', {
       email: 'nobody@example.test',
       password: PASSWORD,

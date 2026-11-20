@@ -1,4 +1,5 @@
 import { checkReadiness } from './readiness.js';
+import { readFileSync } from 'node:fs';
 import { REDACT_PATHS } from '@arc/shared';
 import { Redis } from 'ioredis';
 import { buildApp } from './app.js';
@@ -19,6 +20,7 @@ import { RollupRecorder } from './inference/rollups.js';
 import { LiteLLMGateway } from './inference/gateway.js';
 import { ApiKeyVerifier } from './keys/verifier.js';
 import { HttpProviderProbe } from './providers/probe.js';
+import { SmtpMailer } from './mail/mailer.js';
 import { CredentialService } from './vault/credentials.js';
 import { loadKeyRing } from './vault/vault.js';
 
@@ -54,11 +56,41 @@ bus.subscribe((event) => {
 cooldowns.onCooldown = (accountId, reason, seconds) =>
   bus.publish({ type: 'cooldown', accountId, reason, seconds });
 
+// Transactional email and Google sign-in: each off until fully configured.
+const mailer =
+  config.MAIL_SMTP_HOST && config.MAIL_SMTP_USER && config.MAIL_FROM && config.PUBLIC_URL
+    ? new SmtpMailer({
+        host: config.MAIL_SMTP_HOST,
+        user: config.MAIL_SMTP_USER,
+        passwordFile: config.MAIL_SMTP_PASSWORD_FILE,
+        from: config.MAIL_FROM,
+        requireTls: config.MAIL_REQUIRE_TLS,
+      })
+    : undefined;
+const google =
+  config.GOOGLE_CLIENT_ID && config.PUBLIC_URL
+    ? {
+        clientId: config.GOOGLE_CLIENT_ID,
+        clientSecret: readFileSync(config.GOOGLE_CLIENT_SECRET_FILE, 'utf8').trim(),
+      }
+    : undefined;
+
 const app = buildApp({
   checks: deps.checks,
   readinessTimeoutMs: config.READINESS_TIMEOUT_MS,
   trustProxy: config.TRUST_PROXY,
-  logger: { level: config.LOG_LEVEL, redact: { paths: [...REDACT_PATHS] } },
+  logger: {
+    level: config.LOG_LEVEL,
+    redact: { paths: [...REDACT_PATHS] },
+    // Paths only: query strings can carry one-time values (e.g. Google's sign-in code).
+    serializers: {
+      req: (req: { method: string; url: string; id: string }) => ({
+        id: req.id,
+        method: req.method,
+        url: req.url.split('?')[0] ?? '',
+      }),
+    },
+  },
   admin: {
     db,
     credentials,
@@ -66,6 +98,9 @@ const app = buildApp({
     cookieSecure: cookieSecure(config),
     sessionTtlMs: config.SESSION_TTL_HOURS * 3_600_000,
     signupMode: config.SIGNUP_MODE,
+    mailer,
+    publicUrl: config.PUBLIC_URL,
+    google,
     throttle: config.COORDINATION === 'redis' ? redisThrottle(limiterRedis) : localThrottle,
     probeTimeoutMs: config.PROBE_TIMEOUT_MS,
     onRoutingChange: () => {

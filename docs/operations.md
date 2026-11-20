@@ -31,6 +31,27 @@ Sign-in, sign-up and invitation-lookup limits are shared across API instances th
 (`COORDINATION=redis`, the default), keyed by a hash of the email or address; if Redis is down
 each instance keeps limiting on its own.
 
+## Accounts: two-step sign-in, password reset, email, Google
+
+- **Two-step sign-in (everyone, owner included):** Account → Security → Turn on. Any authenticator
+  app works (TOTP, 6 digits). The secret is sealed with the vault key like provider keys, and
+  re-wrapped by `vault-rewrap`. Ten one-use recovery codes are shown once. The owner should turn
+  it on before going live.
+- **Password reset and email verification** need email: set `PUBLIC_URL` (e.g.
+  `https://arc.example.com`) and the `ALERT_SMTP_*`/`ALERT_EMAIL_FROM` settings; the API sends
+  through the same account and `secrets/smtp-password`. Without them, "Forgot password?" is
+  hidden, and open sign-ups are treated as confirmed. Links work once (reset: 30 minutes,
+  confirm: 48 hours); a reset signs out every session.
+- **Email verification** applies to open sign-ups only (`SIGNUP_MODE=open`): until confirmed,
+  they can look around but not create apps or keys. Invited people, the owner and Google users
+  are confirmed already.
+- **Google sign-in (optional):** in Google Cloud Console create an OAuth client ("Web
+  application") with redirect URI `https://<domain>/admin/v1/auth/google/callback`; put its id in
+  `GOOGLE_CLIENT_ID` and its secret in `secrets/google-client-secret`. Google signs in existing
+  accounts with the same verified email (linking them), and creates accounts only from an
+  invitation (or with open sign-up). Two-step sign-in still applies after Google.
+- Request logs record paths only, never query strings, so one-time values never reach logs.
+
 ## Vault key rotation
 
 ```bash

@@ -128,3 +128,26 @@ browsers never send to a server. One use, 7 days, only for the invited email.
 | GET    | `/console/invitations`      | Platform owner  | Pending invitations for new customers                                                 |
 | POST   | `/console/invitations`      | Platform owner  | `{ email }` → a link that creates a new organization owned by them                    |
 | DELETE | `/console/invitations/:id`  | Platform owner  | Revoke                                                                                |
+
+## Account security
+
+One-time tokens (`arcr_…` reset, `arcv_…` confirm, `arcm_…` second step) are single-use,
+short-lived and stored as SHA-256; email links carry them in the URL fragment.
+
+| Method | Path                            | Who       | Notes                                                                                             |
+| ------ | ------------------------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| POST   | `/auth/login`                   | Anyone    | `{ ok: true }`, or `{ mfaRequired: true, mfaToken }` when two-step sign-in is on (no session yet) |
+| POST   | `/auth/login/mfa`               | Anyone    | `{ mfaToken, code }`: a TOTP or recovery code; 5 tries per challenge, each TOTP code once         |
+| POST   | `/auth/password-reset/request`  | Anyone    | `{ email, app }` → always 202 (never says whether the account exists); 501 without email          |
+| POST   | `/auth/password-reset/complete` | Anyone    | `{ token, newPassword }`; signs out every session                                                 |
+| POST   | `/auth/verify-email`            | Anyone    | `{ token }` from the confirmation email                                                           |
+| POST   | `/auth/verify-email/send`       | Signed in | Send the confirmation email again                                                                 |
+| POST   | `/auth/google/start`            | Anyone    | `{ app, inviteToken?, organization? }` → `{ url }` (PKCE; state kept server-side)                 |
+| GET    | `/auth/google/callback`         | Google    | Redirects to `/<app>/#google=<result>` or `#mfa=<token>`                                          |
+| GET    | `/account/security`             | Signed in | Two-step status, recovery codes left, email confirmed, Google linked                              |
+| POST   | `/account/mfa/setup`            | Signed in | New secret + `otpauth://` URL (pending until confirmed)                                           |
+| POST   | `/account/mfa/enable`           | Signed in | `{ code }` → on, with 10 recovery codes (shown once)                                              |
+| POST   | `/account/mfa/recovery-codes`   | Signed in | `{ code }` → a fresh set; the old ones stop working                                               |
+| POST   | `/account/mfa/disable`          | Signed in | `{ password, code }`                                                                              |
+
+Creating apps, ARC keys and provider keys needs a confirmed email (`403 email_unverified`).

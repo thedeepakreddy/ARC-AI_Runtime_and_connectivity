@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { recordAudit } from '../audit.js';
-import { currentUser, requireUser, tenantContext } from '../auth/context.js';
+import { currentUser, requireUser, requireVerifiedEmail, tenantContext } from '../auth/context.js';
 import { withTransaction } from '../db/pool.js';
 import { notFound, parseInput } from '../errors.js';
 import { generateArcKey } from '../keys/arc-keys.js';
@@ -91,6 +91,7 @@ export async function apiKeyRoutes(app: FastifyInstance, deps: AdminDeps): Promi
   });
 
   app.post('/applications/:appId/api-keys', async (req, reply) => {
+    requireVerifiedEmail(req);
     const user = currentUser(req);
     const t = await tenantContext(db, req, 'admin');
     const { appId } = parseInput(appParam, req.params);

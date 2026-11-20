@@ -37,6 +37,15 @@ export function currentUser(req: FastifyRequest): SessionUser {
   return req.user;
 }
 
+/** Creating apps and keys needs a confirmed email (open sign-ups confirm by email first). */
+export function requireVerifiedEmail(req: FastifyRequest): SessionUser {
+  const user = currentUser(req);
+  if (!user.emailVerified) {
+    throw new ArcError(403, 'email_unverified', 'Confirm your email first: check your inbox.');
+  }
+  return user;
+}
+
 export function requireSuperadmin(req: FastifyRequest): SessionUser {
   const user = currentUser(req);
   if (!user.isSuperadmin) throw forbidden('Platform superadmin only');

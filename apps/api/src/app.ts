@@ -9,6 +9,7 @@ import { authRoutes } from './routes/auth.js';
 import { catalogueRoutes } from './routes/catalogue.js';
 import { consoleRoutes } from './routes/console.js';
 import { customerRoutes } from './routes/customers.js';
+import { securityRoutes } from './routes/security.js';
 import { serveApp } from './console-static.js';
 import type { AdminDeps } from './routes/deps.js';
 import { type InferenceDeps, inferenceRoutes } from './routes/inference.js';
@@ -74,6 +75,7 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
         await scope.register((s) => routingRoutes(s, admin));
         await scope.register((s) => consoleRoutes(s, admin));
         await scope.register((s) => customerRoutes(s, admin));
+        await scope.register((s) => securityRoutes(s, admin));
       },
       { prefix: '/admin/v1' },
     );

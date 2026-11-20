@@ -87,6 +87,15 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-false}
       # Customer sign-up: invite (default) or open.
       SIGNUP_MODE: ${SIGNUP_MODE:-invite}
+      # Links in emails and Google sign-in, e.g. https://arc.example.com (usually https://ARC_DOMAIN).
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      # Password reset and email verification use the same SMTP account as alerts (secrets/smtp-password).
+      MAIL_SMTP_HOST: ${ALERT_SMTP_HOST:-}
+      MAIL_SMTP_USER: ${ALERT_SMTP_USER:-}
+      MAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      MAIL_REQUIRE_TLS: ${ALERT_SMTP_REQUIRE_TLS:-true}
+      # Google sign-in: client id here, client secret in secrets/google-client-secret.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       # Metrics on 9464, reachable only on the private backend network (not published).
       METRICS_PORT: 9464
       # Firing alerts in the console's "Needs you" list (monitoring profile).

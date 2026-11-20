@@ -15,7 +15,7 @@ The repository held only a README and LICENSE. There was no prior code to preser
 | 4   | Operations             | Metrics (ARC overhead vs provider TTFT), load tests + regression gates, alerts, backup/restore, controlled deploy/rollback                                                         | Ops checks and restore drill pass                                             |
 | 5   | App integration        | Echo, Aira, Data Science Studio with separate ARC keys                                                                                                                             | Each app passes smoke tests                                                   |
 | 6   | Dashboards (UI) + BYOK | Design tokens, superadmin console, customer dashboard — **each screen layout approved before coding**; customer sign-up/login; **users bring their own provider keys** through ARC | Approved screens implemented; a user's own key is used for their traffic only |
-| 7   | Post-MVP               | Owner MFA/password reset, provider packs, multimodal, BALANCED/DEEP, evaluation, billing, multi-server HA                                                                          | Separately approved increments                                                |
+| 7   | Post-MVP               | ~~Owner MFA/password reset~~ (done in Phase 6), provider packs, multimodal, BALANCED/DEEP, evaluation, billing, multi-server HA                                                    | Separately approved increments                                                |
 
 Provider packs (see [providers.md](providers.md)) land after the core gateway works:
 international, Chinese, local, speech/embeddings.
@@ -159,8 +159,9 @@ Increment 2 — **Customer dashboard + sign-up/login + teams**: done. See
       "connect your app", Provider keys (BYOK), Usage, Team, Settings (regions), Account
 - [x] Tenant-scoped usage API; tests for sign-up, invitations, roles and cross-tenant isolation
       (9, real Postgres); axe-core clean on every dashboard screen; stack smoke checks `/dashboard`
-- [ ] Email verification, password reset and MFA for customers (needs transactional email); Google
-      sign-in — later increment
+- [x] Email verification (open sign-ups), password reset by email, two-step sign-in (TOTP +
+      recovery codes) and Google sign-in — for customers and the owner (see operations.md →
+      Accounts); transactional email through the alert SMTP account
 - [x] Decided: customers choose the models their own keys use (Models page; `tenant_models`),
       including ones ARC hasn't classified, on their own keys only
 
@@ -220,6 +221,9 @@ Frontend, with **each screen layout approved before coding**:
     hasn't classified (their key, their bill); the owner's classification governs owner keys.
 11. **End users' own keys:** the app vouches for the user with `x-arc-user` on its own ARC key;
     ARC stores the user's key in its vault, scoped to the app and a hash of the user id.
+12. **Account security:** two-step sign-in for everyone (owner should turn it on before going
+    live); Google sign-in optional and off until configured; email confirmation only for open
+    sign-ups.
 
 ## Open decisions
 

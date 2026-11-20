@@ -41,8 +41,9 @@ cd /opt/arc && cp .env.example .env
 ```
 
 Edit `.env`: real `POSTGRES_PASSWORD` and `LITELLM_MASTER_KEY` (`openssl rand -hex 24`),
-`ARC_DOMAIN`, `ACME_EMAIL`, `TRUST_PROXY=true`, the `ALERT_*` settings, and on 2 OCPU
-`LITELLM_NUM_WORKERS=2`. Then follow [operations.md → First-time setup](operations.md#first-time-setup-pilot-server)
+`ARC_DOMAIN`, `ACME_EMAIL`, `PUBLIC_URL=https://<ARC_DOMAIN>`, `TRUST_PROXY=true`, the `ALERT_*`
+settings (also used for password-reset emails), on 2 OCPU `LITELLM_NUM_WORKERS=2`, and
+optionally `GOOGLE_CLIENT_ID` ([operations.md → Accounts](operations.md#accounts-two-step-sign-in-password-reset-email-google)). Then follow [operations.md → First-time setup](operations.md#first-time-setup-pilot-server)
 (vault key, owner), starting the stack with HTTPS and monitoring:
 
 ```bash
@@ -51,7 +52,8 @@ docker compose --profile https --profile monitoring up -d --build
 
 Caddy fetches the certificate on first start. Check:
 
-- `https://<ARC_DOMAIN>/console` — sign in as the owner.
+- `https://<ARC_DOMAIN>/console` — sign in as the owner, then Account → Security → turn on
+  two-step sign-in and keep the recovery codes in your password manager.
 - `https://<ARC_DOMAIN>/dashboard` — the customer dashboard (sign-up is by invitation unless
   `SIGNUP_MODE=open`).
 - `curl https://<ARC_DOMAIN>/readyz` — `"ready": true`.

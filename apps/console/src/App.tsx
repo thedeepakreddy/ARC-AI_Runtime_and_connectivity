@@ -1,8 +1,9 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { ApiError, type Me, type Overview, api, get, onUnauthorized } from '@arc/ui/api';
+import { type Me, type Overview, api, get, onUnauthorized } from '@arc/ui/api';
 import { usePolling } from '@arc/ui/hooks';
 import { AccountPage } from '@arc/ui/account';
+import { ResetPasswordScreen, SignInForm } from '@arc/ui/auth';
 import { AppDetailPage, AppsPage } from './pages/Apps';
 import { AuditPage } from './pages/Audit';
 import { CustomersPage } from './pages/Customers';
@@ -23,8 +24,17 @@ export function App() {
     return onUnauthorized(() => setMe(null));
   }, [load]);
 
+  if (location.pathname.endsWith('/reset')) return <ResetPasswordScreen app="console" />;
   if (me === undefined) return null;
-  if (me === null) return <SignIn onDone={load} />;
+  if (me === null)
+    return (
+      <SignInForm
+        app="console"
+        title="Sign in to the console"
+        onDone={load}
+        footer={<p className="foot">Owner access · Encrypted session</p>}
+      />
+    );
   if (!me.user.isSuperadmin) return <NotOwner email={me.user.email} />;
   return <Shell me={me} />;
 }
@@ -118,87 +128,11 @@ function Shell({ me }: { me: Me }) {
           <Route path="/traffic" element={<TrafficPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/audit" element={<AuditPage />} />
-          <Route path="/account" element={<AccountPage me={me} />} />
+          <Route path="/account" element={<AccountPage me={me} app="console" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
-  );
-}
-
-function SignIn({ onDone }: { onDone: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await api('POST', '/auth/login', { email, password });
-      onDone();
-    } catch (err) {
-      setError(
-        err instanceof ApiError && err.status === 429
-          ? 'Too many attempts. Wait a minute and try again.'
-          : err instanceof ApiError && err.status === 401
-            ? 'That email and password don’t match.'
-            : 'Couldn’t sign in. Check your connection and try again.',
-      );
-      setBusy(false);
-    }
-  }
-  return (
-    <main className="signin">
-      <form className="signin-card" onSubmit={submit} aria-labelledby="signin-title">
-        <div className="signin-mark">
-          <Wordmark height={46} />
-        </div>
-        <span className="eyebrow">AI Runtime &amp; Connectivity</span>
-        <h1 id="signin-title">Sign in to the console</h1>
-        <div className="field">
-          <label htmlFor="email" className="sr-only">
-            Email
-          </label>
-          <input
-            id="email"
-            className="input"
-            type="email"
-            autoComplete="username"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoFocus
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="password" className="sr-only">
-            Password
-          </label>
-          <input
-            id="password"
-            className="input"
-            type="password"
-            autoComplete="current-password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        {error && (
-          <p className="error-text" role="alert" style={{ margin: '0 0 12px' }}>
-            {error}
-          </p>
-        )}
-        <button className="btn primary" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-        <p className="foot">Owner access · Encrypted session</p>
-      </form>
-    </main>
   );
 }
 
