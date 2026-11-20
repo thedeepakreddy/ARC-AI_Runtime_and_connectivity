@@ -1,0 +1,31 @@
+{
+  "name": "@arc/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ARC's design system: tokens, components, the wordmark, the space art and the admin API client. Shared by the owner console and the customer dashboard. Source-only; each app's Vite build compiles it.",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./api": "./src/api.ts",
+    "./format": "./src/format.ts",
+    "./hooks": "./src/hooks.ts",
+    "./fonts": "./src/fonts.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/hubot-sans": "^5.3.0",
+    "@fontsource-variable/martian-mono": "^5.3.0",
+    "@fontsource-variable/mona-sans": "^5.3.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1",
+    "vite": "^8.3.8"
+  }
+}

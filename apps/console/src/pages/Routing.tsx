@@ -1,8 +1,14 @@
 import { type ReactNode, useState } from 'react';
-import { type Application, type Explain, type Policy, type ProviderAccount, api } from '../lib/api';
-import { CAPABILITIES, ELIGIBILITY, HEALTH, JURISDICTIONS, ms } from '../lib/format';
-import { useData } from '../lib/hooks';
-import { Badge, ErrorNote, PageHead, Sheet, Status, Switch, useToast } from '../ui';
+import {
+  type Application,
+  type Explain,
+  type Policy,
+  type ProviderAccount,
+  api,
+} from '@arc/ui/api';
+import { CAPABILITIES, ELIGIBILITY, HEALTH, JURISDICTIONS, ms } from '@arc/ui/format';
+import { useData } from '@arc/ui/hooks';
+import { Badge, ErrorNote, PageHead, Sheet, Status, Switch, useToast } from '@arc/ui';
 
 const ALL_REGIONS = Object.keys(JURISDICTIONS);
 

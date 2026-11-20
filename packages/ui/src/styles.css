@@ -167,7 +167,7 @@ textarea {
   position: fixed;
   z-index: -1;
   inset: 0 0 0 var(--sidebar-w);
-  background: url('/console/space-small.webp') center top / cover no-repeat;
+  background: url('./assets/space-small.webp') center top / cover no-repeat;
   opacity: 0.9;
   -webkit-mask-image: linear-gradient(#000 0, rgba(0, 0, 0, 0.5) 40%, transparent 68%);
   mask-image: linear-gradient(#000 0, rgba(0, 0, 0, 0.5) 40%, transparent 68%);
@@ -1293,7 +1293,7 @@ table.fixed td.w {
   place-items: center;
   padding: 24px;
   overflow: hidden;
-  background: #000 url('/console/space.webp') center bottom / cover no-repeat;
+  background: #000 url('./assets/space.webp') center bottom / cover no-repeat;
 }
 .signin::before {
   /* Keep the centre calm enough to read over. */

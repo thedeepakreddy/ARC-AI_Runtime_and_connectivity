@@ -1,4 +1,4 @@
-/** The ARC admin API, same origin. The session cookie (HttpOnly, SameSite=Strict) rides along. */
+/** The ARC admin API, same origin (console and dashboard). The session cookie (HttpOnly, SameSite=Strict) rides along. */
 
 export class ApiError extends Error {
   constructor(
@@ -21,17 +21,32 @@ export const onUnauthorized = (fn: Listener) => {
   };
 };
 
+/**
+ * The tenant requests act on (sent as x-arc-tenant). Needed only when the signed-in user belongs
+ * to more than one tenant; the API refuses to guess.
+ */
+let tenantId: string | null = null;
+export const setTenant = (id: string | null) => {
+  tenantId = id;
+};
+
+const PUBLIC_PATHS = ['/auth/login', '/auth/signup', '/auth/invitations/'];
+
 export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (tenantId) headers['x-arc-tenant'] = tenantId;
   const res = await fetch(`/admin/v1${path}`, {
     method,
     credentials: 'same-origin',
-    headers: body === undefined ? {} : { 'content-type': 'application/json' },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && path !== '/auth/login') unauthorized.forEach((fn) => fn());
+    if (res.status === 401 && !PUBLIC_PATHS.some((p) => path.startsWith(p)))
+      unauthorized.forEach((fn) => fn());
     const e = data?.error ?? {};
     throw new ApiError(
       res.status,

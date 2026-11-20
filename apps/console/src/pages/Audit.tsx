@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import type { AuditEvent } from '../lib/api';
-import { dateTime } from '../lib/format';
-import { useData } from '../lib/hooks';
-import { Empty, ErrorNote, Loading, PageHead, SearchInput } from '../ui';
+import type { AuditEvent } from '@arc/ui/api';
+import { dateTime } from '@arc/ui/format';
+import { useData } from '@arc/ui/hooks';
+import { Empty, ErrorNote, Loading, PageHead, SearchInput } from '@arc/ui';
 
 const WORDS: Record<string, string> = {
   'platform.owner_created': 'Owner account created',

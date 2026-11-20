@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { Overview } from '../lib/api';
-import { compact, dateTime, ms, num, pct, time } from '../lib/format';
-import { useData, usePolling } from '../lib/hooks';
-import { Dot, ErrorNote, Icon, Loading, PageHead, Segmented, TrafficChart } from '../ui';
+import type { Overview } from '@arc/ui/api';
+import { compact, dateTime, ms, num, pct, time } from '@arc/ui/format';
+import { useData, usePolling } from '@arc/ui/hooks';
+import { Dot, ErrorNote, Icon, Loading, PageHead, Segmented, TrafficChart } from '@arc/ui';
 
 type Range = '24h' | '7d' | '30d';
 

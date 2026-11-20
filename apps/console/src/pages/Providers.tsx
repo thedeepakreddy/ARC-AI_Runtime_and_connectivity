@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { type Model, type Provider, type ProviderAccount, type Traffic, api } from '../lib/api';
-import { GROUPS, HEALTH, JURISDICTIONS, ago, dateTime, pct } from '../lib/format';
-import { useData } from '../lib/hooks';
+import { type Model, type Provider, type ProviderAccount, type Traffic, api } from '@arc/ui/api';
+import { GROUPS, HEALTH, JURISDICTIONS, ago, dateTime, pct } from '@arc/ui/format';
+import { useData } from '@arc/ui/hooks';
 import {
   Confirm,
   Empty,
@@ -17,7 +17,7 @@ import {
   Status,
   Switch,
   useToast,
-} from '../ui';
+} from '@arc/ui';
 
 type Validation = { status: string; modelsSeen: number; error: string | null };
 type StatusFilter = 'all' | 'problems' | 'off';

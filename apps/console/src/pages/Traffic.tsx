@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import type { Traffic } from '../lib/api';
-import { dateTime, ms, num, pct, time } from '../lib/format';
-import { useData, usePolling } from '../lib/hooks';
-import { Empty, ErrorNote, Loading, PageHead, Segmented, TrafficChart } from '../ui';
+import type { Traffic } from '@arc/ui/api';
+import { dateTime, ms, num, pct, time } from '@arc/ui/format';
+import { useData, usePolling } from '@arc/ui/hooks';
+import { Empty, ErrorNote, Loading, PageHead, Segmented, TrafficChart } from '@arc/ui';
 
 type Range = '24h' | '7d' | '30d';
 type By = 'app' | 'provider' | 'model' | 'key';

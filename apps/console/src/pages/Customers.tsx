@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { type Customer, api } from '../lib/api';
-import { date, num } from '../lib/format';
-import { useData } from '../lib/hooks';
+import { type Customer, api } from '@arc/ui/api';
+import { date, num } from '@arc/ui/format';
+import { useData } from '@arc/ui/hooks';
 import {
   Badge,
   Confirm,
@@ -12,7 +12,7 @@ import {
   PageHead,
   SearchInput,
   useToast,
-} from '../ui';
+} from '@arc/ui';
 
 export function CustomersPage() {
   const { data, error, reload } = useData<{ data: Customer[] }>('/console/customers');

@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { ApiError, type Me, type Overview, api, get, onUnauthorized } from './lib/api';
-import { usePolling } from './lib/hooks';
+import { ApiError, type Me, type Overview, api, get, onUnauthorized } from '@arc/ui/api';
+import { usePolling } from '@arc/ui/hooks';
 import { AccountPage } from './pages/Account';
 import { AppDetailPage, AppsPage } from './pages/Apps';
 import { AuditPage } from './pages/Audit';
@@ -11,8 +11,7 @@ import { OverviewPage } from './pages/Overview';
 import { ProvidersPage } from './pages/Providers';
 import { RoutingPage } from './pages/Routing';
 import { TrafficPage } from './pages/Traffic';
-import { Dot, Icon } from './ui';
-import { Wordmark } from './ui/Wordmark';
+import { Dot, Icon, Wordmark } from '@arc/ui';
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);

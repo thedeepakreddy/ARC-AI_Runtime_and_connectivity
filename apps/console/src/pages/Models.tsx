@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { type Eligibility, type Model, type Provider, type Traffic, api } from '../lib/api';
-import { CAPABILITIES, ELIGIBILITY, capLabel, date, num } from '../lib/format';
-import { useData } from '../lib/hooks';
+import { type Eligibility, type Model, type Provider, type Traffic, api } from '@arc/ui/api';
+import { CAPABILITIES, ELIGIBILITY, capLabel, date, num } from '@arc/ui/format';
+import { useData } from '@arc/ui/hooks';
 import {
   Badge,
   Empty,
@@ -15,7 +15,7 @@ import {
   Switch,
   Tabs,
   useToast,
-} from '../ui';
+} from '@arc/ui';
 
 type Tab = 'classify' | 'use' | 'off' | 'all';
 

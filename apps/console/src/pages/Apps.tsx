@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { type ApiKey, type Application, type Policy, type Traffic, api } from '../lib/api';
-import { ago, date, num, pct } from '../lib/format';
-import { useData } from '../lib/hooks';
+import { type ApiKey, type Application, type Policy, type Traffic, api } from '@arc/ui/api';
+import { ago, date, num, pct } from '@arc/ui/format';
+import { useData } from '@arc/ui/hooks';
 import {
   Badge,
   Confirm,
@@ -16,7 +16,7 @@ import {
   Menu,
   PageHead,
   useToast,
-} from '../ui';
+} from '@arc/ui';
 import { PolicyEditor, describePolicy } from './Routing';
 
 export function AppsPage() {

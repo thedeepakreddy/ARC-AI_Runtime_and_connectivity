@@ -714,3 +714,5 @@ export function TrafficChart({
     </figure>
   );
 }
+
+export { Wordmark } from './Wordmark';

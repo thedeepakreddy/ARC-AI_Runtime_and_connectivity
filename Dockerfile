@@ -9,6 +9,7 @@ WORKDIR /repo
 FROM base AS build
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/ui/package.json packages/ui/
 COPY apps/api/package.json apps/api/
 COPY apps/console/package.json apps/console/
 RUN pnpm install --frozen-lockfile
