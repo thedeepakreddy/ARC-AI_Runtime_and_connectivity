@@ -5,6 +5,7 @@ import {
   type RankInput,
   passesPolicy,
   rankCandidates,
+  routableFor,
 } from '../src/inference/candidates.js';
 import { Cooldowns, parseRetryAfter } from '../src/inference/cooldowns.js';
 import { litellmTarget } from '../src/inference/gateway.js';
@@ -26,6 +27,9 @@ function cand(over: Partial<Candidate> = {}): Candidate {
     eligibility: 'VERIFIED_FREE',
     accountId: 'a1',
     scope: 'owner_private',
+    applicationId: null,
+    endUserHash: null,
+    optIn: false,
     health: 'healthy',
     baseUrl: null,
     defaultBaseUrl: 'https://api.groq.example/v1',
@@ -65,9 +69,40 @@ describe('policy gate', () => {
       }),
     ).toBe(false);
   });
-  it('customer BYOK keys: paid allowed, unknown never', () => {
+  it('customer BYOK keys: paid allowed, unknown only when the customer turned it on', () => {
     expect(passesPolicy(cand({ scope: 'tenant_byok', eligibility: 'PAID' }))).toBe(true);
     expect(passesPolicy(cand({ scope: 'tenant_byok', eligibility: 'UNKNOWN' }))).toBe(false);
+    expect(passesPolicy(cand({ scope: 'tenant_byok', eligibility: 'UNKNOWN', optIn: true }))).toBe(
+      true,
+    );
+    expect(passesPolicy(cand({ scope: 'end_user', eligibility: 'PAID' }))).toBe(true);
+  });
+  it('owner keys never use unknown models, opt-in or not', () => {
+    expect(passesPolicy(cand({ eligibility: 'UNKNOWN', optIn: true }))).toBe(false);
+  });
+});
+
+describe('routableFor (end-user keys)', () => {
+  const tenantKey = cand({ accountId: 'tenant' });
+  const alice = cand({
+    accountId: 'alice',
+    scope: 'end_user',
+    applicationId: 'app1',
+    endUserHash: 'h-alice',
+  });
+  const aliceOtherApp = cand({
+    accountId: 'alice-other-app',
+    scope: 'end_user',
+    applicationId: 'app2',
+    endUserHash: 'h-alice',
+  });
+  const all = [tenantKey, alice, aliceOtherApp];
+  it('uses only the user’s own keys for this app when they have some', () => {
+    expect(routableFor(all, 'app1', 'h-alice').map((c) => c.accountId)).toEqual(['alice']);
+  });
+  it('falls back to the tenant’s keys when the user has none, never other users’ keys', () => {
+    expect(routableFor(all, 'app1', 'h-bob').map((c) => c.accountId)).toEqual(['tenant']);
+    expect(routableFor(all, 'app1', null).map((c) => c.accountId)).toEqual(['tenant']);
   });
 });
 

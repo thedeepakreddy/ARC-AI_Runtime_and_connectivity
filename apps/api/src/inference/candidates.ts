@@ -17,7 +17,12 @@ export interface Candidate {
   capabilities: ReadonlySet<Capability>;
   eligibility: Eligibility;
   accountId: string;
-  scope: 'owner_private' | 'tenant_byok';
+  scope: 'owner_private' | 'tenant_byok' | 'end_user';
+  /** End-user keys only: the app and the hashed user they belong to. */
+  applicationId: string | null;
+  endUserHash: string | null;
+  /** The customer turned this model on for their own keys (may be UNKNOWN to ARC). */
+  optIn: boolean;
   health: HealthStatus;
   baseUrl: string | null;
   defaultBaseUrl: string | null;
@@ -52,10 +57,11 @@ export const isAlias = (m: string): m is Alias => (ALIASES as readonly string[])
 /**
  * Eligibility (blueprint §5). Owner-managed keys are strictly free-only — VERIFIED_FREE, or
  * RESTRICTED_FREE within documented terms — unless the platform owner explicitly allowed paid
- * models. Customer BYOK keys may use PAID (the customer pays). UNKNOWN is never eligible.
+ * models. Customer and end-user keys may use PAID (they pay). UNKNOWN is never eligible, unless
+ * a customer explicitly turned that model on for their own keys.
  */
 export function passesPolicy(c: Candidate, policy: RoutingPolicy = DEFAULT_POLICY): boolean {
-  if (c.eligibility === 'UNKNOWN') return false;
+  if (c.eligibility === 'UNKNOWN') return c.optIn && c.scope !== 'owner_private';
   if (c.scope === 'owner_private' && c.eligibility === 'PAID') return policy.allowPaidOwnerKeys;
   return true;
 }
@@ -126,6 +132,27 @@ export interface RankInput {
  * then rank by: health bucket → eligibility (free before paid, an admin-defined bound) →
  * precomputed expected latency → stable id. No I/O and no model calls: microseconds.
  */
+/**
+ * The keys a request may use. With an end user (X-ARC-User) who has registered their own keys
+ * with this app, only those keys; otherwise the tenant's keys, never anyone's end-user keys.
+ */
+export function routableFor(
+  all: readonly Candidate[],
+  applicationId: string,
+  endUserHash: string | null,
+): Candidate[] {
+  if (endUserHash) {
+    const own = all.filter(
+      (c) =>
+        c.scope === 'end_user' &&
+        c.applicationId === applicationId &&
+        c.endUserHash === endUserHash,
+    );
+    if (own.length) return own;
+  }
+  return all.filter((c) => c.scope !== 'end_user');
+}
+
 export function rankCandidates(
   all: readonly Candidate[],
   input: RankInput,
@@ -284,6 +311,9 @@ export class CandidateStore {
         eligibility: Eligibility;
         account_id: string;
         scope: Candidate['scope'];
+        application_id: string | null;
+        end_user_hash: string | null;
+        opt_in: boolean;
         health_status: HealthStatus;
         base_url: string | null;
         default_base_url: string | null;
@@ -295,15 +325,22 @@ export class CandidateStore {
         ciphertext: Buffer;
       }>(
         `SELECT m.id AS model_uuid, m.provider_id, m.model_id, m.capabilities, m.eligibility,
-                a.id AS account_id, a.scope, a.health_status, a.base_url,
+                a.id AS account_id, a.scope, a.application_id, a.end_user_hash,
+                a.health_status, a.base_url,
                 p.default_base_url, p.litellm_provider, p.jurisdiction,
-                c.id AS credential_id, c.kek_version, c.wrapped_dek, c.ciphertext
+                c.id AS credential_id, c.kek_version, c.wrapped_dek, c.ciphertext,
+                coalesce(tm.enabled, false) AS opt_in
            FROM provider_accounts a
+           JOIN tenants t ON t.id = a.tenant_id
            JOIN account_models am ON am.account_id = a.id
            JOIN models m ON m.id = am.model_id AND m.provider_id = a.provider_id
            JOIN providers p ON p.id = a.provider_id
            JOIN credentials c ON c.id = a.credential_id AND c.tenant_id = a.tenant_id
-          WHERE a.tenant_id = $1 AND a.enabled AND m.enabled`,
+           LEFT JOIN tenant_models tm ON tm.tenant_id = a.tenant_id AND tm.model_id = m.id
+          WHERE a.tenant_id = $1 AND a.enabled
+            -- The owner's classification for the owner's keys; a customer's own choice (else
+            -- the owner's) for the customer's keys and their apps' end users' keys.
+            AND CASE WHEN t.kind = 'platform' THEN m.enabled ELSE coalesce(tm.enabled, m.enabled) END`,
         [tenantId],
       ),
       this.loadScores(tenantId),
@@ -344,6 +381,9 @@ export class CandidateStore {
           eligibility: r.eligibility,
           accountId: r.account_id,
           scope: r.scope,
+          applicationId: r.application_id,
+          endUserHash: r.end_user_hash,
+          optIn: r.opt_in,
           health: r.health_status,
           baseUrl: r.base_url,
           defaultBaseUrl: r.default_base_url,

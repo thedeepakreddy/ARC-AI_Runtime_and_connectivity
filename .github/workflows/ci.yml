@@ -159,7 +159,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate docker compose files
-        run: docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.smoke.yml --profile monitoring --profile ops config --quiet
+        run: docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.smoke.yml --profile monitoring --profile ops --profile https config --quiet
+
+  # Oracle's Always Free VM is Arm (Ampere A1). Build ARC's own images for linux/arm64 (under
+  # QEMU), load the API's code on Arm, and check every third-party image ships an arm64 build.
+  arm64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with: { platforms: arm64 }
+      - uses: docker/setup-buildx-action@v3
+      - name: Build api, worker and ops for linux/arm64
+        run: |
+          for t in api worker ops; do
+            docker buildx build --platform linux/arm64 --target "$t" --load \
+              --cache-from type=gha,scope=arm64 --cache-to type=gha,mode=max,scope=arm64 \
+              -t "arc-$t:arm64" .
+          done
+      - name: API code loads on Arm
+        run: |
+          docker run --rm --platform linux/arm64 --entrypoint node arc-api:arm64 \
+            -e "import('./dist/app.js').then(() => console.log('api loads on', process.arch))"
+          docker run --rm --platform linux/arm64 --entrypoint sh arc-ops:arm64 \
+            -c 'pg_dump --version && gpg --version | head -1 && rclone version | head -1'
+      - name: Third-party images ship linux/arm64
+        run: |
+          images=$(docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.smoke.yml \
+            --profile monitoring --profile https config --images | grep -v '^arc-' | sort -u)
+          fail=0
+          for i in $images; do
+            if docker buildx imagetools inspect "$i" | grep -q 'linux/arm64'; then echo "ok   $i"
+            else echo "MISSING arm64: $i"; fail=1; fi
+          done
+          exit $fail
 
   # The real stack, built from this commit: Postgres, Redis, LiteLLM (pinned), API, worker,
   # Prometheus and Alertmanager. Checks inference for two apps with separate keys, scraping, an

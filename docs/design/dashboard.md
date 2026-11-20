@@ -57,10 +57,11 @@ invitation has expired or was used. Ask whoever invited you for a new link."), c
 named after the action ("Leave Northwind Analytics?"), and one term per thing: **ARC key** (what
 apps send to ARC), **provider key** (the organization's own Gemini/Groq/… key).
 
+## Since
+
+- Models page: customers choose which models their own keys use (decided by the owner).
+- End users' own keys go through ARC via `/v1/user-keys` (see inference-api.md).
+
 ## Open
 
-- Models found with a customer's key are usable only once the owner has classified them
-  (`models.enabled` is global). Whether customers may enable models for their own keys is a
-  decision for the owner.
 - App-level routing rules exist in the API but aren't in the dashboard yet.
-- App users' own keys through ARC (per-user ARC keys) still needs its design approved.

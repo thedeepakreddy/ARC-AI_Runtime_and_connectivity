@@ -6,6 +6,7 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'reac
 import { AuthScreen, InvitePage, SignIn, SignUp } from './auth';
 import { AppDetailPage, AppsPage } from './pages/Apps';
 import { KeysPage } from './pages/Keys';
+import { ModelsPage } from './pages/Models';
 import { OverviewPage } from './pages/Overview';
 import { SettingsPage } from './pages/Settings';
 import { TeamPage } from './pages/Team';
@@ -165,6 +166,7 @@ function Shell({
           <div className="nav-group">Build</div>
           <NavLink to="/apps">Apps</NavLink>
           <NavLink to="/keys">Provider keys</NavLink>
+          <NavLink to="/models">Models</NavLink>
           <NavLink to="/usage">Usage</NavLink>
           <div className="nav-group">Organization</div>
           <NavLink to="/team">Team</NavLink>
@@ -189,6 +191,7 @@ function Shell({
           <Route path="/apps" element={<AppsPage />} />
           <Route path="/apps/:id" element={<AppDetailPage />} />
           <Route path="/keys" element={<KeysPage />} />
+          <Route path="/models" element={<ModelsPage />} />
           <Route path="/usage" element={<UsagePage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />

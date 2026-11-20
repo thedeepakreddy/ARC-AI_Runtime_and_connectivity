@@ -11,7 +11,7 @@ import {
 } from '../auth/context.js';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, hashPassword } from '../auth/password.js';
 import { createSession } from '../auth/sessions.js';
-import { AttemptLimiter } from '../auth/throttle.js';
+import { localThrottle } from '../coordination/throttle.js';
 import { type Queryable, withTransaction } from '../db/pool.js';
 import { ArcError, forbidden, notFound, parseInput } from '../errors.js';
 import { setSessionCookie } from './auth.js';
@@ -112,15 +112,16 @@ const INVITATION_COLUMNS = `i.id, i.email, i.role, i.created_at AS "createdAt", 
 export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Promise<void> {
   const { db } = deps;
   const signupMode = deps.signupMode ?? 'invite';
-  const perIp = new AttemptLimiter(20, 60 * 60_000);
-  const lookups = new AttemptLimiter(60, 15 * 60_000);
+  const throttle = deps.throttle ?? localThrottle;
+  const perIp = throttle('signup-ip', 20, 60 * 60_000);
+  const lookups = throttle('invite-lookup-ip', 60, 15 * 60_000);
 
   // ---------- Public: what sign-up allows, invitation preview, sign-up ----------
 
   app.get('/auth/config', async () => ({ signup: signupMode }));
 
   app.post('/auth/invitations/preview', async (req) => {
-    if (!lookups.hit(req.ip)) {
+    if (!(await lookups.hit(req.ip))) {
       throw new ArcError(429, 'too_many_attempts', 'Too many attempts. Try again later.');
     }
     const { token } = parseInput(tokenBody, req.body);
@@ -136,7 +137,7 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
   });
 
   app.post('/auth/signup', async (req, reply) => {
-    if (!perIp.hit(req.ip)) {
+    if (!(await perIp.hit(req.ip))) {
       throw new ArcError(429, 'too_many_attempts', 'Too many sign-ups. Try again later.');
     }
     const body = parseInput(signupSchema, req.body);
@@ -297,6 +298,72 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
         if (!own.rowCount) throw notFound('Application');
       }
       return trafficReport(db, q, t.tenantId);
+    });
+
+    // ----- Models on the customer's own keys: the customer decides -----
+
+    const tenantModelParam = z.object({ id: z.uuid() });
+    const tenantModelBody = z.object({ enabled: z.boolean().nullable() });
+    /** Models at least one of this tenant's own keys can reach. */
+    const SEEN_BY_TENANT = `SELECT 1 FROM account_models am
+        JOIN provider_accounts a ON a.id = am.account_id
+       WHERE am.model_id = m.id AND a.tenant_id = $1 AND a.scope = 'tenant_byok'`;
+
+    authed.get('/tenant/models', async (req) => {
+      const t = await tenantContext(db, req, 'admin');
+      if (t.tenantKind === 'platform') {
+        throw forbidden('The platform owner classifies models in the console');
+      }
+      const { rows } = await db.query(
+        `SELECT m.id, m.provider_id AS "providerId", m.model_id AS "modelId",
+                m.display_name AS "displayName", m.capabilities, m.eligibility,
+                m.terms_note AS "termsNote", m.enabled AS "arcEnabled", tm.enabled AS choice,
+                coalesce(tm.enabled, m.enabled) AS enabled
+           FROM models m
+           LEFT JOIN tenant_models tm ON tm.tenant_id = $1 AND tm.model_id = m.id
+          WHERE EXISTS (${SEEN_BY_TENANT})
+          ORDER BY m.provider_id, m.model_id`,
+        [t.tenantId],
+      );
+      return { data: rows };
+    });
+
+    /** { enabled: true | false } decides; null goes back to following ARC's classification. */
+    authed.put('/tenant/models/:id', async (req) => {
+      const user = currentUser(req);
+      const t = await tenantContext(db, req, 'admin');
+      if (t.tenantKind === 'platform') {
+        throw forbidden('The platform owner classifies models in the console');
+      }
+      const { id } = parseInput(tenantModelParam, req.params);
+      const { enabled } = parseInput(tenantModelBody, req.body);
+      const seen = await db.query(
+        `SELECT 1 FROM models m WHERE m.id = $2 AND EXISTS (${SEEN_BY_TENANT})`,
+        [t.tenantId, id],
+      );
+      if (!seen.rowCount) throw notFound('Model');
+      if (enabled === null) {
+        await db.query('DELETE FROM tenant_models WHERE tenant_id = $1 AND model_id = $2', [
+          t.tenantId,
+          id,
+        ]);
+      } else {
+        await db.query(
+          `INSERT INTO tenant_models (tenant_id, model_id, enabled) VALUES ($1, $2, $3)
+           ON CONFLICT (tenant_id, model_id) DO UPDATE SET enabled = $3, updated_at = now()`,
+          [t.tenantId, id, enabled],
+        );
+      }
+      await recordAudit(db, {
+        tenantId: t.tenantId,
+        actorUserId: user.userId,
+        action: 'tenant_model.changed',
+        targetType: 'model',
+        targetId: id,
+        metadata: { enabled },
+      });
+      deps.onRoutingChange?.();
+      return { id, choice: enabled };
     });
 
     // ----- Team: members and invitations -----

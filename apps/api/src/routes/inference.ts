@@ -15,7 +15,10 @@ import {
   passesPolicy,
   publicModelName,
   rankCandidates,
+  routableFor,
 } from '../inference/candidates.js';
+import { endUserHash } from '../inference/end-users.js';
+import { type UserKeyDeps, userKeyRoutes } from './user-keys.js';
 import { type Cooldowns, parseRetryAfter } from '../inference/cooldowns.js';
 import type { Endpoint, InferenceGateway } from '../inference/gateway.js';
 import type { ObservationRecorder, Outcome } from '../inference/observations.js';
@@ -54,6 +57,8 @@ export interface InferenceDeps {
   metrics?: ArcMetrics;
   /** Per-app traffic for the console and dashboards (best-effort, batched). */
   rollups?: RollupRecorder;
+  /** End users' own keys (/v1/user-keys); off when absent. */
+  userKeys?: Omit<UserKeyDeps, 'db' | 'credentials'>;
 }
 
 declare module 'fastify' {
@@ -297,10 +302,15 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
     const deadlineAt = performance.now() + deadlineMs;
     const explain = req.headers[EXPLAIN_HEADER] === 'true';
 
-    const [all, policy] = await Promise.all([
+    const userHash = endUserHash(req, principal.applicationId);
+    const [tenantAll, policy] = await Promise.all([
       candidates.forTenant(principal.tenantId),
       candidates.policyFor(principal.tenantId, principal.applicationId),
     ]);
+    const all = routableFor(tenantAll, principal.applicationId, userHash);
+    if (userHash) {
+      reply.header('x-arc-user-keys', all.some((c) => c.scope === 'end_user') ? 'own' : 'app');
+    }
     const ranking = rankCandidates(all, {
       requested: requestedModel,
       need,
@@ -547,12 +557,19 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
     );
   }
 
+  if (deps.userKeys) userKeyRoutes(app, { db, credentials, ...deps.userKeys }, requireScope);
+
   app.get('/models', async (req) => {
     const principal = requireScope(req, 'models:read');
-    const [all, policy] = await Promise.all([
+    const [tenantAll, policy] = await Promise.all([
       candidates.forTenant(principal.tenantId),
       candidates.policyFor(principal.tenantId, principal.applicationId),
     ]);
+    const all = routableFor(
+      tenantAll,
+      principal.applicationId,
+      endUserHash(req, principal.applicationId),
+    );
     const byName = new Map<
       string,
       { provider: string; capabilities: Set<Capability>; eligibility: Set<string> }

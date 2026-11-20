@@ -248,3 +248,18 @@ export interface InvitationPreview {
   newOrganization: boolean;
   expiresAt: string;
 }
+/** A model the customer's own keys can reach, and whether they use it. */
+export interface TenantModel {
+  id: string;
+  providerId: string;
+  modelId: string;
+  displayName: string | null;
+  capabilities: string[];
+  eligibility: 'VERIFIED_FREE' | 'RESTRICTED_FREE' | 'PAID' | 'UNKNOWN';
+  termsNote: string | null;
+  /** The platform owner's classification. */
+  arcEnabled: boolean;
+  /** The customer's own choice; null = follows ARC. */
+  choice: boolean | null;
+  enabled: boolean;
+}

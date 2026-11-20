@@ -98,7 +98,9 @@ services:
       redis: { condition: service_healthy }
       litellm: { condition: service_healthy }
     networks: [backend, edge]
-    ports: ['${ARC_HTTP_PORT:-8080}:8080']
+    # Loopback only by default: Caddy (--profile https) is the public entry. Set ARC_HTTP_BIND=0.0.0.0
+    # only to expose plain HTTP on purpose (e.g. behind another proxy on another host).
+    ports: ['${ARC_HTTP_BIND:-127.0.0.1}:${ARC_HTTP_PORT:-8080}:8080']
 
   worker:
     <<: *restart
@@ -192,6 +194,31 @@ services:
     depends_on:
       litellm: { condition: service_healthy }
 
+  # HTTPS for the public: certificates from Let's Encrypt, renewed automatically.
+  caddy:
+    profiles: [https]
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    environment:
+      ARC_DOMAIN: ${ARC_DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    # Checked here, not with ${VAR:?}: compose would demand them even without this profile.
+    command:
+      - sh
+      - -c
+      - >-
+        [ -n "$$ARC_DOMAIN" ] && [ -n "$$ACME_EMAIL" ] ||
+        { echo 'Set ARC_DOMAIN and ACME_EMAIL in .env' >&2; exit 1; };
+        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    ports: ['80:80', '443:443', '443:443/udp']
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    networks: [edge]
+    depends_on:
+      api: { condition: service_healthy }
+
 networks:
   # Internal network: Postgres, Redis and LiteLLM are not reachable from outside.
   backend: { internal: true }
@@ -204,6 +231,8 @@ networks:
 
 volumes:
   amdata:
+  caddydata:
+  caddyconfig:
   promdata:
   pgdata:
   redisdata:
