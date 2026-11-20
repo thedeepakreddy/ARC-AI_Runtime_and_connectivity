@@ -14,6 +14,7 @@ export function OverviewPage({ onChange }: { onChange: () => void }) {
 
   return (
     <div className="page">
+      <div className="horizon" aria-hidden="true" />
       <PageHead
         title="Overview"
         actions={
@@ -39,9 +40,7 @@ export function OverviewPage({ onChange }: { onChange: () => void }) {
         <>
           <section className="panel status-hero" aria-label="System status">
             <Dot tone={data.allUp ? 'ok' : 'bad'} />
-            <span className="title">
-              {data.allUp ? 'All systems operational' : 'Something is down'}
-            </span>
+            <span className="title">{data.allUp ? 'All systems nominal' : 'Systems degraded'}</span>
             <div className="services">
               {data.services.map((s) => (
                 <span key={s.name} className="service">

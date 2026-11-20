@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { type Me, type Session, api } from '../lib/api';
 import { ago, dateTime } from '../lib/format';
 import { useData } from '../lib/hooks';
-import { Badge, Field, PageHead, Segmented, useToast } from '../ui';
-
-type Theme = 'system' | 'light' | 'dark';
+import { Badge, Field, PageHead, useToast } from '../ui';
 
 function browserName(ua: string | null) {
   if (!ua) return 'Unknown device';
@@ -37,50 +35,11 @@ export function AccountPage({ me }: { me: Me }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem('arc-theme') as Theme) ?? 'system',
-  );
-
-  function applyTheme(t: Theme) {
-    setTheme(t);
-    try {
-      if (t === 'system') {
-        localStorage.removeItem('arc-theme');
-        document.documentElement.removeAttribute('data-theme');
-      } else {
-        localStorage.setItem('arc-theme', t);
-        document.documentElement.setAttribute('data-theme', t);
-      }
-    } catch {
-      /* storage unavailable: the choice lasts for this visit */
-    }
-  }
 
   return (
     <div className="page" style={{ maxWidth: 760 }}>
       <PageHead title="Account" sub={me.user.email} />
       <section>
-        <div className="section-head">
-          <h2 className="section-title">Appearance</h2>
-        </div>
-        <div className="panel list-row">
-          <span>Theme</span>
-          <span style={{ marginLeft: 'auto' }}>
-            <Segmented<Theme>
-              label="Theme"
-              value={theme}
-              onChange={applyTheme}
-              options={[
-                ['system', 'System'],
-                ['light', 'Light'],
-                ['dark', 'Dark'],
-              ]}
-            />
-          </span>
-        </div>
-      </section>
-
-      <section className="section">
         <div className="section-head">
           <h2 className="section-title">Password</h2>
         </div>

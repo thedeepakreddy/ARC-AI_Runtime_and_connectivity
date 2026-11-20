@@ -51,7 +51,7 @@ function Shell({ me }: { me: Me }) {
         ? `${alerts} alert${alerts > 1 ? 's' : ''} firing`
         : failingKeys
           ? `${failingKeys} provider key${failingKeys > 1 ? 's' : ''} failing`
-          : 'All systems operational';
+          : 'All systems nominal';
 
   const link = (to: string, label: string, count?: number, alert?: boolean) => (
     <NavLink to={to} end={to === '/'}>
@@ -151,11 +151,14 @@ function SignIn({ onDone }: { onDone: () => void }) {
   }
   return (
     <div className="signin">
-      <div className="signin-horizon" />
+      <div className="stars" />
+      <div className="signin-limb" />
       <form className="signin-card" onSubmit={submit}>
-        <img className="signin-mark" src="/console/icon-192.png" alt="ARC" />
-        <h1>Sign in to ARC</h1>
-        <p className="lead">The console for your AI runtime.</p>
+        <span className="signin-word" aria-label="ARC">
+          ARC
+        </span>
+        <span className="eyebrow">AI Runtime &amp; Connectivity</span>
+        <h1>Console sign-in</h1>
         <div className="field">
           <label htmlFor="email" className="sr-only">
             Email
@@ -195,7 +198,7 @@ function SignIn({ onDone }: { onDone: () => void }) {
         <button className="btn primary" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
-        <p className="foot">AI Runtime &amp; Connectivity</p>
+        <p className="foot">Owner access · Encrypted session</p>
       </form>
     </div>
   );
@@ -204,9 +207,10 @@ function SignIn({ onDone }: { onDone: () => void }) {
 function NotOwner({ email }: { email: string }) {
   return (
     <div className="signin">
-      <div className="signin-horizon" />
+      <div className="stars" />
+      <div className="signin-limb" />
       <div className="signin-card" style={{ textAlign: 'center' }}>
-        <img className="signin-mark" src="/console/icon-192.png" alt="ARC" />
+        <span className="signin-word">ARC</span>
         <h1>Owner access only</h1>
         <p className="lead">
           {email} is signed in, but this console is for the ARC owner. Customers use the ARC
