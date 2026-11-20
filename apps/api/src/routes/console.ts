@@ -9,6 +9,7 @@ import {
   verifyPassword,
 } from '../auth/password.js';
 import { ArcError, notFound, parseInput } from '../errors.js';
+import type { Db } from '../db/pool.js';
 import type { AdminDeps } from './deps.js';
 
 /**
@@ -22,7 +23,7 @@ const RANGES = {
   '30d': { hours: 720, step: 'day' },
 } as const;
 const rangeQuery = z.object({ range: z.enum(['24h', '7d', '30d']).default('24h') });
-const trafficQuery = rangeQuery.extend({
+export const trafficQuery = rangeQuery.extend({
   by: z.enum(['app', 'provider', 'model', 'key']).default('app'),
   /** Only this app's traffic. */
   app: z.uuid().optional(),
@@ -256,89 +257,7 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
 
   app.get('/console/traffic', async (req) => {
     requireSuperadmin(req);
-    const { range, by, app: appId } = parseInput(trafficQuery, req.query);
-    const { hours, step } = RANGES[range];
-    const group = {
-      app: {
-        key: 'a.id::text',
-        label: 'a.name',
-        join: 'JOIN applications a ON a.id = r.application_id',
-      },
-      provider: {
-        key: 'r.provider_id',
-        label: "coalesce(p.display_name, nullif(r.provider_id, ''), 'No route')",
-        join: 'LEFT JOIN providers p ON p.id = r.provider_id',
-      },
-      model: {
-        key: 'r.model_name',
-        label: "coalesce(nullif(r.model_name, ''), 'No route')",
-        join: '',
-      },
-      key: {
-        key: 'r.account_id',
-        label: "coalesce(pa.label || ' · ' || pp.display_name, 'No route')",
-        join: 'LEFT JOIN provider_accounts pa ON pa.id::text = r.account_id LEFT JOIN providers pp ON pp.id = pa.provider_id',
-      },
-    }[by];
-    const [rows, series] = await Promise.all([
-      db.query<{
-        id: string;
-        label: string;
-        requests: number;
-        errors: number;
-        fallbacks: number;
-        overhead: number | null;
-        duration: number | null;
-      }>(
-        `SELECT ${group.key} AS id, ${group.label} AS label, sum(r.requests)::int AS requests,
-                sum(r.errors)::int AS errors, sum(r.fallbacks)::int AS fallbacks,
-                sum(r.overhead_ms_sum) / nullif(sum(r.overhead_n), 0) AS overhead,
-                sum(r.duration_ms_sum) / nullif(sum(r.requests), 0) AS duration
-           FROM request_rollups r ${group.join}
-          WHERE r.bucket > now() - make_interval(hours => $1)
-            AND ($2::uuid IS NULL OR r.application_id = $2)
-          GROUP BY 1, 2 ORDER BY requests DESC LIMIT 100`,
-        [hours, appId ?? null],
-      ),
-      db.query<{
-        t: Date;
-        requests: number;
-        errors: number;
-        fallbacks: number;
-        overhead: number | null;
-      }>(
-        `SELECT g.t, coalesce(sum(r.requests), 0)::int AS requests, coalesce(sum(r.errors), 0)::int AS errors,
-                coalesce(sum(r.fallbacks), 0)::int AS fallbacks,
-                sum(r.overhead_ms_sum) / nullif(sum(r.overhead_n), 0) AS overhead
-           FROM generate_series(date_trunc($2, now()) - make_interval(hours => $1) + ('1 ' || $2)::interval,
-                                date_trunc($2, now()), ('1 ' || $2)::interval) AS g(t)
-           LEFT JOIN request_rollups r ON date_trunc($2, r.bucket) = g.t
-                AND ($3::uuid IS NULL OR r.application_id = $3)
-          GROUP BY g.t ORDER BY g.t`,
-        [hours, step, appId ?? null],
-      ),
-    ]);
-    const n = (v: number | null) => (v === null ? null : Math.round(Number(v) * 100) / 100);
-    return {
-      range,
-      by,
-      rows: rows.rows.map((r) => ({
-        id: r.id,
-        label: r.label,
-        requests: r.requests,
-        errorRate: pct(r.errors, r.requests),
-        fallbackRate: pct(r.fallbacks, r.requests),
-        overheadMsAvg: n(r.overhead),
-        durationMsAvg: n(r.duration),
-      })),
-      series: series.rows.map((r) => ({
-        t: r.t.toISOString(),
-        requests: r.requests,
-        errors: r.errors,
-        fallbacks: r.fallbacks,
-        overheadMsAvg: n(r.overhead),
-      })),
-    };
+    return trafficReport(db, parseInput(trafficQuery, req.query), null);
   });
 
   app.get('/console/customers', async (req) => {
@@ -447,4 +366,99 @@ export async function consoleRoutes(app: FastifyInstance, deps: AdminDeps): Prom
     });
     return reply.code(204).send();
   });
+}
+
+/**
+ * Traffic over a range, grouped by app, provider, model or key, plus a time series. With a
+ * tenant id, only that tenant's traffic (the customer dashboard); with null, all of it (owner).
+ */
+export async function trafficReport(
+  db: Db,
+  { range, by, app: appId }: z.infer<typeof trafficQuery>,
+  tenantId: string | null,
+) {
+  const { hours, step } = RANGES[range];
+  const group = {
+    app: {
+      key: 'a.id::text',
+      label: 'a.name',
+      join: 'JOIN applications a ON a.id = r.application_id',
+    },
+    provider: {
+      key: 'r.provider_id',
+      label: "coalesce(p.display_name, nullif(r.provider_id, ''), 'No route')",
+      join: 'LEFT JOIN providers p ON p.id = r.provider_id',
+    },
+    model: {
+      key: 'r.model_name',
+      label: "coalesce(nullif(r.model_name, ''), 'No route')",
+      join: '',
+    },
+    key: {
+      key: 'r.account_id',
+      label: "coalesce(pa.label || ' · ' || pp.display_name, 'No route')",
+      join: 'LEFT JOIN provider_accounts pa ON pa.id::text = r.account_id LEFT JOIN providers pp ON pp.id = pa.provider_id',
+    },
+  }[by];
+  const [rows, series] = await Promise.all([
+    db.query<{
+      id: string;
+      label: string;
+      requests: number;
+      errors: number;
+      fallbacks: number;
+      overhead: number | null;
+      duration: number | null;
+    }>(
+      `SELECT ${group.key} AS id, ${group.label} AS label, sum(r.requests)::int AS requests,
+              sum(r.errors)::int AS errors, sum(r.fallbacks)::int AS fallbacks,
+              sum(r.overhead_ms_sum) / nullif(sum(r.overhead_n), 0) AS overhead,
+              sum(r.duration_ms_sum) / nullif(sum(r.requests), 0) AS duration
+         FROM request_rollups r ${group.join}
+        WHERE r.bucket > now() - make_interval(hours => $1)
+          AND ($2::uuid IS NULL OR r.application_id = $2)
+          AND ($3::uuid IS NULL OR r.tenant_id = $3)
+        GROUP BY 1, 2 ORDER BY requests DESC LIMIT 100`,
+      [hours, appId ?? null, tenantId],
+    ),
+    db.query<{
+      t: Date;
+      requests: number;
+      errors: number;
+      fallbacks: number;
+      overhead: number | null;
+    }>(
+      `SELECT g.t, coalesce(sum(r.requests), 0)::int AS requests, coalesce(sum(r.errors), 0)::int AS errors,
+              coalesce(sum(r.fallbacks), 0)::int AS fallbacks,
+              sum(r.overhead_ms_sum) / nullif(sum(r.overhead_n), 0) AS overhead
+         FROM generate_series(date_trunc($2, now()) - make_interval(hours => $1) + ('1 ' || $2)::interval,
+                              date_trunc($2, now()), ('1 ' || $2)::interval) AS g(t)
+         LEFT JOIN request_rollups r ON date_trunc($2, r.bucket) = g.t
+              AND ($3::uuid IS NULL OR r.application_id = $3)
+              AND ($4::uuid IS NULL OR r.tenant_id = $4)
+        GROUP BY g.t ORDER BY g.t`,
+      [hours, step, appId ?? null, tenantId],
+    ),
+  ]);
+  const n = (v: number | null) => (v === null ? null : Math.round(Number(v) * 100) / 100);
+  return {
+    range,
+    by,
+    rows: rows.rows.map((r) => ({
+      id: r.id,
+      label: r.label,
+      requests: r.requests,
+      errorRate: pct(r.errors, r.requests),
+      fallbackRate: pct(r.fallbacks, r.requests),
+      overheadMsAvg: n(r.overhead),
+      durationMsAvg: n(r.duration),
+    })),
+    series: series.rows.map((r) => ({
+      t: r.t.toISOString(),
+      requests: r.requests,
+      errors: r.errors,
+      fallbacks: r.fallbacks,
+      overheadMsAvg: n(r.overhead),
+    })),
+  };
 }

@@ -11,6 +11,8 @@ export interface AdminDeps {
   probe: ProviderProbe;
   cookieSecure: boolean;
   sessionTtlMs: number;
+  /** Customer sign-up: invitation only (default) or open. */
+  signupMode?: 'invite' | 'open';
   probeTimeoutMs: number;
   /** Override the SSRF URL guard (tests only). */
   assertPublicUrl?: (url: string) => Promise<void>;

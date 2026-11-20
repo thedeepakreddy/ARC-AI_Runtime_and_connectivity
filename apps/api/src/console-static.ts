@@ -12,6 +12,8 @@ const TYPES: Record<string, string> = {
   '.json': 'application/json',
   '.webmanifest': 'application/manifest+json',
   '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.webp': 'image/webp',
 };
 
 // Same origin as /admin/v1, so the SameSite=Strict session cookie just works. Nothing third-party.
@@ -28,13 +30,14 @@ const CSP = [
 ].join('; ');
 
 /**
- * Serves the built console (apps/console/dist) at /console. Unknown paths get index.html (the
- * console routes in the browser). Hashed assets are cached for a year; index.html never.
+ * Serves a built single-page app (the owner console at /console, the customer dashboard at
+ * /dashboard). Unknown paths get index.html (the app routes in the browser). Hashed assets are
+ * cached for a year; index.html never.
  */
-export function serveConsole(app: FastifyInstance, dir: string): void {
+export function serveApp(app: FastifyInstance, mount: string, dir: string): void {
   const root = path.resolve(dir);
-  app.get('/console', (_req, reply) => reply.redirect('/console/'));
-  app.get('/console/*', async (req, reply) => {
+  app.get(mount, (_req, reply) => reply.redirect(`${mount}/`));
+  app.get(`${mount}/*`, async (req, reply) => {
     const rel = decodeURIComponent((req.params as { '*': string })['*'] ?? '');
     let file = path.resolve(root, rel);
     if (!file.startsWith(root + path.sep) && file !== root) return reply.code(404).send();

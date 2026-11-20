@@ -64,6 +64,7 @@ const app = buildApp({
     probe: new HttpProviderProbe(),
     cookieSecure: cookieSecure(config),
     sessionTtlMs: config.SESSION_TTL_HOURS * 3_600_000,
+    signupMode: config.SIGNUP_MODE,
     probeTimeoutMs: config.PROBE_TIMEOUT_MS,
     onRoutingChange: () => {
       candidates.invalidate();
@@ -78,6 +79,7 @@ const app = buildApp({
     alertmanagerUrl: config.ALERTMANAGER_URL,
   },
   consoleDir: config.CONSOLE_DIR,
+  dashboardDir: config.DASHBOARD_DIR,
   inference: {
     db,
     credentials,

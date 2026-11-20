@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { recordAudit } from '../audit.js';
 import { currentUser, requireUser } from '../auth/context.js';
@@ -12,6 +12,17 @@ const loginSchema = z.object({
   email: z.email().max(320),
   password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
+
+/** The session cookie: HttpOnly, SameSite=Strict, scoped to the admin API. */
+export function setSessionCookie(reply: FastifyReply, token: string, deps: AdminDeps): void {
+  reply.setCookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: deps.cookieSecure,
+    sameSite: 'strict',
+    path: '/admin',
+    maxAge: Math.floor(deps.sessionTtlMs / 1000),
+  });
+}
 
 export async function authRoutes(app: FastifyInstance, deps: AdminDeps): Promise<void> {
   const { db } = deps;
@@ -49,13 +60,7 @@ export async function authRoutes(app: FastifyInstance, deps: AdminDeps): Promise
     await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
     await recordAudit(db, { tenantId: null, actorUserId: user.id, action: 'auth.login' });
 
-    reply.setCookie(SESSION_COOKIE, token, {
-      httpOnly: true,
-      secure: deps.cookieSecure,
-      sameSite: 'strict',
-      path: '/admin',
-      maxAge: Math.floor(deps.sessionTtlMs / 1000),
-    });
+    setSessionCookie(reply, token, deps);
     return { ok: true };
   });
 
