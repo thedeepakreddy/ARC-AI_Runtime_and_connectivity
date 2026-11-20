@@ -58,6 +58,21 @@ export const apiEnvSchema = baseEnvSchema.extend({
   MAIL_SMTP_PASSWORD_FILE: z.string().default('/run/secrets/arc/smtp-password'),
   MAIL_FROM: z.string().optional(),
   MAIL_REQUIRE_TLS: bool.default(true),
+  /** Google AdSense in the customer dashboard's sidebar. Off unless both are set. */
+  ADSENSE_CLIENT: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z
+      .string()
+      .regex(/^ca-pub-\d{10,20}$/, 'ca-pub-…')
+      .optional(),
+  ),
+  ADSENSE_SLOT: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z
+      .string()
+      .regex(/^\d{6,20}$/)
+      .optional(),
+  ),
   /** Google sign-in. Off unless GOOGLE_CLIENT_ID and PUBLIC_URL are set. */
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET_FILE: z.string().default('/run/secrets/arc/google-client-secret'),

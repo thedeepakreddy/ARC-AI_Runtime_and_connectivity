@@ -25,7 +25,7 @@ Run ARC behind HTTPS: the bundled Caddy does it (`docker compose --profile https
 `ARC_DOMAIN` and `ACME_EMAIL` in `.env`), getting and renewing a Let's Encrypt certificate. The API
 itself listens on loopback only (`ARC_HTTP_BIND`, default `127.0.0.1`). Session cookies are
 `Secure` by default; set `TRUST_PROXY=true` behind Caddy so sign-in throttling sees real client
-addresses. On Oracle Cloud, follow [deploy-oracle.md](deploy-oracle.md).
+addresses. On Google Cloud, follow [deploy-gcp.md](deploy-gcp.md).
 
 Sign-in, sign-up and invitation-lookup limits are shared across API instances through Redis
 (`COORDINATION=redis`, the default), keyed by a hash of the email or address; if Redis is down
@@ -51,6 +51,23 @@ each instance keeps limiting on its own.
   accounts with the same verified email (linking them), and creates accounts only from an
   invitation (or with open sign-up). Two-step sign-in still applies after Google.
 - Request logs record paths only, never query strings, so one-time values never reach logs.
+
+## Ads in the customer dashboard
+
+A Google AdSense unit can fill the space in the dashboard's sidebar, above the account panel
+(desktop only; never in the owner console or on sign-in screens). Off by default.
+
+1. Get the site approved in AdSense, create a display ad unit (a 200 × 300 custom size fits),
+   and set `ADSENSE_CLIENT=ca-pub-…` and `ADSENSE_SLOT=…` in `.env`.
+2. ARC then serves `/ads.txt` for your publisher id, and gives the dashboard a strict
+   nonce-based Content Security Policy that lets Google's ad loader run (and nothing else
+   unannounced). Without the settings, the dashboard allows no third-party scripts at all.
+3. In the EEA, UK and Switzerland, Google requires a certified consent banner (CMP): turn on
+   Google's own in AdSense → Privacy & messaging before showing ads there.
+
+Know the trade-off: ad scripts run inside a signed-in page. They can't read the session cookie
+(HttpOnly), but they share the page with things shown once, such as a new ARC key. Google's
+loader is the only script admitted; the ads themselves render in Google's frames.
 
 ## Vault key rotation
 
@@ -137,20 +154,19 @@ openssl rand -base64 32 > secrets/backup-passphrase && chmod 600 secrets/backup-
 
 Backups land in `./backups` (`ARC_BACKUP_DIR`), kept 14 days (`BACKUP_RETENTION_DAYS`).
 
-**Off-site copy (free: Oracle Object Storage, 20 GB).** Create a bucket (e.g. `arc-backups`) and
-a Customer Secret Key (Profile → Customer secret keys), then `secrets/rclone.conf`:
+**Off-site copy (Google Cloud Storage).** Create a bucket (e.g. `arc-backups`, Standard class,
+same region as the VM) and a service account with the _Storage Object Creator_ and _Viewer_
+roles on that bucket only; download its JSON key to `secrets/gcs-backup.json`. Then
+`secrets/rclone.conf`:
 
 ```ini
-[oci]
-type = s3
-provider = Other
-access_key_id = <customer secret key id>
-secret_access_key = <customer secret key>
-endpoint = https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
-region = <region>
+[gcs]
+type = google cloud storage
+service_account_file = /run/secrets/arc/gcs-backup.json
+bucket_policy_only = true
 ```
 
-and `BACKUP_RCLONE_REMOTE=oci:arc-backups` in `.env`. Every backup is then copied off-site.
+and `BACKUP_RCLONE_REMOTE=gcs:arc-backups` in `.env`. Every backup is then copied off-site.
 
 - Use the same PostgreSQL major version for `pg_dump`, `pg_restore` and the servers you back up
   and restore to: `pg_dump` refuses newer servers, and a newer `pg_dump` can write settings an

@@ -1,5 +1,6 @@
 import { Dot, Icon, Wordmark } from '@arc/ui';
 import { AccountPage } from '@arc/ui/account';
+import { AdSlot } from './AdSlot';
 import { type Me, api, get, onUnauthorized, setTenant } from '@arc/ui/api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -175,6 +176,7 @@ function Shell({
           <NavLink to="/team">Team</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>
+        <AdSlot />
         <div className="sidebar-foot">
           <div className="system-line">
             <Dot tone="ok" />

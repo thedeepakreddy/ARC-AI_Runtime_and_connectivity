@@ -100,9 +100,9 @@ international, Chinese, local, speech/embeddings.
 - [x] LiteLLM pinned by digest to the verified 1.110.0 release
 - [x] Fixed Phase 4 bug: Prometheus UI port was never published (container only on an internal network)
 - [x] `ops` container for backups/restores/drill (matching PostgreSQL major, nothing on the host);
-      off-site copy to Oracle Object Storage (free 20 GB) via rclone — owner to create the bucket
+      off-site copy via rclone (Google Cloud Storage since the move to GCP) — owner to create the bucket
 - [x] `scripts/ops/vps-verify.sh`: drill + RTO/RPO + load test → dated report (passes locally)
-- [ ] Run `scripts/ops/vps-verify.sh` on the real Oracle VPS and keep its report (needs the server)
+- [ ] Run `scripts/ops/vps-verify.sh` on the real server (GCP VM) and keep its report (needs the server)
 
 ## Phase 5 status
 
@@ -172,11 +172,11 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
 - [x] Apps' end-user keys through ARC: `PUT /v1/user-keys/:provider` + `x-arc-user`; stored in
       ARC's vault per app and hashed user id; that user's requests use only their keys
 - [x] HTTPS with Caddy (`--profile https`), API on loopback by default; Arm (`linux/arm64`) images
-      built in CI and every third-party image checked for an Arm build; Oracle deploy guide
-      ([deploy-oracle.md](deploy-oracle.md))
+      built in CI and every third-party image checked for an Arm build; deploy guide
+      ([deploy-gcp.md](deploy-gcp.md))
 - [ ] Switch Echo and the Studio to `/v1/user-keys` for their users' own Gemini keys (in those
       repos)
-- [ ] Deploy on the Oracle VM following deploy-oracle.md (owner; needs the account and domain)
+- [ ] Deploy on a Google Cloud VM following deploy-gcp.md (owner; needs the project and domain)
 
 ## Phase 6 scope: dashboards and users' own keys
 
@@ -212,7 +212,9 @@ Frontend, with **each screen layout approved before coding**:
 
 5. **Alerts:** by email (approved).
 6. **LiteLLM version:** 1.110.0, pinned by digest (done).
-7. **Hosting:** Oracle Cloud Always Free; see [costs.md](costs.md).
+7. **Hosting:** Google Cloud Compute Engine, one VM (e2-medium recommended, e2-small minimum;
+   the free e2-micro's 1 GB can't hold the stack); see [costs.md](costs.md) and
+   [deploy-gcp.md](deploy-gcp.md). Changed from Oracle Cloud by the owner.
 8. **Customer sign-up:** invitation-only by default, `SIGNUP_MODE=open` to allow anyone;
    invitations are links you send yourself until ARC has transactional email.
 9. **Design system:** one package (`@arc/ui`) and one [DESIGN.md](../DESIGN.md) for the console

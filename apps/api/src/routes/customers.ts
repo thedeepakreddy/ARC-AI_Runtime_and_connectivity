@@ -123,6 +123,7 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
     signup: signupMode,
     passwordReset: !!deps.mailer,
     google: !!deps.google,
+    ads: deps.ads ?? null,
   }));
 
   app.post('/auth/invitations/preview', async (req) => {

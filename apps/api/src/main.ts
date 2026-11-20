@@ -75,6 +75,11 @@ const google =
       }
     : undefined;
 
+const ads =
+  config.ADSENSE_CLIENT && config.ADSENSE_SLOT
+    ? { client: config.ADSENSE_CLIENT, slot: config.ADSENSE_SLOT }
+    : undefined;
+
 const app = buildApp({
   checks: deps.checks,
   readinessTimeoutMs: config.READINESS_TIMEOUT_MS,
@@ -101,6 +106,7 @@ const app = buildApp({
     mailer,
     publicUrl: config.PUBLIC_URL,
     google,
+    ads,
     throttle: config.COORDINATION === 'redis' ? redisThrottle(limiterRedis) : localThrottle,
     probeTimeoutMs: config.PROBE_TIMEOUT_MS,
     onRoutingChange: () => {
@@ -117,6 +123,7 @@ const app = buildApp({
   },
   consoleDir: config.CONSOLE_DIR,
   dashboardDir: config.DASHBOARD_DIR,
+  ads,
   inference: {
     db,
     credentials,

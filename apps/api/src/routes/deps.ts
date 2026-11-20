@@ -21,6 +21,8 @@ export interface AdminDeps {
   publicUrl?: string | undefined;
   /** Google sign-in; off when absent. */
   google?: GoogleConfig | undefined;
+  /** Google AdSense for the dashboard sidebar; off when absent. */
+  ads?: { client: string; slot: string } | undefined;
   /** Customer sign-up: invitation only (default) or open. */
   signupMode?: 'invite' | 'open';
   probeTimeoutMs: number;

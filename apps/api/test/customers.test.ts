@@ -109,6 +109,7 @@ describe.skipIf(!TEST_DATABASE_URL)('customers: sign-up, invitations, team, usag
       signup: 'invite',
       passwordReset: false,
       google: false,
+      ads: null,
     });
     const res = await anon('POST', '/auth/signup', {
       email: 'nobody@example.test',

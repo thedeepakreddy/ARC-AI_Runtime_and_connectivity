@@ -15,6 +15,8 @@ export interface AuthConfig {
   signup: 'invite' | 'open';
   passwordReset: boolean;
   google: boolean;
+  /** Google AdSense for the dashboard sidebar, when this ARC shows ads. */
+  ads?: { client: string; slot: string } | null;
 }
 
 export function useAuthConfig(): AuthConfig | null {

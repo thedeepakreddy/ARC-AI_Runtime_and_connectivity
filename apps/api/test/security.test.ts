@@ -162,6 +162,7 @@ describe.skipIf(!TEST_DATABASE_URL)('account security (PostgreSQL)', () => {
       signup: 'invite',
       passwordReset: true,
       google: true,
+      ads: null,
     });
   });
 

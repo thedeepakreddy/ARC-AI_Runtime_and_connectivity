@@ -4,7 +4,7 @@
 #   DATABASE_URL=postgres://… BACKUP_PASSPHRASE_FILE=/secure/backup-pass scripts/ops/backup.sh
 #
 # Optional: BACKUP_DIR (default ./backups), BACKUP_RETENTION_DAYS (default 14),
-# BACKUP_RCLONE_REMOTE (e.g. "oci:arc-backups") to copy the backup off-site with rclone.
+# BACKUP_RCLONE_REMOTE (e.g. "gcs:arc-backups") to copy the backup off-site with rclone.
 #
 # The vault key file is NOT in this backup and must be backed up separately (see
 # docs/operations.md): without it, restored provider credentials cannot be decrypted.

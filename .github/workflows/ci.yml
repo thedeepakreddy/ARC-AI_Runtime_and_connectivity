@@ -161,7 +161,7 @@ jobs:
       - name: Validate docker compose files
         run: docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.smoke.yml --profile monitoring --profile ops --profile https config --quiet
 
-  # Oracle's Always Free VM is Arm (Ampere A1). Build ARC's own images for linux/arm64 (under
+  # Arm servers (e.g. Google's T2A/C4A) are cheaper per core. Build ARC's own images for linux/arm64 (under
   # QEMU), load the API's code on Arm, and check every third-party image ships an arm64 build.
   arm64:
     runs-on: ubuntu-latest

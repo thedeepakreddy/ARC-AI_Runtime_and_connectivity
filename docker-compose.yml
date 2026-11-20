@@ -96,6 +96,9 @@ services:
       MAIL_REQUIRE_TLS: ${ALERT_SMTP_REQUIRE_TLS:-true}
       # Google sign-in: client id here, client secret in secrets/google-client-secret.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Google AdSense in the dashboard sidebar (optional).
+      ADSENSE_CLIENT: ${ADSENSE_CLIENT:-}
+      ADSENSE_SLOT: ${ADSENSE_SLOT:-}
       # Metrics on 9464, reachable only on the private backend network (not published).
       METRICS_PORT: 9464
       # Firing alerts in the console's "Needs you" list (monitoring profile).
@@ -176,7 +179,7 @@ services:
       BACKUP_PASSPHRASE_FILE: /run/secrets/arc/backup-passphrase
       BACKUP_DIR: /backups
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
-      # Off-site copy, e.g. "oci:arc-backups" (rclone config in ${ARC_SECRETS_DIR}/rclone.conf).
+      # Off-site copy, e.g. "gcs:arc-backups" (rclone config in ${ARC_SECRETS_DIR}/rclone.conf).
       BACKUP_RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-}
       RCLONE_CONFIG: /run/secrets/arc/rclone.conf
     volumes:
