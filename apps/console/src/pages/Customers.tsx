@@ -55,7 +55,9 @@ export function CustomersPage() {
                 <th className="r hide-sm">Their keys</th>
                 <th className="r">Requests, 30 d</th>
                 <th className="hide-sm">Joined</th>
-                <th />
+                <th>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>

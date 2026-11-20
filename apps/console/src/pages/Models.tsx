@@ -186,7 +186,16 @@ export function ModelsPage({ onChange }: { onChange: () => void }) {
                       />
                     </td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{m.displayName ?? m.modelId}</div>
+                      <button
+                        type="button"
+                        className="row-link"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setParams({ tab, model: m.id });
+                        }}
+                      >
+                        {m.displayName ?? m.modelId}
+                      </button>
                       {m.displayName && <div className="mono faint">{m.modelId}</div>}
                     </td>
                     <td className="muted">{names.get(m.providerId) ?? m.providerId}</td>

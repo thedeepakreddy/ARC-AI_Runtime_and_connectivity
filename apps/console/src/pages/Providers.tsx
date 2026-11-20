@@ -170,12 +170,14 @@ export function ProvidersPage({ onChange }: { onChange: () => void }) {
                   <thead>
                     <tr>
                       <th>Label</th>
-                      <th>Key</th>
+                      <th className="hide-sm">Key</th>
                       <th>Status</th>
                       <th className="hide-sm">Checked</th>
-                      <th className="r">Share, 24 h</th>
+                      <th className="r hide-sm">Share, 24 h</th>
                       <th className="r">On</th>
-                      <th />
+                      <th>
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -190,13 +192,24 @@ export function ProvidersPage({ onChange }: { onChange: () => void }) {
                           className={`clickable ${a.id === openId ? 'selected' : ''}`}
                           onClick={() => setParams({ key: a.id })}
                         >
-                          <td style={{ fontWeight: 500 }}>{a.label}</td>
-                          <td className="mono faint">{a.secretHint ?? '—'}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="row-link"
+                              onClick={(ev) => {
+                                ev.stopPropagation();
+                                setParams({ key: a.id });
+                              }}
+                            >
+                              {a.label}
+                            </button>
+                          </td>
+                          <td className="mono faint hide-sm">{a.secretHint ?? '—'}</td>
                           <td>
                             <Status tone={h.tone}>{h.label}</Status>
                           </td>
                           <td className="faint hide-sm">{ago(a.lastValidatedAt)}</td>
-                          <td className="r num">
+                          <td className="r num hide-sm">
                             {s === null ? <span className="faint">—</span> : pct(s)}
                           </td>
                           <td className="r w">

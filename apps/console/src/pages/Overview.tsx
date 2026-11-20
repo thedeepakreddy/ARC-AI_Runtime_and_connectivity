@@ -14,7 +14,6 @@ export function OverviewPage({ onChange }: { onChange: () => void }) {
 
   return (
     <div className="page">
-      <div className="horizon" aria-hidden="true" />
       <PageHead
         title="Overview"
         actions={
@@ -119,20 +118,8 @@ export function OverviewPage({ onChange }: { onChange: () => void }) {
                 />
               </div>
               <div className="chart" style={{ borderTop: '1px solid var(--line)' }}>
-                <div className="chart-legend" style={{ marginBottom: 10 }}>
-                  <span>
-                    <span className="legend-swatch" style={{ background: 'var(--horizon)' }} />
-                    Requests
-                  </span>
-                  <span>
-                    <span className="legend-swatch" style={{ background: 'var(--bad)' }} />
-                    Errors
-                  </span>
-                  <Link to="/traffic" style={{ marginLeft: 'auto' }}>
-                    Traffic details →
-                  </Link>
-                </div>
                 <TrafficChart
+                  action={<Link to="/traffic">Traffic details →</Link>}
                   points={data.series}
                   label={range === '24h' ? time : (t) => dateTime(t).split(',')[0]!}
                 />
@@ -187,7 +174,9 @@ export function OverviewPage({ onChange }: { onChange: () => void }) {
                     <tr>
                       <th>Provider</th>
                       <th>Share</th>
-                      <th className="r" />
+                      <th className="r">
+                        <span className="sr-only">Percent</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>

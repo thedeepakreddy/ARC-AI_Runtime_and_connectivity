@@ -21,13 +21,20 @@
   --line-strong: rgba(255, 255, 255, 0.14);
   /* Labels */
   --text: #f5f5f7;
-  --text-2: rgba(235, 235, 245, 0.62);
-  --text-3: rgba(235, 235, 245, 0.34);
+  /* text-3 is the quietest text allowed: >= 4.5:1 on every surface (WCAG 1.4.3). */
+  --text-2: rgba(235, 235, 245, 0.74);
+  --text-3: rgba(235, 235, 245, 0.55);
   /* Tints */
   --accent: #4f93e3;
   --accent-text: #79b3f2;
   --accent-weak: rgba(79, 147, 227, 0.16);
   --on-accent: #fff;
+  /* Primary actions are white pills with black labels (as on sign-in): 19:1, and not the
+     generic blue SaaS button. Blue stays for links, selection and data. */
+  --primary: #f5f5f7;
+  --primary-hover: #ffffff;
+  --on-primary: #000;
+  --focus: #79b3f2;
   --ok: #30d158;
   --ok-weak: rgba(48, 209, 88, 0.16);
   --warn: #ffb340;
@@ -35,6 +42,7 @@
   --bad: #ff5f57;
   --bad-weak: rgba(255, 95, 87, 0.16);
   --horizon: #559ade;
+  --horizon-glow: rgba(85, 154, 222, 0.32);
   --shadow-pop: 0 24px 64px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
 
   --font:
@@ -95,9 +103,25 @@ textarea {
   letter-spacing: inherit;
 }
 :focus-visible {
-  outline: 3px solid rgba(79, 147, 227, 0.55);
-  outline-offset: 1px;
+  /* Solid ring: 8.4:1 against the panels and black (WCAG 1.4.11). */
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
   border-radius: var(--r-sm);
+}
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font: 600 14px/1 var(--font-ui);
+}
+.skip-link:focus {
+  top: 12px;
+  text-decoration: none;
 }
 ::selection {
   background: rgba(79, 147, 227, 0.4);
@@ -130,9 +154,24 @@ textarea {
 
 /* ---------- Shell ---------- */
 .shell {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
   min-height: 100%;
+}
+/* The space backdrop behind every page: the star field and Milky Way from the sign-in art,
+   fixed, faded towards the bottom so tables sit on near-black. Panels stay opaque. */
+.shell::before {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  inset: 0 0 0 var(--sidebar-w);
+  background: url('/console/space-small.webp') center top / cover no-repeat;
+  opacity: 0.9;
+  -webkit-mask-image: linear-gradient(#000 0, rgba(0, 0, 0, 0.5) 40%, transparent 68%);
+  mask-image: linear-gradient(#000 0, rgba(0, 0, 0, 0.5) 40%, transparent 68%);
+  pointer-events: none;
 }
 .sidebar {
   position: sticky;
@@ -144,22 +183,41 @@ textarea {
   background: #0a0a0c;
   border-right: 1px solid var(--line);
 }
+/* The wordmark over a faint horizon glow: the icon's sunrise arc, without repeating "ARC". */
 .brand {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 2px 10px 24px;
+  align-items: flex-end;
+  gap: 10px;
+  margin: -18px -12px 10px;
+  padding: 28px 22px 34px;
   color: var(--text);
+  text-decoration: none !important;
+  overflow: hidden;
 }
-.brand img {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+/* Earth's limb from the icon, seen edge-on under the wordmark. */
+.brand::before {
+  content: '';
+  position: absolute;
+  left: -40%;
+  right: -40%;
+  top: calc(100% - 14px);
+  height: 220px;
+  border-radius: 50%;
+  border-top: 1px solid rgba(150, 196, 245, 0.6);
+  box-shadow:
+    0 -8px 22px -8px var(--horizon-glow),
+    inset 0 10px 24px -14px rgba(85, 154, 222, 0.5);
+  pointer-events: none;
+}
+.brand svg {
+  position: relative;
 }
 .brand-sub {
+  position: relative;
   font: 500 13px/1 var(--font-ui);
   color: var(--text-3);
-  padding-left: 1px;
+  margin-bottom: 1px;
 }
 .nav {
   display: flex;
@@ -209,6 +267,10 @@ textarea {
 .nav-count.alert {
   background: var(--warn-weak);
   color: var(--warn);
+}
+.nav-count.bad {
+  background: var(--bad-weak);
+  color: var(--bad);
 }
 .sidebar-foot {
   margin: 10px -12px 0;
@@ -296,19 +358,6 @@ textarea {
 }
 .mobile-bar {
   display: none;
-}
-
-/* Space art behind the top of a page (Overview): the backdrop, fading into the page. */
-.horizon {
-  position: absolute;
-  z-index: -1;
-  inset: 0 0 auto 0;
-  height: 420px;
-  background: url('/console/space-small.webp') center 72% / cover no-repeat;
-  opacity: 0.85;
-  -webkit-mask-image: linear-gradient(#000 25%, transparent);
-  mask-image: linear-gradient(#000 25%, transparent);
-  pointer-events: none;
 }
 
 /* ---------- Status ---------- */
@@ -403,11 +452,11 @@ textarea {
   transform: none;
 }
 .btn.primary {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--primary);
+  color: var(--on-primary);
 }
 .btn.primary:hover {
-  background: #5b9eea;
+  background: var(--primary-hover);
 }
 .btn.danger {
   color: var(--bad);
@@ -458,7 +507,7 @@ textarea {
 .textarea:focus {
   outline: none;
   background: var(--fill-strong);
-  box-shadow: 0 0 0 3px rgba(79, 147, 227, 0.5);
+  box-shadow: 0 0 0 2px var(--focus);
 }
 .select {
   appearance: none;
@@ -570,6 +619,8 @@ textarea {
   border: 0;
   border-radius: 999px;
   background: var(--fill-strong);
+  /* The off track needs an edge to read as a control (WCAG 1.4.11). */
+  box-shadow: inset 0 0 0 1px rgba(235, 235, 245, 0.3);
   cursor: pointer;
   transition: background 0.2s var(--ease);
 }
@@ -589,6 +640,7 @@ textarea {
 }
 .switch[aria-checked='true'] {
   background: var(--ok);
+  box-shadow: none;
 }
 .switch[aria-checked='true']::after {
   transform: translateX(18px);
@@ -712,9 +764,23 @@ td.r {
   white-space: nowrap;
 }
 td.num {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  font-stretch: 87.5%;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+/* A row's name is its keyboard entry point; the row click stays as a mouse shortcut. */
+.row-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.row-link:hover {
+  text-decoration: none;
 }
 td.w {
   width: 1%;
@@ -726,6 +792,9 @@ table.fixed {
 table.fixed td {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+table.fixed td.w {
+  overflow: visible;
 }
 .group-head {
   display: flex;
@@ -872,6 +941,97 @@ table.fixed td {
 .chart {
   padding: 16px 22px 12px;
   border-top: 0.5px solid var(--separator);
+}
+.tchart {
+  margin: 0;
+}
+.tchart-head,
+.tchart-sub {
+  display: flex;
+  justify-content: space-between;
+  font: 500 12px/1 var(--font-ui);
+  color: var(--text-3);
+}
+.tchart-head {
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+.tchart-scale {
+  position: absolute;
+  right: 0;
+  font: 500 11px/1 var(--font-ui);
+  color: var(--text-3);
+  transform: translateY(5px);
+  pointer-events: none;
+}
+.tchart-head span:first-child,
+.tchart-sub span:first-child {
+  color: var(--text-2);
+}
+.tchart-head span:first-child::before,
+.tchart-sub span:first-child::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  margin-right: 7px;
+  vertical-align: 3px;
+  border-radius: 2px;
+  background: var(--horizon);
+}
+.tchart-sub {
+  margin: 12px 0 6px;
+}
+.tchart-sub span:first-child::before {
+  background: var(--bad);
+}
+.tchart-plots {
+  position: relative;
+  touch-action: pan-y;
+}
+.tchart-plots svg {
+  display: block;
+  overflow: visible;
+}
+.tchart-cross {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(235, 235, 245, 0.35);
+  pointer-events: none;
+}
+.tchart-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: var(--horizon);
+  box-shadow: 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+.tchart-tip {
+  position: absolute;
+  top: 4px;
+  width: 160px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-3);
+  box-shadow: var(--shadow-pop);
+  font-size: 12.5px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.tchart-tip strong {
+  font-weight: 650;
+}
+.tchart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font: 500 11.5px/1 var(--font-ui);
+  color: var(--text-3);
 }
 .chart-legend {
   display: flex;
@@ -1055,16 +1215,19 @@ table.fixed td {
   font: 500 14px/1 var(--font);
   cursor: pointer;
 }
-.menu button:hover {
-  background: var(--accent);
-  color: #fff;
+.menu button:hover,
+.menu button:focus-visible {
+  outline: none;
+  background: var(--fill-strong);
+  color: var(--text);
 }
 .menu button.danger {
   color: var(--bad);
 }
-.menu button.danger:hover {
-  background: var(--bad);
-  color: #fff;
+.menu button.danger:hover,
+.menu button.danger:focus-visible {
+  background: var(--bad-weak);
+  color: var(--bad);
 }
 .menu hr {
   border: 0;
@@ -1249,6 +1412,41 @@ table.fixed td {
   }
 }
 
+@media (prefers-reduced-transparency: reduce) {
+  .sheet,
+  .dialog,
+  .menu,
+  .toast,
+  .bulkbar,
+  .mobile-bar {
+    background: #1c1d20;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+/* Touch: 44 px hit areas (WCAG 2.5.5) without changing the desktop density. */
+@media (pointer: coarse) {
+  .btn,
+  .btn.sm,
+  .nav a,
+  .tabs button,
+  .segmented button,
+  .menu button {
+    min-height: 44px;
+  }
+  .btn.icon {
+    min-width: 44px;
+  }
+  .switch {
+    margin: 9px 0;
+  }
+  .switch::before {
+    content: '';
+    position: absolute;
+    inset: -9px -4px;
+  }
+}
+
 /* ---------- Small screens ---------- */
 @media (max-width: 900px) {
   .shell {
@@ -1264,6 +1462,9 @@ table.fixed td {
   }
   .sidebar.open {
     transform: none;
+  }
+  .shell::before {
+    left: 0;
   }
   .mobile-bar {
     display: flex;
@@ -1312,5 +1513,16 @@ table.fixed td {
   }
   .hide-sm {
     display: none;
+  }
+  .group-head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .group-head .meta {
+    flex-basis: 100%;
+    margin-left: 24px;
+  }
+  td {
+    padding: 12px 14px;
   }
 }

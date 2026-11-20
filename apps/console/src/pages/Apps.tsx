@@ -64,7 +64,13 @@ export function AppsPage() {
                 return (
                   <tr key={a.id} className="clickable" onClick={() => navigate(`/apps/${a.id}`)}>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{a.name}</div>
+                      <Link
+                        className="row-link"
+                        to={`/apps/${a.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {a.name}
+                      </Link>
                       <div className="mono faint">{a.slug}</div>
                     </td>
                     <td className="r num">
@@ -234,7 +240,9 @@ export function AppDetailPage() {
                   <th>Key</th>
                   <th>Last used</th>
                   <th className="hide-sm">Expires</th>
-                  <th />
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>

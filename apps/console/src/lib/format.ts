@@ -5,9 +5,9 @@ export const compact = (n: number) =>
     ? new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n)
     : nf.format(n);
 export const pct = (r: number) => {
-  if (!r) return '0 %';
+  if (!r) return '0%';
   const v = r * 100;
-  return `${v < 1 ? v.toFixed(2) : v < 10 ? v.toFixed(1) : Math.round(v)} %`;
+  return `${v < 1 ? v.toFixed(2) : v < 10 ? v.toFixed(1) : Math.round(v)}%`;
 };
 export const ms = (v: number | null | undefined) =>
   v === null || v === undefined

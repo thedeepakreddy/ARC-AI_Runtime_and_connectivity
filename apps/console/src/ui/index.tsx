@@ -146,6 +146,7 @@ export function Switch({
       aria-checked={checked}
       aria-label={label}
       title={title}
+      aria-description={disabled ? title : undefined}
       disabled={disabled}
       onClick={(e) => {
         e.stopPropagation();
@@ -260,6 +261,8 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
 }
 
 /* ---------- Overlays ---------- */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 function useEscape(onClose: () => void) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -267,12 +270,41 @@ function useEscape(onClose: () => void) {
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 }
-function useFocusFirst(ref: React.RefObject<HTMLElement | null>) {
+/**
+ * Modal focus: move focus in (first field, else the first control that isn't the close button),
+ * keep Tab inside, and give focus back to whatever opened the layer when it closes.
+ */
+function useModalFocus(ref: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
-    const el = ref.current?.querySelector<HTMLElement>(
-      'input, select, textarea, button:not(.btn.icon)',
-    );
-    el?.focus();
+    const opener = document.activeElement as HTMLElement | null;
+    const root = ref.current;
+    if (!root) return;
+    const first =
+      root.querySelector<HTMLElement>('input, select, textarea') ??
+      root.querySelector<HTMLElement>('button:not(.btn.icon)') ??
+      root.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? root).focus();
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const items = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+        (el) => el.offsetParent !== null,
+      );
+      if (!items.length) return;
+      const a = items[0]!;
+      const z = items[items.length - 1]!;
+      if (e.shiftKey && document.activeElement === a) {
+        e.preventDefault();
+        z.focus();
+      } else if (!e.shiftKey && document.activeElement === z) {
+        e.preventDefault();
+        a.focus();
+      }
+    };
+    root.addEventListener('keydown', trap);
+    return () => {
+      root.removeEventListener('keydown', trap);
+      if (opener?.isConnected) opener.focus();
+    };
   }, [ref]);
 }
 export function Sheet({
@@ -290,14 +322,24 @@ export function Sheet({
 }) {
   useEscape(onClose);
   const ref = useRef<HTMLDivElement>(null);
-  useFocusFirst(ref);
+  const titleId = useId();
+  useModalFocus(ref);
   return (
     <>
       <div className="scrim" onClick={onClose} />
-      <aside className="sheet" role="dialog" aria-modal="true" ref={ref}>
+      <aside
+        className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        ref={ref}
+      >
         <div className="sheet-head">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="sheet-title">{title}</h2>
+            <h2 className="sheet-title" id={titleId}>
+              {title}
+            </h2>
             {sub && (
               <div className="muted" style={{ marginTop: 4, fontSize: 13 }}>
                 {sub}
@@ -330,13 +372,23 @@ export function Dialog({
   const close = useCallback(() => dismissable && onClose(), [dismissable, onClose]);
   useEscape(close);
   const ref = useRef<HTMLDivElement>(null);
-  useFocusFirst(ref);
+  const titleId = useId();
+  useModalFocus(ref);
   return (
     <>
       <div className="scrim" onClick={close} />
-      <div className="dialog" role="dialog" aria-modal="true" ref={ref}>
+      <div
+        className="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        ref={ref}
+      >
         <div className="sheet-head">
-          <h2 className="sheet-title">{title}</h2>
+          <h2 className="sheet-title" id={titleId}>
+            {title}
+          </h2>
         </div>
         <div className="sheet-body">{children}</div>
         {footer && <div className="sheet-foot">{footer}</div>}
@@ -344,38 +396,73 @@ export function Dialog({
     </>
   );
 }
+/** Action menu (WAI-ARIA menu button): focus moves in, arrows move, Escape returns. */
 export function Menu({
   items,
+  label = 'Actions',
 }: {
   items: ({ label: string; onSelect: () => void; danger?: boolean } | 'sep')[];
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
     window.addEventListener('mousedown', h);
+    ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
     return () => window.removeEventListener('mousedown', h);
   }, [open]);
+  const close = () => {
+    setOpen(false);
+    button.current?.focus();
+  };
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const list = [...(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const i = list.indexOf(document.activeElement as HTMLElement);
+    const go = (n: number) => list[(n + list.length) % list.length]?.focus();
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      close();
+    } else if (e.key === 'ArrowDown') go(i + 1);
+    else if (e.key === 'ArrowUp') go(i - 1);
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(list.length - 1);
+    else if (e.key === 'Tab') setOpen(false);
+    else return;
+    if (e.key !== 'Tab') e.preventDefault();
+  };
   return (
     <div style={{ position: 'relative' }} ref={ref} onClick={(e) => e.stopPropagation()}>
       <button
+        ref={button}
         className="btn ghost icon"
-        aria-label="Actions"
+        aria-label={label}
+        aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' && !open) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
       >
         <Icon name="more" />
       </button>
       {open && (
-        <div className="menu" role="menu">
+        <div className="menu" role="menu" id={menuId} aria-label={label} onKeyDown={onKeyDown}>
           {items.map((it, i) =>
             it === 'sep' ? (
-              <hr key={i} />
+              <hr key={i} role="separator" />
             ) : (
               <button
                 key={it.label}
                 role="menuitem"
+                tabIndex={-1}
                 className={it.danger ? 'danger' : ''}
                 onClick={() => {
                   setOpen(false);
@@ -469,148 +556,161 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 export const useToast = () => useContext(ToastCtx);
 
-/* ---------- Chart: requests over time, errors as a second line ---------- */
+/* ---------- Chart: requests over time, errors on their own strip ---------- */
+/*
+ * Requests and errors differ by two orders of magnitude, so they never share an axis (the
+ * errors line would sit flat on the baseline). Requests get the main plot; errors get a short
+ * strip below with its own scale. One crosshair and tooltip covers both.
+ */
 export function TrafficChart({
   points,
   height = 160,
   label,
+  action,
 }: {
   points: { t: string; requests: number; errors: number }[];
   height?: number;
   label: (iso: string) => string;
+  action?: ReactNode;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const ref = useRef<SVGSVGElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const W = 1000;
   const H = height;
-  const pad = { t: 10, b: 22 };
-  const max = Math.max(1, ...points.map((p) => p.requests));
-  const nice = useMemo(() => {
-    const mag = 10 ** Math.floor(Math.log10(max));
-    return Math.ceil(max / mag) * mag;
-  }, [max]);
+  const EH = 40;
+  const niceOf = (m: number) => {
+    const mag = 10 ** Math.floor(Math.log10(Math.max(1, m)));
+    return Math.max(1, Math.ceil(m / mag) * mag);
+  };
+  const totals = useMemo(
+    () =>
+      points.reduce(
+        (a, p) => ({
+          requests: a.requests + p.requests,
+          errors: a.errors + p.errors,
+          peak: Math.max(a.peak, p.requests),
+          errPeak: Math.max(a.errPeak, p.errors),
+        }),
+        { requests: 0, errors: 0, peak: 0, errPeak: 0 },
+      ),
+    [points],
+  );
+  const nice = niceOf(totals.peak);
+  const errNice = niceOf(totals.errPeak);
   const x = (i: number) => (points.length <= 1 ? 0 : (i / (points.length - 1)) * W);
-  const y = (v: number) => pad.t + (1 - v / nice) * (H - pad.t - pad.b);
-  const line = (key: 'requests' | 'errors') =>
-    points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join('');
-  const area = `${line('requests')}L${W},${H - pad.b}L0,${H - pad.b}Z`;
+  const y = (v: number) => 6 + (1 - v / nice) * (H - 6);
+  const ey = (v: number) => 4 + (1 - v / errNice) * (EH - 4);
+  const path = (f: (p: (typeof points)[number]) => number, yy: (v: number) => number) =>
+    points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${yy(f(p)).toFixed(1)}`).join('');
+  const reqLine = path((p) => p.requests, y);
+  const errLine = path((p) => p.errors, ey);
   const gid = useId().replace(/:/g, '');
   const ticks = points.length ? [0, Math.floor((points.length - 1) / 2), points.length - 1] : [];
-  const onMove = (e: React.MouseEvent) => {
+  const onMove = (e: React.PointerEvent) => {
     const r = ref.current!.getBoundingClientRect();
     const i = Math.round(((e.clientX - r.left) / r.width) * (points.length - 1));
     setHover(Math.max(0, Math.min(points.length - 1, i)));
   };
   const hp = hover !== null ? points[hover] : null;
+  const pctX = hover !== null ? (x(hover) / W) * 100 : 0;
+  const summary = points.length
+    ? `Requests from ${label(points[0]!.t)} to ${label(points[points.length - 1]!.t)}: ` +
+      `${totals.requests.toLocaleString()} in total, peak ${totals.peak.toLocaleString()}; ` +
+      `${totals.errors.toLocaleString()} errors, peak ${totals.errPeak.toLocaleString()}.`
+    : 'No traffic in this period.';
   return (
-    <div style={{ position: 'relative' }}>
-      <svg
+    <figure className="tchart">
+      <figcaption className="sr-only">{summary}</figcaption>
+      <div className="tchart-head">
+        <span aria-hidden="true">Requests</span>
+        {action}
+      </div>
+      <div
         ref={ref}
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        width="100%"
-        height={H}
-        onMouseMove={onMove}
-        onMouseLeave={() => setHover(null)}
-        role="img"
-        aria-label="Requests and errors over time"
+        className="tchart-plots"
+        onPointerMove={onMove}
+        onPointerLeave={() => setHover(null)}
+        aria-hidden="true"
       >
-        <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="var(--horizon)" stopOpacity="0.22" />
-            <stop offset="1" stopColor="var(--horizon)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[0.5, 1].map((f) => (
+        <span className="tchart-scale num" style={{ top: y(nice) }}>
+          {nice.toLocaleString()}
+        </span>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H}>
+          <defs>
+            <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="var(--horizon)" stopOpacity="0.28" />
+              <stop offset="1" stopColor="var(--horizon)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0.5, 1].map((f) => (
+            <line
+              key={f}
+              x1="0"
+              x2={W}
+              y1={y(nice * f)}
+              y2={y(nice * f)}
+              stroke="var(--line)"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          <path d={`${reqLine}L${W},${H}L0,${H}Z`} fill={`url(#${gid})`} />
+          <path
+            d={reqLine}
+            fill="none"
+            stroke="var(--horizon)"
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="tchart-sub">
+          <span>Errors</span>
+          <span className="num">{errNice.toLocaleString()}</span>
+        </div>
+        <svg viewBox={`0 0 ${W} ${EH}`} preserveAspectRatio="none" width="100%" height={EH}>
           <line
-            key={f}
             x1="0"
             x2={W}
-            y1={y(nice * f)}
-            y2={y(nice * f)}
-            stroke="var(--line)"
-            strokeDasharray="2 4"
+            y1={EH}
+            y2={EH}
+            stroke="var(--line-strong)"
             vectorEffect="non-scaling-stroke"
           />
-        ))}
-        <line
-          x1="0"
-          x2={W}
-          y1={H - pad.b}
-          y2={H - pad.b}
-          stroke="var(--line-strong)"
-          vectorEffect="non-scaling-stroke"
-        />
-        <path d={area} fill={`url(#${gid})`} />
-        <path
-          d={line('requests')}
-          fill="none"
-          stroke="var(--horizon)"
-          strokeWidth="1.75"
-          vectorEffect="non-scaling-stroke"
-          strokeLinejoin="round"
-        />
-        <path
-          d={line('errors')}
-          fill="none"
-          stroke="var(--bad)"
-          strokeWidth="1.25"
-          vectorEffect="non-scaling-stroke"
-          strokeLinejoin="round"
-          opacity="0.85"
-        />
-        {hover !== null && (
-          <line
-            x1={x(hover)}
-            x2={x(hover)}
-            y1={pad.t}
-            y2={H - pad.b}
-            stroke="var(--text-3)"
-            strokeWidth="1"
+          <path
+            d={errLine}
+            fill="none"
+            stroke="var(--bad)"
+            strokeWidth="1.5"
             vectorEffect="non-scaling-stroke"
+            strokeLinejoin="round"
+            strokeLinecap="round"
           />
+        </svg>
+        {hp && (
+          <>
+            <span className="tchart-cross" style={{ left: `${pctX}%` }} />
+            <span className="tchart-dot" style={{ left: `${pctX}%`, top: y(hp.requests) }} />
+            <div
+              className="tchart-tip num"
+              style={{ left: `clamp(0px, calc(${pctX}% - 80px), calc(100% - 172px))` }}
+            >
+              <div className="faint">{label(hp.t)}</div>
+              <div>
+                <strong>{hp.requests.toLocaleString()}</strong> requests
+              </div>
+              <div>
+                <strong>{hp.errors.toLocaleString()}</strong> errors
+              </div>
+            </div>
+          </>
         )}
-      </svg>
-      <div
-        style={{
-          position: 'absolute',
-          inset: `auto 0 0 0`,
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 11.5,
-          color: 'var(--text-3)',
-        }}
-      >
+      </div>
+      <div className="tchart-axis" aria-hidden="true">
         {ticks.map((i) => (
           <span key={i}>{label(points[i]!.t)}</span>
         ))}
       </div>
-      <div
-        style={{ position: 'absolute', top: 0, right: 0, fontSize: 11.5, color: 'var(--text-3)' }}
-        className="num"
-      >
-        {nice.toLocaleString()}
-      </div>
-      {hp && (
-        <div
-          className="num"
-          style={{
-            position: 'absolute',
-            top: 8,
-            left: `clamp(0px, calc(${(x(hover!) / W) * 100}% - 70px), calc(100% - 150px))`,
-            padding: '6px 10px',
-            borderRadius: 8,
-            background: 'var(--surface)',
-            boxShadow: 'var(--shadow-pop)',
-            fontSize: 12.5,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <div className="faint">{label(hp.t)}</div>
-          {hp.requests.toLocaleString()} requests · {hp.errors.toLocaleString()} errors
-        </div>
-      )}
-    </div>
+    </figure>
   );
 }

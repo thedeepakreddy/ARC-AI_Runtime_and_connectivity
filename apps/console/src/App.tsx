@@ -54,40 +54,40 @@ function Shell({ me }: { me: Me }) {
           ? `${failingKeys} provider key${failingKeys > 1 ? 's' : ''} failing`
           : 'All systems nominal';
 
-  const link = (to: string, label: string, count?: number, alert?: boolean) => (
+  const link = (to: string, label: string, count?: number, tone?: 'alert' | 'bad') => (
     <NavLink to={to} end={to === '/'}>
       {label}
-      {count ? <span className={`nav-count num ${alert ? 'alert' : ''}`}>{count}</span> : null}
+      {count ? (
+        <span className={`nav-count num ${tone ?? ''}`}>
+          {count}
+          <span className="sr-only"> need attention</span>
+        </span>
+      ) : null}
     </NavLink>
   );
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
       <div className="mobile-bar">
         <button className="btn ghost icon" aria-label="Menu" onClick={() => setMenuOpen(true)}>
           <Icon name="menu" />
         </button>
-        <img
-          src="/console/icon-192.png"
-          alt=""
-          width={22}
-          height={22}
-          style={{ borderRadius: 6 }}
-        />
-        <Wordmark height={12} />
+        <Wordmark height={13} />
       </div>
       {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
-        <div className="brand">
-          <img src="/console/icon-192.png" alt="" />
-          <Wordmark height={13} />
+        <NavLink to="/" className="brand" aria-label="ARC Console, overview">
+          <Wordmark height={15} />
           <span className="brand-sub">Console</span>
-        </div>
+        </NavLink>
         <nav className="nav" aria-label="Console">
           {link('/', 'Overview')}
           <div className="nav-group">Set up</div>
-          {link('/providers', 'Providers & keys', failingKeys, true)}
-          {link('/models', 'Models', modelsToClassify, true)}
+          {link('/providers', 'Providers & keys', failingKeys, 'bad')}
+          {link('/models', 'Models', modelsToClassify, 'alert')}
           {link('/apps', 'Apps')}
           {link('/routing', 'Routing')}
           <div className="nav-group">Watch</div>
@@ -108,7 +108,7 @@ function Shell({ me }: { me: Me }) {
           </div>
         </div>
       </aside>
-      <main className="main">
+      <main className="main" id="main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<OverviewPage onChange={refresh} />} />
           <Route path="/providers" element={<ProvidersPage onChange={refresh} />} />
@@ -151,13 +151,13 @@ function SignIn({ onDone }: { onDone: () => void }) {
     }
   }
   return (
-    <div className="signin">
-      <form className="signin-card" onSubmit={submit}>
+    <main className="signin">
+      <form className="signin-card" onSubmit={submit} aria-labelledby="signin-title">
         <div className="signin-mark">
           <Wordmark height={46} />
         </div>
         <span className="eyebrow">AI Runtime &amp; Connectivity</span>
-        <h1>Sign in to the console</h1>
+        <h1 id="signin-title">Sign in to the console</h1>
         <div className="field">
           <label htmlFor="email" className="sr-only">
             Email
@@ -199,13 +199,13 @@ function SignIn({ onDone }: { onDone: () => void }) {
         </button>
         <p className="foot">Owner access · Encrypted session</p>
       </form>
-    </div>
+    </main>
   );
 }
 
 function NotOwner({ email }: { email: string }) {
   return (
-    <div className="signin">
+    <main className="signin">
       <div className="signin-card">
         <div className="signin-mark">
           <Wordmark height={46} />
@@ -225,6 +225,6 @@ function NotOwner({ email }: { email: string }) {
           Sign out
         </button>
       </div>
-    </div>
+    </main>
   );
 }
