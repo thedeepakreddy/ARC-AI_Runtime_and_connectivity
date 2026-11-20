@@ -100,7 +100,7 @@ export function OverviewPage() {
       <ErrorNote error={keys.error ?? apps.error ?? usage.error} />
 
       {loaded && doneCount < steps.length && (
-        <section className="section" style={{ marginTop: 0 }} aria-labelledby="start-title">
+        <section className="section mt-0" aria-labelledby="start-title">
           <div className="section-head">
             <h2 className="section-title" id="start-title">
               Get started

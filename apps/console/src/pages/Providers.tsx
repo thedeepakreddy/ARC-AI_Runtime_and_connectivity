@@ -101,7 +101,7 @@ export function ProvidersPage({ onChange }: { onChange: () => void }) {
         <div className="panel">
           <Empty title="No provider keys yet">
             Add a key from Gemini, Groq, OpenRouter or any other provider to start routing.
-            <div style={{ marginTop: 16 }}>
+            <div className="mt-16">
               <button className="btn primary" onClick={() => setAdding(true)}>
                 Add your first key
               </button>

@@ -73,7 +73,7 @@ export function TrafficPage() {
                 <div className="stat-note">Average</div>
               </div>
             </div>
-            <div className="chart" style={{ borderTop: '1px solid var(--line)' }}>
+            <div className="chart divider-top">
               <TrafficChart points={data.series} label={label} height={200} />
             </div>
           </div>

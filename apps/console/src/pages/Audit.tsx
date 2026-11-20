@@ -48,9 +48,7 @@ export function AuditPage() {
       <div className="toolbar">
         <SearchInput value={query} onChange={setQuery} placeholder="Filter events" />
         <span className="spacer" />
-        <span className="faint" style={{ fontSize: 13 }}>
-          Latest 200
-        </span>
+        <span className="faint text-sm">Latest 200</span>
       </div>
       <ErrorNote error={error} />
       {!data ? (
@@ -72,11 +70,9 @@ export function AuditPage() {
             <tbody>
               {rows.map((e) => (
                 <tr key={e.id}>
-                  <td className="muted num" style={{ whiteSpace: 'nowrap' }}>
-                    {dateTime(e.createdAt)}
-                  </td>
+                  <td className="muted num nowrap">{dateTime(e.createdAt)}</td>
                   <td>{describe(e.action)}</td>
-                  <td className="hide-sm faint" style={{ fontSize: 13 }}>
+                  <td className="hide-sm faint text-sm">
                     {Object.entries(e.metadata ?? {})
                       .map(
                         ([k, v]) =>

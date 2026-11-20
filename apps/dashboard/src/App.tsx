@@ -183,9 +183,7 @@ function Shell({
             Requests use only your keys
           </div>
           <div className="user-line">
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {me.user.email}
-            </span>
+            <span className="truncate">{me.user.email}</span>
             <NavLink to="/account">Account</NavLink>
           </div>
         </div>

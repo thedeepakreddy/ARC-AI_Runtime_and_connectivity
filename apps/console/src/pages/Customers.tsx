@@ -75,7 +75,7 @@ export function CustomersPage() {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id}>
-                  <td style={{ fontWeight: 500 }}>{c.name}</td>
+                  <td className="fw-500">{c.name}</td>
                   <td>
                     {c.suspendedAt ? (
                       <Badge tone="bad">Suspended</Badge>
@@ -129,7 +129,7 @@ export function CustomersPage() {
               <tbody>
                 {invitations.data!.data.map((i) => (
                   <tr key={i.id}>
-                    <td style={{ fontWeight: 500 }}>{i.email}</td>
+                    <td className="fw-500">{i.email}</td>
                     <td className="muted">{ago(i.expiresAt)}</td>
                     <td className="w">
                       <button
@@ -170,12 +170,12 @@ export function CustomersPage() {
             </button>
           }
         >
-          <p className="muted" style={{ marginTop: 0 }}>
+          <p className="muted mt-0">
             Send it to {link.email} yourself. It works once, for 7 days, and only for that email;
             they name their organization and choose a password. ARC shows it only now.
           </p>
           <div className="secret-box">
-            <span style={{ flex: 1 }}>{inviteLink(link.token)}</span>
+            <span className="grow">{inviteLink(link.token)}</span>
             <CopyButton text={inviteLink(link.token)} />
           </div>
         </Dialog>
@@ -250,7 +250,7 @@ function InviteCustomerDialog({
         </>
       }
     >
-      <p className="muted" style={{ marginTop: 0 }}>
+      <p className="muted mt-0">
         They become the owner of a new organization. Their apps only ever use the provider keys they
         add themselves.
       </p>

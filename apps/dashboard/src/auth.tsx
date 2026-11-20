@@ -111,7 +111,7 @@ export function SignUp({ onDone }: { onDone: () => void }) {
       />
       <PasswordInput value={password} onChange={setPassword} />
       {error && (
-        <p className="error-text" role="alert" style={{ margin: '0 0 12px' }}>
+        <p className="error-text m-0 mb-12" role="alert">
           {error}
         </p>
       )}
@@ -181,7 +181,7 @@ export function InvitePage({ me, onDone }: { me: Me | null | undefined; onDone: 
     />
   );
   const errorLine = error && (
-    <p className="error-text" role="alert" style={{ margin: '0 0 12px' }}>
+    <p className="error-text m-0 mb-12" role="alert">
       {error}
     </p>
   );

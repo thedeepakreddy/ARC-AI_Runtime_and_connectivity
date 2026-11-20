@@ -129,7 +129,7 @@ export function AppDetailPage() {
         title={app?.name ?? ' '}
         sub={app ? <span className="mono">{app.slug}</span> : null}
       />
-      <section className="section" style={{ marginTop: 0 }}>
+      <section className="section mt-0">
         <div className="section-head">
           <h2 className="section-title">ARC keys</h2>
           <button className="btn sm" onClick={() => setNewKey(true)}>
@@ -161,10 +161,10 @@ export function AppDetailPage() {
               <tbody>
                 {active.map((k) => (
                   <tr key={k.id}>
-                    <td style={{ fontWeight: 500 }}>
+                    <td className="fw-500">
                       {k.name}
                       {k.scopes.length < 2 && (
-                        <span style={{ marginLeft: 8 }}>
+                        <span className="ml-8">
                           <Badge>
                             {k.scopes.includes('inference') ? 'Requests only' : 'Models only'}
                           </Badge>
@@ -227,7 +227,7 @@ export function AppDetailPage() {
             <div className="skeleton" />
           ) : (
             <>
-              <div style={{ marginBottom: 8 }}>
+              <div className="mb-8">
                 <Badge tone={policy.data.inheritsTenantPolicy ? '' : 'accent'}>
                   {policy.data.inheritsTenantPolicy ? 'Global rules' : 'Custom for this app'}
                 </Badge>
@@ -259,15 +259,13 @@ export function AppDetailPage() {
             </div>
           </div>
           {rows.filter((r) => r.label !== 'No route').length > 0 && (
-            <div style={{ borderTop: '1px solid var(--line)' }}>
+            <div className="divider-top">
               {rows
                 .filter((r) => r.label !== 'No route')
                 .slice(0, 5)
                 .map((r) => (
                   <div className="list-row" key={r.id}>
-                    <span className="mono" style={{ flex: 1 }}>
-                      {r.label}
-                    </span>
+                    <span className="mono grow">{r.label}</span>
                     <div className="bar" style={{ width: 160 }}>
                       <span style={{ width: `${(r.requests / total) * 100}%` }} />
                     </div>

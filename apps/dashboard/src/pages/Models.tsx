@@ -109,16 +109,12 @@ function Models() {
                         <div className="mono" style={{ fontWeight: 500, color: 'var(--text)' }}>
                           {m.providerId}/{m.modelId}
                         </div>
-                        {m.termsNote && (
-                          <div className="faint" style={{ fontSize: 13 }}>
-                            {m.termsNote}
-                          </div>
-                        )}
+                        {m.termsNote && <div className="faint text-sm">{m.termsNote}</div>}
                       </td>
                       <td>
                         <Badge tone={price.tone}>{price.label}</Badge>
                       </td>
-                      <td className="muted hide-sm" style={{ fontSize: 13 }}>
+                      <td className="muted hide-sm text-sm">
                         {m.capabilities.length ? m.capabilities.map(capLabel).join(', ') : '—'}
                       </td>
                       <td className="muted hide-sm">{m.choice === null ? 'ARC' : 'You'}</td>
@@ -146,7 +142,7 @@ function Models() {
             </table>
           </div>
           {data.data.some((m) => m.eligibility === 'UNKNOWN') && (
-            <p className="hint" style={{ margin: '12px 4px 0' }}>
+            <p className="hint footnote">
               “Not checked by ARC” means ARC hasn’t confirmed its price or terms. You can still use
               it on your own keys; ARC never uses it on anyone else’s.
             </p>

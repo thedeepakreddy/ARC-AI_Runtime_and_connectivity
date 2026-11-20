@@ -102,7 +102,8 @@ international, Chinese, local, speech/embeddings.
 - [x] `ops` container for backups/restores/drill (matching PostgreSQL major, nothing on the host);
       off-site copy via rclone (Google Cloud Storage since the move to GCP) — owner to create the bucket
 - [x] `scripts/ops/vps-verify.sh`: drill + RTO/RPO + load test → dated report (passes locally)
-- [ ] Run `scripts/ops/vps-verify.sh` on the real server (GCP VM) and keep its report (needs the server)
+- [ ] Run `scripts/ops/vps-verify.sh` on the real server (the Oracle Always Free VM) and keep its report
+      (needs the server)
 
 ## Phase 5 status
 

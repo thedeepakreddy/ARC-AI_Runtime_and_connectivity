@@ -203,7 +203,7 @@ export function ModelsPage({ onChange }: { onChange: () => void }) {
                       <Badge tone={e.tone}>{e.label}</Badge>
                     </td>
                     <td className="hide-sm">
-                      <span className="muted" style={{ fontSize: 13 }}>
+                      <span className="muted text-sm">
                         {m.capabilities.length ? m.capabilities.map(capLabel).join(', ') : '—'}
                       </span>
                     </td>
@@ -247,11 +247,7 @@ export function ModelsPage({ onChange }: { onChange: () => void }) {
           <button className="btn ghost sm" onClick={() => setSelected(new Set())}>
             Clear
           </button>
-          <button
-            className="btn primary sm"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => setBulk(true)}
-          >
+          <button className="btn primary sm ml-auto" onClick={() => setBulk(true)}>
             Classify…
           </button>
         </div>
@@ -357,9 +353,7 @@ function ClassifySheet({
         </>
       }
     >
-      <div className="sub-head" style={{ marginTop: 0 }}>
-        Status
-      </div>
+      <div className="sub-head mt-0">Status</div>
       <div className="radio-list">
         {(['VERIFIED_FREE', 'RESTRICTED_FREE', 'PAID', 'UNKNOWN'] as Eligibility[]).map((e) => (
           <label key={e} className="radio-card">
@@ -378,7 +372,7 @@ function ClassifySheet({
       </div>
 
       {needsEvidence && (
-        <div style={{ marginTop: 18 }}>
+        <div className="mt-16">
           <Field
             label="Evidence"
             hint={
@@ -440,18 +434,16 @@ function ClassifySheet({
         ARC only sends a request to models that can do everything it needs, e.g. images or tools.
       </p>
 
-      <div className="list-row panel" style={{ marginTop: 18 }}>
+      <div className="list-row panel mt-16">
         <div>
-          <div style={{ fontWeight: 500 }}>
-            Use {models.length > 1 ? 'these models' : 'this model'}
-          </div>
+          <div className="fw-500">Use {models.length > 1 ? 'these models' : 'this model'}</div>
           <div className="hint">
             {eligibility === 'UNKNOWN'
               ? 'Unknown models can never be turned on.'
               : 'ARC may route requests to it.'}
           </div>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div className="ml-auto">
           <Switch
             label="Use"
             checked={enabled}

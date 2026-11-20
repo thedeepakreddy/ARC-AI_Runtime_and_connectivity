@@ -204,15 +204,15 @@ export function ShowOnceDialog({ apiKey, onClose }: { apiKey: ApiKey; onClose: (
         </button>
       }
     >
-      <p className="muted" style={{ marginTop: 0 }}>
+      <p className="muted mt-0">
         This is the only time ARC shows this key. Store it where the app runs, as{' '}
         <span className="mono">ARC_API_KEY</span>.
       </p>
       <div className="secret-box">
-        <span style={{ flex: 1 }}>{apiKey.key}</span>
+        <span className="grow">{apiKey.key}</span>
         <CopyButton text={apiKey.key ?? ''} />
       </div>
-      <label className="check" style={{ marginTop: 16 }}>
+      <label className="check mt-16">
         <input type="checkbox" checked={stored} onChange={(e) => setStored(e.target.checked)} />
         I’ve stored the key
       </label>
@@ -259,7 +259,7 @@ export function RotateDialog({
         </>
       }
     >
-      <p className="muted" style={{ marginTop: 0 }}>
+      <p className="muted mt-0">
         ARC issues a new key with the same name and permissions. What happens to the old one?
       </p>
       <div className="radio-list">
@@ -484,7 +484,7 @@ export function KeySheet({
       )}
 
       <div className="sub-head">Replace key</div>
-      <p className="hint" style={{ marginTop: 0 }}>
+      <p className="hint mt-0">
         Paste a new key for this label. The old one is deleted, and ARC checks the new one straight
         away.
       </p>
@@ -608,9 +608,7 @@ export function AddKeySheet({
             ? `${provider?.displayName} accepted “${label}”. ${result.modelsSeen} models found.`
             : `${provider?.displayName} said: ${result.error ?? HEALTH[result.status]?.label ?? result.status}. The key is saved; fix it or replace it from its details.`}
         </div>
-        {ok && result.modelsSeen > 0 && afterAdd && (
-          <p style={{ marginTop: 16 }}>{afterAdd(onClose)}</p>
-        )}
+        {ok && result.modelsSeen > 0 && afterAdd && <p className="mt-16">{afterAdd(onClose)}</p>}
       </Sheet>
     );
   }
@@ -660,7 +658,7 @@ export function AddKeySheet({
                     }}
                     onClick={() => setProviderId(p.id)}
                   >
-                    <span style={{ fontWeight: 500 }}>{p.displayName}</span>
+                    <span className="fw-500">{p.displayName}</span>
                     <span className="faint" style={{ marginLeft: 'auto', fontSize: 13 }}>
                       {JURISDICTIONS[p.jurisdiction] ?? p.jurisdiction}
                     </span>
@@ -674,13 +672,9 @@ export function AddKeySheet({
       ) : (
         <>
           <div className="list-row panel" style={{ marginBottom: 20 }}>
-            <span style={{ fontWeight: 500 }}>{provider.displayName}</span>
+            <span className="fw-500">{provider.displayName}</span>
             <span className="faint">{JURISDICTIONS[provider.jurisdiction]}</span>
-            <button
-              className="btn ghost sm"
-              style={{ marginLeft: 'auto' }}
-              onClick={() => setProviderId('')}
-            >
+            <button className="btn ghost sm ml-auto" onClick={() => setProviderId('')}>
               Change
             </button>
           </div>

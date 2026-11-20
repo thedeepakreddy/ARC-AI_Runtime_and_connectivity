@@ -64,4 +64,4 @@ apps send to ARC), **provider key** (the organization's own Gemini/Groq/… key)
 
 ## Open
 
-- App-level routing rules exist in the API but aren't in the dashboard yet.
+- Nothing outstanding for the dashboard itself. (App regions: each app's page, since Phase 6.)
