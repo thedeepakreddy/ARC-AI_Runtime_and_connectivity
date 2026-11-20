@@ -1446,3 +1446,189 @@ table.fixed td {
     font-size: 38px;
   }
 }
+
+/* =====================================================================
+ * Liquid Glass — the material for floating layers only (sheets, dialogs, menus, toasts, the
+ * selection bar, the range control, the phone header, the sign-in card). Content surfaces stay
+ * solid and sharp so data reads cleanly; what floats above them is translucent, refracts what is
+ * behind it, and catches light on its edges.
+ * ===================================================================== */
+:root {
+  --glass-tint: rgba(18, 23, 32, 0.46);
+  --glass-sheen: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.11) 0%,
+    rgba(255, 255, 255, 0.03) 38%,
+    rgba(255, 255, 255, 0.015) 100%
+  );
+  --glass-edge: rgba(255, 255, 255, 0.16);
+  --glass-blur: blur(28px) saturate(180%) brightness(1.08);
+  --glass-light:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --glass-depth: 0 24px 60px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.glass,
+.sheet,
+.dialog,
+.menu,
+.toast,
+.bulkbar,
+.mobile-bar,
+.signin-card {
+  background: var(--glass-sheen), var(--glass-tint);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-light), var(--glass-depth);
+}
+
+/* Specular highlight: a soft light catching the upper edge, like a lens. */
+.sheet::after,
+.dialog::after,
+.signin-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(140% 50% at 30% -12%, rgba(255, 255, 255, 0.12), transparent 60%);
+  mix-blend-mode: screen;
+}
+
+/* Floating sheet: inset from the edges, continuous corners. */
+.sheet {
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(500px, calc(100vw - 24px));
+  border-radius: 26px;
+  overflow: hidden;
+}
+.sheet::before {
+  display: none;
+}
+.sheet-foot {
+  border-top-color: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.18);
+}
+.dialog {
+  border-radius: 26px;
+}
+.dialog::before {
+  left: 40px;
+  right: 40px;
+}
+.menu {
+  border-radius: 16px;
+  padding: 7px;
+}
+.menu button {
+  border-radius: 9px;
+}
+.toast {
+  border-radius: 999px;
+  padding: 12px 22px;
+  color: var(--text);
+}
+.toast.bad {
+  background: var(--glass-sheen), rgba(120, 28, 24, 0.55);
+  border-color: rgba(255, 93, 82, 0.5);
+}
+.bulkbar {
+  border-radius: 999px;
+  padding: 8px 8px 8px 24px;
+  border-color: rgba(143, 195, 246, 0.35);
+  box-shadow:
+    var(--glass-light),
+    var(--glass-depth),
+    0 0 40px rgba(85, 154, 222, 0.14);
+}
+.bulkbar .btn {
+  border-radius: 999px;
+}
+.scrim {
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(3px) saturate(120%);
+  backdrop-filter: blur(3px) saturate(120%);
+}
+
+/* Controls inside glass take its softer geometry. */
+:is(.sheet, .dialog) :is(.input, .select, .textarea, .radio-card, .secret-box, .note) {
+  border-radius: 12px;
+}
+:is(.sheet, .dialog) .btn {
+  border-radius: 999px;
+}
+:is(.sheet, .dialog) :is(.panel, .list-row.panel) {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* The time-range control becomes a glass capsule with a lit thumb. */
+.segmented {
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  background: var(--glass-sheen), rgba(18, 23, 32, 0.4);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-light);
+}
+.segmented button {
+  height: 28px;
+  border-left: 0;
+  border-radius: 999px;
+}
+.segmented button[aria-pressed='true'] {
+  background: linear-gradient(180deg, #ffffff, #dfe6ef);
+  color: #000;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+/* Sign-in: a glass panel floating above the planet. */
+.signin-card {
+  width: min(430px, 100%);
+  padding: 44px 36px 30px;
+  border-radius: 30px;
+  background: var(--glass-sheen), rgba(10, 14, 22, 0.38);
+}
+.signin .input {
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.signin .btn.primary {
+  border-radius: 999px;
+}
+
+/* Phone header: translucent glass bar over the content. */
+@media (max-width: 900px) {
+  .mobile-bar {
+    border-radius: 0;
+    border-width: 0 0 1px;
+  }
+  .sidebar.open {
+    background: var(--glass-sheen), rgba(6, 9, 14, 0.72);
+    -webkit-backdrop-filter: var(--glass-blur);
+    backdrop-filter: var(--glass-blur);
+    border-right: 1px solid var(--glass-edge);
+    box-shadow: var(--glass-light), var(--glass-depth);
+  }
+}
+
+/* Browsers without backdrop blur get a solid, still-legible surface. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sheet,
+  .dialog,
+  .menu,
+  .toast,
+  .bulkbar,
+  .mobile-bar,
+  .signin-card,
+  .segmented {
+    background: #0b0f16;
+  }
+}

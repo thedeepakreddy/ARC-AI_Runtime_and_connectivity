@@ -127,7 +127,8 @@ Apps list + detail with rotation overlap); the rest built to the same system.
 
 - [x] Design system "Orbit" from the ARC mark: true black, planet-limb horizon, wide-tracked uppercase
       labels (Barlow), telemetry numbers (IBM Plex Mono), one horizon-blue accent; phone layout;
-      fonts bundled, no third-party requests (strict CSP)
+      Liquid Glass material for floating layers (sheets, dialogs, menus, toasts, controls); fonts
+      bundled, no third-party requests (strict CSP)
 - [x] Pages: sign-in, Overview, Providers & keys, Models, Apps (+ detail), Routing (+ "what would
       ARC pick?"), Traffic, Customers, Audit log, Account (theme, password, sessions)
 - [x] Backend: per-app traffic rollups, console overview/traffic/customers APIs, terms note, key
