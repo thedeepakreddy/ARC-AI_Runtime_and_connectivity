@@ -10,6 +10,7 @@ export const CAPABILITIES = [
   'vision',
   'audio_input',
   'transcription',
+  'speech',
   'audio_output',
   'embeddings',
   'video',

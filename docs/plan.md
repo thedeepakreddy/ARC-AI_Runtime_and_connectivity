@@ -179,6 +179,16 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       repos)
 - [ ] Deploy on the Oracle Always Free VM following deploy-oracle.md (owner; needs the account and domain)
 
+## Phase 7 status (separately approved increments)
+
+- [x] Owner MFA and password reset, Google sign-in (landed in Phase 6)
+- [x] Multimodal, increment 1: `POST /v1/audio/transcriptions` (multipart upload) and
+      `POST /v1/audio/speech` (binary audio back), routed and with fallback like chat; new
+      `speech` capability (migration 0009); tested through real LiteLLM 1.110.0 in CI
+- [ ] Multimodal, increment 2: image generation (`/v1/images/generations`), and a dashboard
+      "try it" for audio
+- [ ] Provider packs, BALANCED/DEEP, evaluation, billing, multi-server HA
+
 ## Phase 6 scope: dashboards and users' own keys
 
 Frontend, with **each screen layout approved before coding**:
@@ -228,6 +238,10 @@ Frontend, with **each screen layout approved before coding**:
 12. **Account security:** two-step sign-in for everyone (owner should turn it on before going
     live); Google sign-in optional and off until configured; email confirmation only for open
     sign-ups.
+
+13. **Speech is its own capability:** `speech` (text to speech, `/v1/audio/speech`) is separate
+    from `audio_output` (a chat model answering with audio), so routing never sends speech to a
+    chat model. Transcriptions use the existing `transcription` capability.
 
 ## Open decisions
 

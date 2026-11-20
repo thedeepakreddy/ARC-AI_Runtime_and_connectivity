@@ -8,39 +8,15 @@ import type { Db } from '../src/db/pool.js';
 import { CandidateStore } from '../src/inference/candidates.js';
 import { Cooldowns } from '../src/inference/cooldowns.js';
 import { ObservationRecorder } from '../src/inference/observations.js';
-import {
-  type DispatchInput,
-  type InferenceGateway,
-  LiteLLMGateway,
-  litellmTarget,
-} from '../src/inference/gateway.js';
+import { LiteLLMGateway } from '../src/inference/gateway.js';
 import { ApiKeyVerifier } from '../src/keys/verifier.js';
 import { HttpProviderProbe } from '../src/providers/probe.js';
 import { CredentialService } from '../src/vault/credentials.js';
 import { generateKeyFile, parseKeyRing } from '../src/vault/vault.js';
 import { TEST_DATABASE_URL, createTestDatabase } from './helpers/db.js';
-import { type MockProvider, startMockProvider } from './helpers/mock-provider.js';
+import { DirectGateway } from './helpers/direct-gateway.js';
+import { MOCK_SPEECH, type MockProvider, startMockProvider } from './helpers/mock-provider.js';
 import { tamperLastChar } from './helpers/tamper.js';
-
-/**
- * Stand-in for LiteLLM when no LiteLLM is running: forwards to the OpenAI-compatible
- * provider exactly as LiteLLM would (key as Bearer, model without the "openai/" prefix).
- */
-class DirectGateway implements InferenceGateway {
-  dispatch(input: DispatchInput): Promise<Response> {
-    const t = litellmTarget(input.candidate);
-    return fetch(`${t.apiBase}/${input.endpoint}`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${input.apiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        ...input.body,
-        model: t.model.replace(/^openai\//, ''),
-        stream: input.stream,
-      }),
-      signal: input.signal,
-    });
-  }
-}
 
 const LITELLM_TEST_URL = process.env.LITELLM_TEST_URL;
 const LITELLM_TEST_MASTER_KEY = process.env.LITELLM_TEST_MASTER_KEY ?? 'sk-test-master';
@@ -104,7 +80,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
 
     beforeAll(async () => {
       ({ db, drop } = await createTestDatabase());
-      mock = await startMockProvider();
+      mock = await startMockProvider({ extraModels: ['mock-tts', 'mock-whisper'] });
       const credentials = new CredentialService(parseKeyRing(generateKeyFile()));
       const verifier = new ApiKeyVerifier(db);
       candidates.store = new CandidateStore(db);
@@ -182,7 +158,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
         expect(res.statusCode).toBe(201);
         accountIds.push(res.json().id);
         const v = await call('POST', `/provider-accounts/${res.json().id}/validate`);
-        expect(v.json()).toMatchObject({ status: 'healthy', modelsSeen: 2 });
+        expect(v.json()).toMatchObject({ status: 'healthy', modelsSeen: 4 });
       }
 
       // Classify discovered models with evidence, then enable them.
@@ -191,15 +167,19 @@ describe.skipIf(!TEST_DATABASE_URL)(
         modelId: string;
       }>;
       for (const m of models) {
-        const isEmbed = m.modelId === 'mock-embed';
+        const capabilities = {
+          'mock-embed': ['embeddings'],
+          'mock-tts': ['speech'],
+          'mock-whisper': ['transcription'],
+        }[m.modelId] ?? ['text', 'streaming'];
         const res = await call('PATCH', `/models/${m.id}`, {
           eligibility: 'VERIFIED_FREE',
           eligibilityEvidenceUrl: 'https://example.test/self-hosted',
-          capabilities: isEmbed ? ['embeddings'] : ['text', 'streaming'],
+          capabilities,
           enabled: true,
         });
         expect(res.statusCode).toBe(200);
-        if (!isEmbed) chatModelUuid = m.id;
+        if (m.modelId === 'mock-chat') chatModelUuid = m.id;
       }
 
       const appRes = await call('POST', '/applications', {
@@ -319,6 +299,8 @@ describe.skipIf(!TEST_DATABASE_URL)(
           'arc/deep',
           'llama-cpp/mock-chat',
           'llama-cpp/mock-embed',
+          'llama-cpp/mock-tts',
+          'llama-cpp/mock-whisper',
         ]);
         const chatModel = res
           .json()
@@ -486,6 +468,74 @@ describe.skipIf(!TEST_DATABASE_URL)(
         expect(res.statusCode).toBe(200);
         expect(res.json().data).toHaveLength(2);
         expect(res.headers['x-arc-route-model']).toBe('llama-cpp/mock-embed');
+      });
+    });
+
+    describe('/v1/audio', () => {
+      const upload = (fields: Record<string, string>, file = true) => {
+        const fd = new FormData();
+        for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+        if (file)
+          fd.append('file', new Blob([new Uint8Array(2048)], { type: 'audio/wav' }), 'clip.wav');
+        return fd;
+      };
+      const inject = async (url: string, fd: FormData) => {
+        const r = new Request('http://x', { method: 'POST', body: fd });
+        return app.inject({
+          method: 'POST',
+          url,
+          headers: {
+            authorization: `Bearer ${arcKey}`,
+            'content-type': r.headers.get('content-type')!,
+          },
+          payload: Buffer.from(await r.arrayBuffer()),
+        });
+      };
+
+      it('routes transcriptions to a transcription model and forwards the file', async () => {
+        const res = await inject(
+          '/v1/audio/transcriptions',
+          upload({ model: 'auto', language: 'en' }),
+        );
+        expect(res.statusCode).toBe(200);
+        // LiteLLM adds null fields (duration, segments…); the text is the provider's.
+        expect(res.json()).toMatchObject({ text: 'Hello from mock audio' });
+        expect([`Bearer ${PROVIDER_KEY_A}`, `Bearer ${PROVIDER_KEY_B}`]).toContain(
+          mock.seenAuth.at(-1),
+        );
+        expect(res.headers['x-arc-route-model']).toBe('llama-cpp/mock-whisper');
+        expect(mock.lastBody).toMatchObject({ language: 'en', file: { size: 2048 } });
+      });
+
+      it('refuses uploads without a file, or that are not multipart', async () => {
+        expect(
+          (await inject('/v1/audio/transcriptions', upload({ model: 'auto' }, false))).statusCode,
+        ).toBe(400);
+        const json = await v1('POST', '/audio/transcriptions', { model: 'auto' });
+        expect(json.statusCode).toBe(415);
+      });
+
+      it('returns speech audio byte for byte from a speech model', async () => {
+        const res = await v1('POST', '/audio/speech', {
+          model: 'auto',
+          input: 'Hello there',
+          voice: 'alloy',
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['content-type']).toMatch(/^audio\//);
+        expect(res.headers['x-content-type-options']).toBe('nosniff');
+        expect(res.headers['x-arc-route-model']).toBe('llama-cpp/mock-tts');
+        expect(res.rawPayload.equals(MOCK_SPEECH)).toBe(true);
+      });
+
+      it('never picks a chat model for speech', async () => {
+        const res = await v1('POST', '/audio/speech', {
+          model: 'llama-cpp/mock-chat',
+          input: 'Hello',
+          voice: 'alloy',
+        });
+        expect(res.statusCode).toBeGreaterThanOrEqual(400);
+        expect(res.statusCode).toBeLessThan(500);
       });
     });
 

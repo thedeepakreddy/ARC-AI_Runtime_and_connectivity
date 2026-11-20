@@ -62,7 +62,40 @@ export const embeddingRequestSchema = z
   })
   .loose();
 
+/**
+ * Text to speech (/v1/audio/speech). OpenAI's fields; the voice names a provider's voice, and
+ * the response is audio in `response_format`.
+ */
+export const speechRequestSchema = z
+  .object({
+    model: z.string().min(1).max(320),
+    input: z.string().min(1).max(4096),
+    voice: z.string().min(1).max(100),
+    response_format: z.enum(['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm']).optional(),
+    speed: z.number().min(0.25).max(4).optional(),
+    instructions: z.string().max(4096).optional(),
+  })
+  .loose();
+const SPEECH_PASSTHROUGH = ['input', 'voice', 'response_format', 'speed', 'instructions'] as const;
+
+/**
+ * Speech to text (/v1/audio/transcriptions), sent as multipart form fields next to the audio
+ * file. Only these fields are forwarded.
+ */
+export const transcriptionFieldsSchema = z.object({
+  model: z.string().min(1).max(320),
+  language: z
+    .string()
+    .regex(/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/)
+    .optional(),
+  prompt: z.string().max(4096).optional(),
+  response_format: z.enum(['json', 'text', 'srt', 'verbose_json', 'vtt']).optional(),
+  temperature: z.coerce.number().min(0).max(1).optional(),
+});
+
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
+export type SpeechRequest = z.infer<typeof speechRequestSchema>;
+export type TranscriptionFields = z.infer<typeof transcriptionFieldsSchema>;
 export type EmbeddingRequest = z.infer<typeof embeddingRequestSchema>;
 
 function pick(body: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
@@ -73,6 +106,15 @@ function pick(body: Record<string, unknown>, keys: readonly string[]): Record<st
 
 export const chatPassthrough = (body: ChatRequest) => pick(body, CHAT_PASSTHROUGH);
 export const embeddingPassthrough = (body: EmbeddingRequest) => pick(body, EMBEDDING_PASSTHROUGH);
+export const speechPassthrough = (body: SpeechRequest) => pick(body, SPEECH_PASSTHROUGH);
+/** Form fields for the provider, as strings (the model is ARC's choice, added later). */
+export const transcriptionPassthrough = (f: TranscriptionFields): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const k of ['language', 'prompt', 'response_format', 'temperature'] as const) {
+    if (f[k] !== undefined) out[k] = String(f[k]);
+  }
+  return out;
+};
 
 export type Capability =
   | 'text'
@@ -80,6 +122,7 @@ export type Capability =
   | 'audio_input'
   | 'transcription'
   | 'audio_output'
+  | 'speech'
   | 'embeddings'
   | 'video'
   | 'documents'

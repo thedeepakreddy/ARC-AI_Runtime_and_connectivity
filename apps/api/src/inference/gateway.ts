@@ -1,6 +1,6 @@
 import type { Candidate } from './candidates.js';
 
-export type Endpoint = 'chat/completions' | 'embeddings';
+export type Endpoint = 'chat/completions' | 'embeddings' | 'audio/transcriptions' | 'audio/speech';
 
 export interface DispatchInput {
   endpoint: Endpoint;
@@ -10,6 +10,20 @@ export interface DispatchInput {
   body: Record<string, unknown>;
   stream: boolean;
   signal: AbortSignal;
+  /** Uploaded file for multipart endpoints (audio/transcriptions); `body` holds string fields. */
+  form?: { file: Blob; filename: string } | undefined;
+}
+
+/** Multipart body: the allow-listed fields as strings, then the file. */
+export function toFormData(
+  fields: Record<string, unknown>,
+  file: Blob,
+  filename: string,
+): FormData {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(fields)) if (v !== undefined) fd.append(k, String(v));
+  fd.append('file', file, filename);
+  return fd;
 }
 
 /** Executes provider calls. ARC decides what to call; the gateway only carries it out. */
@@ -56,12 +70,25 @@ export class LiteLLMGateway implements InferenceGateway {
       ...(target.apiBase ? { api_base: target.apiBase } : {}),
       ...(input.endpoint === 'chat/completions' ? { stream: input.stream } : {}),
     };
+    if (input.form) {
+      // fetch sets the multipart boundary itself.
+      return this.fetchImpl(`${this.base}/v1/${input.endpoint}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${this.masterKey}` },
+        body: toFormData(body, input.form.file, input.form.filename),
+        signal: input.signal,
+      });
+    }
     return this.fetchImpl(`${this.base}/v1/${input.endpoint}`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${this.masterKey}`,
         'content-type': 'application/json',
-        accept: input.stream ? 'text/event-stream' : 'application/json',
+        accept: input.stream
+          ? 'text/event-stream'
+          : input.endpoint === 'audio/speech'
+            ? 'audio/*'
+            : 'application/json',
       },
       body: JSON.stringify(body),
       signal: input.signal,
