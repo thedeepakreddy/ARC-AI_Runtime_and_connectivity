@@ -87,6 +87,8 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-false}
       # Metrics on 9464, reachable only on the private backend network (not published).
       METRICS_PORT: 9464
+      # Firing alerts in the console's "Needs you" list (monitoring profile).
+      ALERTMANAGER_URL: http://alertmanager:9093
     volumes:
       - ${ARC_SECRETS_DIR:-./secrets}:/run/secrets/arc:ro
     depends_on:

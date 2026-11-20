@@ -14,6 +14,7 @@ provider, routing, fallback, security and monitoring behind it.
 ## Layout
 
 ```
+apps/console     The owner's console (React), served by the API at /console
 apps/api         Fastify + Zod API: control plane, /v1 inference, and the worker entrypoint
                  (src/worker: route scoring, key health checks — kept off the request path)
 packages/shared  Config validation and log redaction shared by services
@@ -39,6 +40,7 @@ cp .env.example .env  # then set real secrets
 docker compose up -d --build
 curl localhost:8080/healthz   # liveness
 curl localhost:8080/readyz    # postgres, redis, litellm reachable
+open http://localhost:8080/console   # the owner console (sign in as the owner)
 ```
 
 Verify the whole stack end to end (isolated; leaves your `.env` alone):

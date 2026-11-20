@@ -97,6 +97,10 @@ ready=$(curl -sS "$ARC_URL/readyz")
 echo "$ready"
 echo "$ready" | grep -q '"postgres":{"ok":true' || echo "$ready" | grep -q 'ready' || die "/readyz: $ready"
 
+console_headers=$(curl -fsS -D - -o /dev/null "$ARC_URL/console/providers")
+echo "$console_headers" | grep -qi "content-security-policy: default-src 'self'" || die "console not served with its CSP"
+echo "  ok: console served at /console"
+
 step "owner, provider key, models, apps"
 export ARC_URL ARC_OWNER_EMAIL=owner@example.test ARC_OWNER_PASSWORD
 ARC_OWNER_PASSWORD="smoke-$(rand)"

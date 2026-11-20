@@ -119,7 +119,28 @@ See [app-integration.md](app-integration.md) and ADR 0009.
 - [ ] Deploy: issue the keys on the VPS and set them on Render (owner)
 - [ ] Aira, Echo Mac, Echo web extension — later, same pattern
 
-## Phase 6 scope (next): dashboards and users' own keys
+## Phase 6 status
+
+Increment 1 — **Console (owner)**: done. Layouts approved one by one (page list, grouped sidebar,
+Overview "needs you first", Providers grouped list, Models tabs + bulk classify with terms note,
+Apps list + detail with rotation overlap); the rest built to the same system.
+
+- [x] Design system: space for the backdrop, Apple for the surfaces — grouped borderless panels,
+      inset separators, sentence-case labels, filled controls, capsule buttons, Liquid Glass only for
+      floating layers. ARC wordmark traced from the app icon. Type: Mona Sans (wide bold titles and
+      figures, text), Hubot Sans (controls), Martian Mono (keys); bundled, strict CSP. Original space
+      art (Earth limb, stars, Milky Way) rendered by `scripts/art/render_space.py`
+- [x] Pages: sign-in, Overview, Providers & keys, Models, Apps (+ detail), Routing (+ "what would
+      ARC pick?"), Traffic, Customers, Audit log, Account (theme, password, sessions)
+- [x] Backend: per-app traffic rollups, console overview/traffic/customers APIs, terms note, key
+      rotation overlap, customer suspension, sessions and password change; served at `/console`
+- [x] Tests: console API (9, real Postgres); every page rendered and reviewed in dark, light and
+      phone widths against a seeded ARC (`scripts/dev/seed-demo.mjs`)
+- [ ] Increment 2 — Customer dashboard + customer sign-up/login (email verification, Google
+      sign-in, MFA, password reset) + teams/invitations
+- [ ] Increment 3 — Users' own keys through ARC (customer BYOK in the dashboard; apps' end-user keys)
+
+## Phase 6 scope: dashboards and users' own keys
 
 Frontend, with **each screen layout approved before coding**:
 

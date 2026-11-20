@@ -82,3 +82,24 @@ be set by the platform owner.
 | GET    | `/applications` |                                                            |
 | POST   | `/applications` | `{ name, slug, firstParty? }`; first-party = platform only |
 | GET    | `/audit-events` | `?limit=` (max 200); metadata only                         |
+
+## Console (platform owner only)
+
+| Method | Path                                   | Notes                                                                                                            |
+| ------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| GET    | `/console/overview?range=24h\|7d\|30d` | Services, "needs you" (alerts, failing keys, models to classify, expiring keys), totals, series, by app/provider |
+| GET    | `/console/traffic?range=&by=&app=`     | `by`: `app`, `provider`, `model`, `key`; optional `app` id; rows + series                                        |
+| GET    | `/console/customers`                   | Customer organizations with members, apps, keys, 30-day requests                                                 |
+| POST   | `/console/customers/:id/suspend`       | Their keys stop at once on every instance; `/unsuspend` restores                                                 |
+
+## Account (any signed-in user)
+
+| Method | Path                    | Notes                                                |
+| ------ | ----------------------- | ---------------------------------------------------- |
+| GET    | `/account/sessions`     | Active sessions; `current` marks this one            |
+| DELETE | `/account/sessions/:id` | Sign out that session                                |
+| POST   | `/account/password`     | `{ currentPassword, newPassword }`; signs out others |
+
+Also: `PATCH /models/:id` accepts `termsNote` (≤ 500 chars, restricted-free terms);
+`POST /api-keys/:id/rotate` accepts `{ overlapMinutes: 0 | 60 | 1440 }` (the old key keeps working
+that long, then expires).

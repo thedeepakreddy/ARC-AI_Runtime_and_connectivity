@@ -1,3 +1,4 @@
+import { checkReadiness } from './readiness.js';
 import { REDACT_PATHS } from '@arc/shared';
 import { Redis } from 'ioredis';
 import { buildApp } from './app.js';
@@ -13,6 +14,7 @@ import { createDependencies } from './dependencies.js';
 import { CandidateStore } from './inference/candidates.js';
 import { Cooldowns } from './inference/cooldowns.js';
 import { ObservationRecorder } from './inference/observations.js';
+import { RollupRecorder } from './inference/rollups.js';
 import { LiteLLMGateway } from './inference/gateway.js';
 import { ApiKeyVerifier } from './keys/verifier.js';
 import { HttpProviderProbe } from './providers/probe.js';
@@ -29,6 +31,8 @@ const candidates = new CandidateStore(db);
 const cooldowns = new Cooldowns();
 const observations = new ObservationRecorder(db);
 observations.start();
+const rollups = new RollupRecorder(db);
+rollups.start();
 const metrics = new ArcMetrics({ defaultMetrics: true });
 
 // Cross-instance coordination (Redis). Nothing on the request path waits for these.
@@ -70,7 +74,10 @@ const app = buildApp({
       bus.publish({ type: 'api_key_revoked', keyId });
     },
     routing: { candidates, cooldowns },
+    readiness: () => checkReadiness(deps.checks, config.READINESS_TIMEOUT_MS),
+    alertmanagerUrl: config.ALERTMANAGER_URL,
   },
+  consoleDir: config.CONSOLE_DIR,
   inference: {
     db,
     credentials,
@@ -78,6 +85,7 @@ const app = buildApp({
     candidates,
     cooldowns,
     observations,
+    rollups,
     gateway: new LiteLLMGateway(config.LITELLM_BASE_URL, config.LITELLM_MASTER_KEY),
     defaultDeadlineMs: config.DEFAULT_DEADLINE_MS,
     maxDeadlineMs: config.MAX_DEADLINE_MS,
@@ -100,7 +108,7 @@ const stopMonitor = startHealthMonitor({
   checks: deps.checks,
   metrics,
   timeoutMs: config.READINESS_TIMEOUT_MS,
-  telemetryDropped: () => observations.dropped,
+  telemetryDropped: () => observations.dropped + rollups.dropped,
 });
 const metricsServer = config.METRICS_PORT
   ? await startMetricsServer(metrics.registry, config.METRICS_HOST, config.METRICS_PORT)
@@ -117,6 +125,7 @@ async function shutdown(signal: string): Promise<void> {
   try {
     await app.close();
     await observations.stop();
+    await rollups.stop();
     stopMonitor();
     metricsServer?.close();
     await bus.close();

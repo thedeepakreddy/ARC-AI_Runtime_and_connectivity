@@ -2,6 +2,7 @@ import type { Db } from '../db/pool.js';
 import type { CandidateStore } from '../inference/candidates.js';
 import type { Cooldowns } from '../inference/cooldowns.js';
 import type { ProviderProbe } from '../providers/probe.js';
+import type { ReadinessReport } from '../readiness.js';
 import type { CredentialService } from '../vault/credentials.js';
 
 export interface AdminDeps {
@@ -19,6 +20,10 @@ export interface AdminDeps {
   onApiKeyRevoked?: (keyId: string) => void;
   /** Shared routing state, for the explain endpoint. */
   routing?: { candidates: CandidateStore; cooldowns: Cooldowns };
+  /** Live dependency check, for the console overview. */
+  readiness?: () => Promise<ReadinessReport>;
+  /** Alertmanager base URL, for firing alerts in the console overview. */
+  alertmanagerUrl?: string | undefined;
 }
 
 export const isUniqueViolation = (err: unknown) =>

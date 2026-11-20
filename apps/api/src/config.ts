@@ -39,6 +39,10 @@ export const apiEnvSchema = baseEnvSchema.extend({
   MIN_ATTEMPT_MS: z.coerce.number().int().min(50).max(60_000).default(250),
   /** Prometheus metrics on a separate, internal-only port (0 disables). */
   METRICS_HOST: z.string().default('0.0.0.0'),
+  /** Alertmanager, for the console's "Needs you" list (e.g. http://alertmanager:9093). Optional. */
+  ALERTMANAGER_URL: z.url().optional(),
+  /** Built console (apps/console/dist), served at /console when set. */
+  CONSOLE_DIR: z.string().optional(),
   METRICS_PORT: z.coerce.number().int().min(0).max(65535).default(9464),
   /** "redis" shares revocations, cooldowns and routing changes across API instances. */
   COORDINATION: z.enum(['redis', 'local']).default('redis'),
