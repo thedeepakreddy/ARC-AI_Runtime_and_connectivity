@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
+import multipart from '@fastify/multipart';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { RateLimiter } from '../coordination/rate-limit.js';
 import { LocalRateLimiter } from '../coordination/rate-limit.js';
@@ -30,6 +31,10 @@ import {
   embeddingPassthrough,
   embeddingRequestSchema,
   requiredChatCapabilities,
+  speechPassthrough,
+  speechRequestSchema,
+  transcriptionFieldsSchema,
+  transcriptionPassthrough,
 } from '../inference/schemas.js';
 import type { ApiKeyPrincipal, ApiKeyVerifier, Scope } from '../keys/verifier.js';
 import type { ArcMetrics } from '../observability/metrics.js';
@@ -136,6 +141,10 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
   const { candidates, credentials, gateway, db, cooldowns, observations } = deps;
   const m = deps.metrics;
   const limiter = deps.rateLimiter ?? new LocalRateLimiter(deps.requestsPerMinute);
+  // Audio uploads (/v1/audio/transcriptions): one file, a few short fields.
+  await app.register(multipart, {
+    limits: { fileSize: deps.bodyLimitBytes, files: 1, fields: 10, fieldSize: 8192, parts: 11 },
+  });
 
   app.addHook('onRequest', async (req) => {
     req.arcStartedAt = performance.now();
@@ -296,6 +305,7 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
     need: Set<Capability>,
     body: Record<string, unknown>,
     stream: boolean,
+    form?: { file: Blob; filename: string },
   ) {
     const principal = req.principal!;
     const deadlineMs = deadlineFor(req, deps);
@@ -368,7 +378,15 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
 
       let upstream: Response;
       try {
-        upstream = await gateway.dispatch({ endpoint, candidate: c, apiKey, body, stream, signal });
+        upstream = await gateway.dispatch({
+          endpoint,
+          candidate: c,
+          apiKey,
+          body,
+          stream,
+          signal,
+          form,
+        });
       } catch {
         if (clientAbort.signal.aborted) {
           req.log.info(
@@ -512,6 +530,17 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
           .send(out);
       }
 
+      const type = responseType(upstream.headers.get('content-type'), endpoint);
+      reply.header('x-content-type-options', 'nosniff');
+      if (type !== 'application/json') {
+        // Audio, or a transcript as text/srt/vtt: passed through byte for byte.
+        const bytes = Buffer.from(await upstream.arrayBuffer());
+        req.log.info(
+          { ...routeLog, outcome: 'ok', totalMs: finish('ok'), bytes: bytes.length },
+          'inference',
+        );
+        return reply.code(200).header('content-type', type).send(bytes);
+      }
       const text = await upstream.text();
       let usage: unknown;
       try {
@@ -630,4 +659,96 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
       false,
     );
   });
+
+  app.post('/audio/speech', { bodyLimit: deps.bodyLimitBytes }, async (req, reply) => {
+    requireScope(req, 'inference');
+    const body = parseInput(speechRequestSchema, req.body);
+    return execute(
+      req,
+      reply,
+      'audio/speech',
+      body.model,
+      new Set<Capability>(['speech']),
+      speechPassthrough(body),
+      false,
+    );
+  });
+
+  app.post('/audio/transcriptions', async (req, reply) => {
+    requireScope(req, 'inference');
+    if (!req.isMultipart()) {
+      throw new ArcError(
+        415,
+        'unsupported_media_type',
+        'Send the audio as multipart/form-data with a "file" part',
+      );
+    }
+    const fields: Record<string, string> = {};
+    let file: { bytes: Buffer; filename: string; type: string } | undefined;
+    try {
+      for await (const part of req.parts()) {
+        if (part.type === 'file') {
+          if (part.fieldname !== 'file' || file) {
+            part.file.resume();
+            throw new ArcError(400, 'invalid_request', 'Send exactly one file, in the "file" part');
+          }
+          file = {
+            bytes: await part.toBuffer(),
+            filename: safeFilename(part.filename),
+            type: part.mimetype,
+          };
+        } else if (typeof part.value === 'string') {
+          fields[part.fieldname] = part.value;
+        }
+      }
+    } catch (e) {
+      if (e instanceof ArcError) throw e;
+      const err = e as { code?: string; statusCode?: number };
+      if (err.code === 'FST_REQ_FILE_TOO_LARGE') {
+        throw new ArcError(
+          413,
+          'file_too_large',
+          `The audio file is over ${deps.bodyLimitBytes} bytes`,
+        );
+      }
+      throw new ArcError(err.statusCode ?? 400, 'invalid_request', 'Could not read the upload');
+    }
+    if (!file?.bytes.length) {
+      throw new ArcError(400, 'invalid_request', 'Missing the audio "file" part');
+    }
+    const parsed = parseInput(transcriptionFieldsSchema, fields);
+    return execute(
+      req,
+      reply,
+      'audio/transcriptions',
+      parsed.model,
+      new Set<Capability>(['transcription']),
+      transcriptionPassthrough(parsed),
+      false,
+      {
+        file: new Blob([new Uint8Array(file.bytes)], { type: file.type }),
+        filename: file.filename,
+      },
+    );
+  });
+}
+
+/** Keep the extension (providers read the format from it), drop any path and odd characters. */
+function safeFilename(name: string | undefined): string {
+  const base = (name ?? '').split(/[\\/]/).pop() ?? '';
+  const clean = base.replace(/[^\w.-]/g, '_').slice(-100);
+  return clean && clean !== '.' && clean !== '..' ? clean : 'audio';
+}
+
+const PASSTHROUGH_TYPES = /^(audio\/[\w.+-]+|text\/plain|text\/vtt|application\/x-subrip)$/;
+
+/** The content type ARC sends back: JSON, or one of a few safe audio/text types. */
+function responseType(header: string | null, endpoint: Endpoint): string {
+  const t = (header ?? '').split(';')[0]!.trim().toLowerCase();
+  if (t === 'application/json' || t.endsWith('+json')) return 'application/json';
+  if (PASSTHROUGH_TYPES.test(t)) return t.startsWith('text/') ? `${t}; charset=utf-8` : t;
+  if (endpoint === 'audio/speech') return 'application/octet-stream';
+  if (endpoint === 'audio/transcriptions' && t.startsWith('text/'))
+    return 'text/plain; charset=utf-8';
+  return 'application/json';
 }

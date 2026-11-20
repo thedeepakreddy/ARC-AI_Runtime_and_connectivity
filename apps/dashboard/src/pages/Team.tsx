@@ -44,7 +44,7 @@ export function TeamPage() {
   }
 
   return (
-    <div className="page" style={{ maxWidth: 960 }}>
+    <div className="page medium">
       <PageHead
         title="Team"
         sub={`People in ${org.name}. Owners manage everything, admins manage apps and keys, members can look.`}
@@ -81,7 +81,7 @@ export function TeamPage() {
                   : org.canManage && (m.role !== 'owner' || org.isOwner);
                 return (
                   <tr key={m.userId}>
-                    <td style={{ fontWeight: 500 }}>
+                    <td className="fw-500">
                       {m.email} {m.you && <Badge tone="accent">You</Badge>}
                     </td>
                     <td>
@@ -159,7 +159,7 @@ export function TeamPage() {
                 <tbody>
                   {invitations.data.data.map((i) => (
                     <tr key={i.id}>
-                      <td style={{ fontWeight: 500 }}>{i.email}</td>
+                      <td className="fw-500">{i.email}</td>
                       <td>{ROLE_LABEL[i.role]}</td>
                       <td className="muted hide-sm">{i.invitedBy ?? '—'}</td>
                       <td className="muted">{ago(i.expiresAt)}</td>
@@ -204,12 +204,12 @@ export function TeamPage() {
             </button>
           }
         >
-          <p className="muted" style={{ marginTop: 0 }}>
+          <p className="muted mt-0">
             Send it to {created.email} yourself, by email or chat. It works once, for 7 days, and
             only for that email. ARC shows it only now.
           </p>
           <div className="secret-box">
-            <span style={{ flex: 1 }}>{inviteLink(created.token)}</span>
+            <span className="grow">{inviteLink(created.token)}</span>
             <CopyButton text={inviteLink(created.token)} />
           </div>
         </Dialog>
@@ -295,7 +295,7 @@ function InviteDialog({
           />
         )}
       </Field>
-      <div className="label" style={{ marginBottom: 8 }} id="role-label">
+      <div className="label mb-8" id="role-label">
         Role
       </div>
       <div className="radio-list" role="radiogroup" aria-labelledby="role-label">

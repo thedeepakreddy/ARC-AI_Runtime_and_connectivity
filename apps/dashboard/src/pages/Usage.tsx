@@ -74,7 +74,7 @@ export function UsagePanel({
           note="Average, before the provider"
         />
       </div>
-      <div className="chart" style={{ borderTop: '1px solid var(--line)' }}>
+      <div className="chart divider-top">
         <TrafficChart
           points={s}
           label={axisLabel(range)}
@@ -185,7 +185,7 @@ export function UsagePage() {
             </table>
           </div>
         )}
-        <p className="hint" style={{ margin: '12px 4px 0' }}>
+        <p className="hint footnote">
           Times are averages per request, including the provider. “No route” means no key or model
           could serve the request.
         </p>

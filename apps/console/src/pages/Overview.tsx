@@ -73,7 +73,7 @@ export function OverviewPage({ onChange }: { onChange: () => void }) {
                         n.severity === 'critical' ? 'bad' : n.severity === 'warning' ? 'warn' : ''
                       }
                     />
-                    <div style={{ minWidth: 0 }}>
+                    <div className="min-w-0">
                       <div>{n.title}</div>
                       {n.detail && <div className="detail">{n.detail}</div>}
                     </div>
@@ -117,7 +117,7 @@ export function OverviewPage({ onChange }: { onChange: () => void }) {
                   note="Average, before the provider"
                 />
               </div>
-              <div className="chart" style={{ borderTop: '1px solid var(--line)' }}>
+              <div className="chart divider-top">
                 <TrafficChart
                   action={<Link to="/traffic">Traffic details →</Link>}
                   points={data.series}

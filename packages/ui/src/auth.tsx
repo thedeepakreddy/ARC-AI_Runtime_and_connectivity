@@ -128,7 +128,7 @@ export function authMessage(err: unknown): string {
 
 export function ErrorLine({ error }: { error: string | null }) {
   return error ? (
-    <p className="error-text" role="alert" style={{ margin: '0 0 12px' }}>
+    <p className="error-text m-0 mb-12" role="alert">
       {error}
     </p>
   ) : null;
@@ -405,7 +405,7 @@ export function SignInForm({
         </>
       )}
       {config?.passwordReset && (
-        <p className="foot" style={{ marginTop: 18 }}>
+        <p className="foot mt-16">
           <button type="button" className="link-button" onClick={() => setStep('forgot')}>
             Forgot password?
           </button>

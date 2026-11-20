@@ -263,9 +263,9 @@ The implementation in `packages/ui` is the source of truth.
 
 ## Known Deviations
 
-- **Inline styles in pages** (rule: component classes and tokens / actual: `style={{…}}` /
-  where: `apps/console/src/pages/*` / count: ~78 / status: to fix gradually; most are one-off
-  margins).
+- **Inline styles** (rule: component classes, tokens and the spacing utilities in
+  `packages/ui/src/styles.css` / actual: ~40 `style={{…}}` left, nearly all dynamic values
+  such as bar widths and chart positions / status: acceptable where the value is computed).
 - **Hard-coded greys outside `:root`** (rule: colour tokens / actual: `#5e5f66` segmented thumb,
   `#1c1d20` glass fallback, `#e8ecf2` sign-in hover / where: `packages/ui/src/styles.css` /
   count: 6 / status: to fix).

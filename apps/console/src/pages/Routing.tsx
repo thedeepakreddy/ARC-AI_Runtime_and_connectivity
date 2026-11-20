@@ -16,7 +16,7 @@ export function describePolicy(p: Policy): ReactNode {
   const regions = p.allowedJurisdictions;
   const excluded = regions ? ALL_REGIONS.filter((r) => !regions.includes(r)) : [];
   return (
-    <dl className="kv" style={{ margin: 0 }}>
+    <dl className="kv m-0">
       <dt>Regions</dt>
       <dd>
         {regions === null ? 'All regions' : regions.map((r) => JURISDICTIONS[r]).join(' · ')}
@@ -84,10 +84,8 @@ export function PolicyEditor({
         </>
       }
     >
-      <div className="sub-head" style={{ marginTop: 0 }}>
-        Where requests may go
-      </div>
-      <p className="hint" style={{ marginTop: 0 }}>
+      <div className="sub-head mt-0">Where requests may go</div>
+      <p className="hint mt-0">
         By the provider’s jurisdiction. ARC never sends a request to a region that isn’t ticked,
         even as a fallback.
       </p>
@@ -113,18 +111,18 @@ export function PolicyEditor({
       <div className="sub-head">Paid models</div>
       <div className="list-row panel">
         <div>
-          <div style={{ fontWeight: 500 }}>Allow paid models on your keys</div>
+          <div className="fw-500">Allow paid models on your keys</div>
           <div className="hint">
             Off: ARC uses only free models. On: paid models may be used, and providers may charge
             you.
           </div>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div className="ml-auto">
           <Switch label="Allow paid models" checked={paid} onChange={setPaid} />
         </div>
       </div>
       {paid && (
-        <div className="note warn" style={{ marginTop: 12 }}>
+        <div className="note warn mt-12">
           Requests may now cost money. Check each paid model’s pricing before turning it on.
         </div>
       )}
@@ -202,7 +200,7 @@ export function RoutingPage() {
           <div
             style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 14 }}
           >
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field m-0">
               <label htmlFor="ex-model">Model</label>
               <input
                 id="ex-model"
@@ -212,7 +210,7 @@ export function RoutingPage() {
                 placeholder="auto, arc/fast or provider/model"
               />
             </div>
-            <div className="field" style={{ margin: 0 }}>
+            <div className="field m-0">
               <label htmlFor="ex-app">As app</label>
               <select
                 id="ex-app"
@@ -253,21 +251,17 @@ export function RoutingPage() {
               </button>
             ))}
           </div>
-          <div style={{ marginTop: 18 }}>
+          <div className="mt-16">
             <button className="btn primary" onClick={explain}>
               Explain route
             </button>
           </div>
         </div>
-        {error && (
-          <div className="note bad" style={{ marginTop: 12 }}>
-            {error}
-          </div>
-        )}
+        {error && <div className="note bad mt-12">{error}</div>}
         {result && (
-          <div style={{ marginTop: 16 }}>
+          <div className="mt-16">
             {result.routable && result.selected ? (
-              <div className="note ok" style={{ marginBottom: 12 }}>
+              <div className="note ok mb-12">
                 ARC would use <span className="mono">{result.selected.model}</span> on key “
                 {keyName.get(result.selected.accountId) ?? result.selected.accountId.slice(0, 8)}”
                 {result.fallbackOrder && result.fallbackOrder.length > 1 && (
@@ -279,7 +273,7 @@ export function RoutingPage() {
                 .
               </div>
             ) : (
-              <div className="note bad" style={{ marginBottom: 12 }}>
+              <div className="note bad mb-12">
                 No route: {result.reason?.replace(/_/g, ' ')}. Nothing would be sent; the app gets a
                 clear error.
               </div>

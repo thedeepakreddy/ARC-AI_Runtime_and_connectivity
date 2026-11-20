@@ -336,7 +336,7 @@ export function Sheet({
         ref={ref}
       >
         <div className="sheet-head">
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="grow min-w-0">
             <h2 className="sheet-title" id={titleId}>
               {title}
             </h2>

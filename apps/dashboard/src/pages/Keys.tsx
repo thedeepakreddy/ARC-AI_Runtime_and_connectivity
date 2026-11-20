@@ -105,7 +105,7 @@ function Keys() {
                     </td>
                     <td className="hide-sm">
                       {p?.displayName ?? a.providerId}
-                      <div className="faint" style={{ fontSize: 13 }}>
+                      <div className="faint text-sm">
                         {JURISDICTIONS[p?.jurisdiction ?? ''] ?? ''}
                       </div>
                     </td>

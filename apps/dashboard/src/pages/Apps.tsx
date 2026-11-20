@@ -10,13 +10,14 @@ import {
   PageHead,
   useToast,
 } from '@arc/ui';
-import { type ApiKey, type Application, type Traffic, api } from '@arc/ui/api';
+import { type ApiKey, type Application, type Policy, type Traffic, api } from '@arc/ui/api';
 import { ago, date, num, pct } from '@arc/ui/format';
 import { useData } from '@arc/ui/hooks';
 import { NewAppDialog, NewKeyDialog, RotateDialog, ShowOnceDialog } from '@arc/ui/keys';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiBaseUrl, useOrg } from '../org';
+import { RegionChecklist, describeRegions } from '../regions';
 import { UsagePanel } from './Usage';
 
 export function AppsPage() {
@@ -149,7 +150,7 @@ export function AppDetailPage() {
         title={app?.name ?? ' '}
         sub={app ? <span className="mono">{app.slug}</span> : null}
       />
-      <section className="section" style={{ marginTop: 0 }}>
+      <section className="section mt-0">
         <div className="section-head">
           <h2 className="section-title">ARC keys</h2>
           {org.canManage && (
@@ -186,10 +187,10 @@ export function AppDetailPage() {
               <tbody>
                 {active.map((k) => (
                   <tr key={k.id}>
-                    <td style={{ fontWeight: 500 }}>
+                    <td className="fw-500">
                       {k.name}
                       {k.scopes.length < 2 && (
-                        <span style={{ marginLeft: 8 }}>
+                        <span className="ml-8">
                           <Badge>
                             {k.scopes.includes('inference') ? 'Requests only' : 'Models only'}
                           </Badge>
@@ -235,6 +236,8 @@ export function AppDetailPage() {
         </div>
         <ConnectPanel keyPrefix={active[0]?.displayPrefix} />
       </section>
+
+      {org.canManage && id && <AppRegions appId={id} />}
 
       <section className="section">
         <div className="section-head">
@@ -316,5 +319,82 @@ function ConnectPanel({ keyPrefix }: { keyPrefix: string | undefined }) {
         SDK works: set its base URL and API key to these.
       </p>
     </div>
+  );
+}
+
+/** Regions for this app only: its own rule replaces the organization's (Settings → Regions). */
+function AppRegions({ appId }: { appId: string }) {
+  const org = useOrg();
+  const toast = useToast();
+  const own = useData<{ policy: Policy | null; inheritsTenantPolicy: boolean }>(
+    `/applications/${appId}/routing-policy`,
+    [appId],
+  );
+  const orgPolicy = useData<Policy>('/routing/policy');
+  const [editing, setEditing] = useState(false);
+  if (!own.data || !orgPolicy.data) return null;
+  const custom = !own.data.inheritsTenantPolicy && own.data.policy;
+  const effective = custom
+    ? own.data.policy!.allowedJurisdictions
+    : orgPolicy.data.allowedJurisdictions;
+
+  return (
+    <section className="section">
+      <div className="section-head">
+        <h2 className="section-title">Regions</h2>
+        {org.isOwner && custom && (
+          <button
+            className="btn ghost sm"
+            onClick={async () => {
+              await api('DELETE', `/applications/${appId}/routing-policy`);
+              toast('This app follows the organization’s regions again');
+              setEditing(false);
+              void own.reload();
+            }}
+          >
+            Use organization regions
+          </button>
+        )}
+      </div>
+      <div className="panel panel-pad">
+        <div className="mb-8">
+          <Badge tone={custom ? 'accent' : ''}>
+            {custom ? 'Custom for this app' : 'Organization rule'}
+          </Badge>
+        </div>
+        <p className="mt-0">{describeRegions(effective)}</p>
+        {editing ? (
+          <>
+            <p className="hint">
+              This app’s rule replaces the organization’s for its requests only.
+            </p>
+            <RegionChecklist
+              current={effective}
+              saveLabel="Save for this app"
+              canEdit
+              onSave={async (allowedJurisdictions) => {
+                try {
+                  await api('PUT', `/applications/${appId}/routing-policy`, {
+                    allowedJurisdictions,
+                    allowPaidOwnerKeys: false,
+                  });
+                  toast('Regions saved for this app');
+                  setEditing(false);
+                  void own.reload();
+                } catch (e) {
+                  toast((e as Error).message, true);
+                }
+              }}
+            />
+          </>
+        ) : org.isOwner ? (
+          <button className="btn sm" onClick={() => setEditing(true)}>
+            {custom ? 'Edit' : 'Set regions for this app'}
+          </button>
+        ) : (
+          <p className="hint mb-0">Only owners can change regions.</p>
+        )}
+      </div>
+    </section>
   );
 }

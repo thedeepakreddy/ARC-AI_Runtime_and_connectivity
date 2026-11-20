@@ -1,6 +1,6 @@
 /**
  * A tiny OpenAI-compatible provider for tests: /models, /chat/completions (JSON and SSE),
- * /embeddings. Records the Authorization header it saw so tests can check which key ARC used.
+ * /embeddings, and optionally /audio/transcriptions and /audio/speech. Records the Authorization header it saw so tests can check which key ARC used.
  */
 import { type Server, createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -19,12 +19,18 @@ export interface MockProvider {
   failRate: number;
   /** Delay before any response (to test deadlines). */
   responseDelayMs: number;
-  /** Last JSON body received. */
+  /** Last JSON body (or multipart fields, plus `file` as {name, size}) received. */
   lastBody: Record<string, unknown> | null;
   close(): Promise<void>;
 }
 
-export async function startMockProvider(): Promise<MockProvider> {
+/** Bytes the mock's /audio/speech returns (an MP3 frame header and padding). */
+export const MOCK_SPEECH = Buffer.from([0xff, 0xfb, 0x90, 0x64, ...Array<number>(60).fill(0)]);
+
+export async function startMockProvider(
+  opts: { extraModels?: string[] } = {},
+): Promise<MockProvider> {
+  const modelIds = ['mock-chat', 'mock-embed', ...(opts.extraModels ?? [])];
   const state: Omit<MockProvider, 'url' | 'close'> = {
     seenAuth: [],
     failWith: null,
@@ -37,8 +43,8 @@ export async function startMockProvider(): Promise<MockProvider> {
   };
 
   const server: Server = createServer((req, res) => {
-    let raw = '';
-    req.on('data', (c) => (raw += c));
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
     req.on('end', async () => {
       state.seenAuth.push(String(req.headers.authorization ?? ''));
       if (state.responseDelayMs) await new Promise((r) => setTimeout(r, state.responseDelayMs));
@@ -53,12 +59,32 @@ export async function startMockProvider(): Promise<MockProvider> {
       }
       if (req.method === 'GET' && path === '/models') {
         res.writeHead(200, { 'content-type': 'application/json' });
-        return res.end(
-          JSON.stringify({ object: 'list', data: [{ id: 'mock-chat' }, { id: 'mock-embed' }] }),
-        );
+        return res.end(JSON.stringify({ object: 'list', data: modelIds.map((id) => ({ id })) }));
       }
-      const body = raw ? JSON.parse(raw) : {};
+      const raw = Buffer.concat(chunks);
+      if (path === '/audio/transcriptions') {
+        const form = await new Response(raw, {
+          headers: { 'content-type': String(req.headers['content-type']) },
+        }).formData();
+        const fields: Record<string, unknown> = {};
+        for (const [k, v] of form.entries()) {
+          fields[k] = typeof v === 'string' ? v : { name: v.name, size: v.size };
+        }
+        state.lastBody = fields;
+        const text = 'Hello from mock audio';
+        if (fields.response_format === 'text') {
+          res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+          return res.end(text);
+        }
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ text }));
+      }
+      const body = raw.length ? JSON.parse(raw.toString('utf8')) : {};
       state.lastBody = body;
+      if (path === '/audio/speech') {
+        res.writeHead(200, { 'content-type': 'audio/mpeg' });
+        return res.end(MOCK_SPEECH);
+      }
       if (path === '/embeddings') {
         const inputs = Array.isArray(body.input) ? body.input : [body.input];
         res.writeHead(200, { 'content-type': 'application/json' });

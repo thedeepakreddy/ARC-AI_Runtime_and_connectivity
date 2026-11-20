@@ -31,8 +31,8 @@ export function SecuritySection({ app }: { app: 'console' | 'dashboard' }) {
       </div>
       <div className="panel">
         <div className="list-row">
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>Two-step sign-in</div>
+          <div className="grow">
+            <div className="fw-500">Two-step sign-in</div>
             <div className="hint">
               {data?.mfaEnabled
                 ? `A code from your authenticator app at every sign-in. ${data.recoveryCodesLeft} recovery codes left.`
@@ -57,8 +57,8 @@ export function SecuritySection({ app }: { app: 'console' | 'dashboard' }) {
             ))}
         </div>
         <div className="list-row">
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>Email</div>
+          <div className="grow">
+            <div className="fw-500">Email</div>
             <div className="hint">
               {data?.emailVerified
                 ? 'Confirmed.'
@@ -84,8 +84,8 @@ export function SecuritySection({ app }: { app: 'console' | 'dashboard' }) {
         </div>
         {(data?.googleSignIn || data?.google) && (
           <div className="list-row">
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 500 }}>Google</div>
+            <div className="grow">
+              <div className="fw-500">Google</div>
               <div className="hint">
                 {data?.google
                   ? 'You can sign in with your Google account.'
@@ -196,14 +196,12 @@ function SetupDialog({
         </>
       }
     >
-      <p className="muted" style={{ marginTop: 0 }}>
-        1. Scan this with your authenticator app.
-      </p>
+      <p className="muted mt-0">1. Scan this with your authenticator app.</p>
       <div className="qr">
         {qr && <img src={qr} alt="QR code for your authenticator app" width={200} height={200} />}
       </div>
       {secret && (
-        <p className="hint" style={{ textAlign: 'center' }}>
+        <p className="hint text-center">
           Can’t scan? Enter this key:{' '}
           <span className="mono">{secret.secret.match(/.{1,4}/g)?.join(' ')}</span>
         </p>
@@ -269,9 +267,7 @@ function CodeDialog({
         </>
       }
     >
-      <p className="muted" style={{ marginTop: 0 }}>
-        {body}
-      </p>
+      <p className="muted mt-0">{body}</p>
       {withPassword && (
         <Field label="Password">
           {(id) => (
@@ -316,7 +312,7 @@ function RecoveryCodes({ codes, onClose }: { codes: string[]; onClose: () => voi
         </button>
       }
     >
-      <p className="muted" style={{ marginTop: 0 }}>
+      <p className="muted mt-0">
         If you lose your phone, each code signs you in once. This is the only time ARC shows them:
         keep them in your password manager.
       </p>
@@ -324,7 +320,7 @@ function RecoveryCodes({ codes, onClose }: { codes: string[]; onClose: () => voi
         <pre style={{ flex: 1, margin: 0, font: 'inherit', lineHeight: 1.8 }}>{text}</pre>
         <CopyButton text={text} />
       </div>
-      <label className="check" style={{ marginTop: 16 }}>
+      <label className="check mt-16">
         <input type="checkbox" checked={stored} onChange={(e) => setStored(e.target.checked)} />
         I’ve saved my recovery codes
       </label>

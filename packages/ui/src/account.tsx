@@ -38,7 +38,7 @@ export function AccountPage({ me, app }: { me: Me; app: 'console' | 'dashboard' 
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="page" style={{ maxWidth: 760 }}>
+    <div className="page narrow">
       <PageHead title="Account" sub={me.user.email} />
       <section>
         <div className="section-head">
@@ -108,7 +108,7 @@ export function AccountPage({ me, app }: { me: Me; app: 'console' | 'dashboard' 
           {(sessions.data?.data ?? []).map((s) => (
             <div key={s.id} className="list-row">
               <div>
-                <div style={{ fontWeight: 500 }}>
+                <div className="fw-500">
                   {browserName(s.userAgent)} {s.current && <Badge tone="accent">This device</Badge>}
                 </div>
                 <div className="hint">
@@ -117,8 +117,7 @@ export function AccountPage({ me, app }: { me: Me; app: 'console' | 'dashboard' 
               </div>
               {!s.current && (
                 <button
-                  className="btn sm"
-                  style={{ marginLeft: 'auto' }}
+                  className="btn sm ml-auto"
                   onClick={async () => {
                     await api('DELETE', `/account/sessions/${s.id}`);
                     toast('Signed out that session');
@@ -131,7 +130,7 @@ export function AccountPage({ me, app }: { me: Me; app: 'console' | 'dashboard' 
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 16 }}>
+        <div className="mt-16">
           <button
             className="btn"
             onClick={async () => {

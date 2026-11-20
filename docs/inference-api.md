@@ -20,14 +20,47 @@ for await (const chunk of stream) process.stdout.write(chunk.choices[0]?.delta?.
 
 ## Endpoints
 
-| Method | Path                      | Scope         |
-| ------ | ------------------------- | ------------- |
-| GET    | `/v1/models`              | `models:read` |
-| POST   | `/v1/chat/completions`    | `inference`   |
-| POST   | `/v1/embeddings`          | `inference`   |
-| GET    | `/v1/user-keys`           | `inference`   |
-| PUT    | `/v1/user-keys/:provider` | `inference`   |
-| DELETE | `/v1/user-keys/:provider` | `inference`   |
+| Method | Path                       | Scope         |
+| ------ | -------------------------- | ------------- |
+| GET    | `/v1/models`               | `models:read` |
+| POST   | `/v1/chat/completions`     | `inference`   |
+| POST   | `/v1/embeddings`           | `inference`   |
+| POST   | `/v1/audio/transcriptions` | `inference`   |
+| POST   | `/v1/audio/speech`         | `inference`   |
+| GET    | `/v1/user-keys`            | `inference`   |
+| PUT    | `/v1/user-keys/:provider`  | `inference`   |
+| DELETE | `/v1/user-keys/:provider`  | `inference`   |
+
+## Audio
+
+Speech to text and text to speech, with the same routing, fallback and headers as chat:
+
+```ts
+import fs from 'node:fs';
+
+const t = await client.audio.transcriptions.create({
+  model: 'auto', // a model marked "transcription", e.g. Groq's Whisper
+  file: fs.createReadStream('meeting.m4a'),
+  language: 'en',
+});
+
+const speech = await client.audio.speech.create({
+  model: 'auto', // a model marked "speech"
+  voice: 'alloy',
+  input: 'Your report is ready.',
+});
+fs.writeFileSync('ready.mp3', Buffer.from(await speech.arrayBuffer()));
+```
+
+- **Transcriptions** take `multipart/form-data` with one `file` (up to the server's body limit,
+  20 MB by default) and `model`, plus optional `language`, `prompt`, `response_format`
+  (`json`, `text`, `srt`, `verbose_json`, `vtt`) and `temperature`. Other fields are dropped.
+- **Speech** takes JSON: `model`, `input` (≤ 4,096 characters), `voice`, and optional
+  `response_format` (`mp3`, `opus`, `aac`, `flac`, `wav`, `pcm`), `speed` and `instructions`. The
+  response is the provider's audio, byte for byte.
+- Speech uses only models marked `speech`: a chat model that can also answer with audio is never
+  picked for it. Voices are the provider's own names.
+- ARC logs sizes and timings only, never the audio or the transcript.
 
 ## Model names
 
