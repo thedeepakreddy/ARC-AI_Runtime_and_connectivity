@@ -26,6 +26,7 @@ for await (const chunk of stream) process.stdout.write(chunk.choices[0]?.delta?.
 | POST   | `/v1/chat/completions`     | `inference`   |
 | POST   | `/v1/embeddings`           | `inference`   |
 | POST   | `/v1/audio/transcriptions` | `inference`   |
+| POST   | `/v1/images/generations`   | `inference`   |
 | POST   | `/v1/audio/speech`         | `inference`   |
 | GET    | `/v1/user-keys`            | `inference`   |
 | PUT    | `/v1/user-keys/:provider`  | `inference`   |
@@ -61,6 +62,30 @@ fs.writeFileSync('ready.mp3', Buffer.from(await speech.arrayBuffer()));
 - Speech uses only models marked `speech`: a chat model that can also answer with audio is never
   picked for it. Voices are the provider's own names.
 - ARC logs sizes and timings only, never the audio or the transcript.
+
+## Images
+
+```ts
+const img = await client.images.generate({
+  model: 'auto', // a model marked "image_generation"
+  prompt: 'A lighthouse at dawn, over a calm sea',
+  size: '1024x1024',
+  response_format: 'b64_json',
+});
+```
+
+- Fields: `model`, `prompt`, and optional `n` (1–4), `size` (`WIDTHxHEIGHT` or `auto`),
+  `quality`, `style`, `response_format` (`url` or `b64_json`), `output_format` and
+  `background`. Sizes and qualities are the provider's own; ARC checks their shape only.
+- Image generation uses only models marked `image_generation` (`vision` means a model can read
+  images, not draw them).
+- The response is the provider's JSON. Prefer `b64_json`: provider image URLs expire.
+
+## Try it in the dashboard
+
+The customer dashboard's **Playground** calls these endpoints with one of your ARC keys, exactly
+as an app would: chat, speech, transcription and images, with the route ARC took. The key stays in
+the browser tab and is never saved; the requests count as that app's traffic.
 
 ## Model names
 

@@ -11,6 +11,7 @@ export const CAPABILITIES = [
   'audio_input',
   'transcription',
   'speech',
+  'image_generation',
   'audio_output',
   'embeddings',
   'video',

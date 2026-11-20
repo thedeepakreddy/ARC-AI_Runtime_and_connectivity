@@ -12,6 +12,7 @@ import { ModelsPage } from './pages/Models';
 import { OverviewPage } from './pages/Overview';
 import { SettingsPage } from './pages/Settings';
 import { TeamPage } from './pages/Team';
+import { PlaygroundPage } from './pages/Playground';
 import { UsagePage } from './pages/Usage';
 import { type Org, OrgContext, ROLE_LABEL, useOrg } from './org';
 
@@ -172,6 +173,7 @@ function Shell({
           <NavLink to="/keys">Provider keys</NavLink>
           <NavLink to="/models">Models</NavLink>
           <NavLink to="/usage">Usage</NavLink>
+          <NavLink to="/playground">Playground</NavLink>
           <div className="nav-group">Organization</div>
           <NavLink to="/team">Team</NavLink>
           <NavLink to="/settings">Settings</NavLink>
@@ -197,6 +199,7 @@ function Shell({
           <Route path="/keys" element={<KeysPage />} />
           <Route path="/models" element={<ModelsPage />} />
           <Route path="/usage" element={<UsagePage />} />
+          <Route path="/playground" element={<PlaygroundPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/account" element={<AccountPage me={me} app="dashboard" />} />

@@ -78,6 +78,7 @@ export const CAPABILITIES: [string, string][] = [
   ['audio_output', 'Audio out'],
   ['transcription', 'Transcription'],
   ['speech', 'Speech'],
+  ['image_generation', 'Image generation'],
   ['video', 'Video'],
   ['embeddings', 'Embeddings'],
 ];
