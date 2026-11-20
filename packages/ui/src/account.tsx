@@ -3,6 +3,7 @@ import { type Me, type Session, api } from './api';
 import { ago, dateTime } from './format';
 import { useData } from './hooks';
 import { Badge, Field, PageHead, useToast } from './index';
+import { SecuritySection } from './security';
 
 function browserName(ua: string | null) {
   if (!ua) return 'Unknown device';
@@ -29,7 +30,7 @@ function browserName(ua: string | null) {
   return os ? `${browser} on ${os}` : browser;
 }
 
-export function AccountPage({ me }: { me: Me }) {
+export function AccountPage({ me, app }: { me: Me; app: 'console' | 'dashboard' }) {
   const sessions = useData<{ data: Session[] }>('/account/sessions');
   const toast = useToast();
   const [current, setCurrent] = useState('');
@@ -96,6 +97,8 @@ export function AccountPage({ me }: { me: Me }) {
           </button>
         </form>
       </section>
+
+      <SecuritySection app={app} />
 
       <section className="section">
         <div className="section-head">

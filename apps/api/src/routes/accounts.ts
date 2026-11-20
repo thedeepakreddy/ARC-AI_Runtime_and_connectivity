@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { recordAudit } from '../audit.js';
-import { currentUser, requireUser, tenantContext } from '../auth/context.js';
+import { currentUser, requireUser, requireVerifiedEmail, tenantContext } from '../auth/context.js';
 import { withTransaction } from '../db/pool.js';
 import { ArcError, notFound, parseInput } from '../errors.js';
 import { type AdminDeps, isUniqueViolation } from './deps.js';
@@ -96,6 +96,7 @@ export async function accountRoutes(app: FastifyInstance, deps: AdminDeps): Prom
   });
 
   app.post('/provider-accounts', async (req, reply) => {
+    requireVerifiedEmail(req);
     const user = currentUser(req);
     const t = await tenantContext(db, req, 'admin');
     const body = parseInput(createSchema, req.body);

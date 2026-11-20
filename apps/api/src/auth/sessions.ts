@@ -9,6 +9,7 @@ export interface SessionUser {
   userId: string;
   email: string;
   isSuperadmin: boolean;
+  emailVerified: boolean;
 }
 
 const hashToken = (token: string) => createHash('sha256').update(token, 'utf8').digest();
@@ -36,8 +37,10 @@ export async function resolveSession(q: Queryable, token: string): Promise<Sessi
     user_id: string;
     email: string;
     is_superadmin: boolean;
+    email_verified: boolean;
   }>(
-    `SELECT s.id AS session_id, u.id AS user_id, u.email, u.is_superadmin
+    `SELECT s.id AS session_id, u.id AS user_id, u.email, u.is_superadmin,
+            u.email_verified_at IS NOT NULL AS email_verified
        FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now()
         AND u.disabled_at IS NULL`,
@@ -50,6 +53,7 @@ export async function resolveSession(q: Queryable, token: string): Promise<Sessi
         userId: row.user_id,
         email: row.email,
         isSuperadmin: row.is_superadmin,
+        emailVerified: row.email_verified,
       }
     : null;
 }

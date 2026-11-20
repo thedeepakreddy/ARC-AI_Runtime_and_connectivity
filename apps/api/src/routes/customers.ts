@@ -15,6 +15,7 @@ import { localThrottle } from '../coordination/throttle.js';
 import { type Queryable, withTransaction } from '../db/pool.js';
 import { ArcError, forbidden, notFound, parseInput } from '../errors.js';
 import { setSessionCookie } from './auth.js';
+import { sendVerification } from './security.js';
 import { trafficQuery, trafficReport } from './console.js';
 import { type AdminDeps, isUniqueViolation } from './deps.js';
 
@@ -118,7 +119,12 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
 
   // ---------- Public: what sign-up allows, invitation preview, sign-up ----------
 
-  app.get('/auth/config', async () => ({ signup: signupMode }));
+  app.get('/auth/config', async () => ({
+    signup: signupMode,
+    passwordReset: !!deps.mailer,
+    google: !!deps.google,
+    ads: deps.ads ?? null,
+  }));
 
   app.post('/auth/invitations/preview', async (req) => {
     if (!(await lookups.hit(req.ip))) {
@@ -164,9 +170,13 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
     let userId: string;
     try {
       userId = await withTransaction(db, async (tx) => {
+        // An invitation was for this exact address, so it's vouched for. Open sign-ups confirm
+        // by email (when ARC can send email; otherwise there is nothing to confirm with).
+        const verified = !!invitation || !deps.mailer;
         const u = await tx.query<{ id: string }>(
-          'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id',
-          [body.email, passwordHash],
+          `INSERT INTO users (email, password_hash, email_verified_at)
+           VALUES ($1, $2, CASE WHEN $3::boolean THEN now() END) RETURNING id`,
+          [body.email, passwordHash, verified],
         );
         const id = u.rows[0]!.id;
         let tenantId = joinsExisting;
@@ -212,7 +222,8 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
     const token = await createSession(db, userId, deps.sessionTtlMs, req.headers['user-agent']);
     await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [userId]);
     setSessionCookie(reply, token, deps);
-    return reply.code(201).send({ ok: true });
+    if (!invitation) await sendVerification(db, deps, userId, body.email);
+    return reply.code(201).send({ ok: true, emailVerified: !!invitation || !deps.mailer });
   });
 
   // ---------- Signed in ----------

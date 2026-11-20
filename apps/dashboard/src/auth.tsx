@@ -1,69 +1,17 @@
-import { Wordmark } from '@arc/ui';
+import {
+  AuthInput,
+  AuthScreen,
+  GoogleButton,
+  PASSWORD_MIN,
+  PasswordInput,
+  SignInForm,
+  authMessage,
+  useAuthConfig,
+} from '@arc/ui/auth';
 import { ApiError, type InvitationPreview, type Me, api, get } from '@arc/ui/api';
-import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ROLE_LABEL } from './org';
-
-const PASSWORD_MIN = 12;
-
-/** Open space, no box: the same arrival as the owner console. */
-export function AuthScreen({
-  title,
-  eyebrow = 'AI Runtime & Connectivity',
-  children,
-  onSubmit,
-}: {
-  title: string;
-  eyebrow?: string;
-  children: ReactNode;
-  onSubmit?: (e: FormEvent) => void;
-}) {
-  const body = (
-    <>
-      <div className="signin-mark">
-        <Wordmark height={46} />
-      </div>
-      <span className="eyebrow">{eyebrow}</span>
-      <h1 id="auth-title">{title}</h1>
-      {children}
-    </>
-  );
-  return (
-    <main className="signin">
-      {onSubmit ? (
-        <form className="signin-card" onSubmit={onSubmit} aria-labelledby="auth-title">
-          {body}
-        </form>
-      ) : (
-        <div className="signin-card">{body}</div>
-      )}
-    </main>
-  );
-}
-
-function Input({
-  id,
-  label,
-  ...rest
-}: { id: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <div className="field">
-      <label htmlFor={id} className="sr-only">
-        {label}
-      </label>
-      <input id={id} className="input" placeholder={label} {...rest} />
-    </div>
-  );
-}
-
-function message(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.status === 429) return 'Too many attempts. Wait a minute and try again.';
-    if (err.status === 401) return 'That email and password don’t match.';
-    return err.message;
-  }
-  return 'Couldn’t reach ARC. Check your connection and try again.';
-}
 
 function useSignupMode() {
   const [mode, setMode] = useState<'invite' | 'open' | null>(null);
@@ -79,66 +27,31 @@ function useSignupMode() {
 export function SignIn({
   onDone,
   title = 'Sign in to ARC',
+  initialEmail,
 }: {
   onDone: () => void;
   title?: string;
+  initialEmail?: string;
 }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const mode = useSignupMode();
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await api('POST', '/auth/login', { email, password });
-      onDone();
-    } catch (err) {
-      setError(message(err));
-      setBusy(false);
-    }
-  }
   return (
-    <AuthScreen title={title} onSubmit={submit}>
-      <Input
-        id="email"
-        label="Email"
-        type="email"
-        autoComplete="username"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        autoFocus
-      />
-      <Input
-        id="password"
-        label="Password"
-        type="password"
-        autoComplete="current-password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-      {error && (
-        <p className="error-text" role="alert" style={{ margin: '0 0 12px' }}>
-          {error}
+    <SignInForm
+      app="dashboard"
+      title={title}
+      onDone={onDone}
+      {...(initialEmail ? { initialEmail } : {})}
+      footer={
+        <p className="foot">
+          {mode === 'open' ? (
+            <>
+              New to ARC? <Link to="/signup">Create an organization</Link>
+            </>
+          ) : (
+            'New here? Ask your organization for an invitation link.'
+          )}
         </p>
-      )}
-      <button className="btn primary" disabled={busy}>
-        {busy ? 'Signing in…' : 'Sign in'}
-      </button>
-      <p className="foot">
-        {mode === 'open' ? (
-          <>
-            New to ARC? <Link to="/signup">Create an organization</Link>
-          </>
-        ) : (
-          'New here? Ask your organization for an invitation link.'
-        )}
-      </p>
-    </AuthScreen>
+      }
+    />
   );
 }
 
@@ -171,13 +84,13 @@ export function SignUp({ onDone }: { onDone: () => void }) {
       await api('POST', '/auth/signup', { email, password, organization: organization.trim() });
       onDone();
     } catch (err) {
-      setError(message(err));
+      setError(authMessage(err));
       setBusy(false);
     }
   }
   return (
     <AuthScreen title="Create your organization" onSubmit={submit}>
-      <Input
+      <AuthInput
         id="org"
         label="Organization name"
         autoComplete="organization"
@@ -187,7 +100,7 @@ export function SignUp({ onDone }: { onDone: () => void }) {
         maxLength={200}
         autoFocus
       />
-      <Input
+      <AuthInput
         id="email"
         label="Work email"
         type="email"
@@ -212,34 +125,6 @@ export function SignUp({ onDone }: { onDone: () => void }) {
   );
 }
 
-function PasswordInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const short = value.length > 0 && value.length < PASSWORD_MIN;
-  return (
-    <div className="field">
-      <label htmlFor="new-password" className="sr-only">
-        Password
-      </label>
-      <input
-        id="new-password"
-        className="input"
-        type="password"
-        autoComplete="new-password"
-        placeholder={`Password, ${PASSWORD_MIN}+ characters`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-describedby="password-hint"
-        required
-        minLength={PASSWORD_MIN}
-      />
-      <span id="password-hint" className={short ? 'hint warn-text' : 'sr-only'}>
-        {short
-          ? `${PASSWORD_MIN - value.length} more characters`
-          : `At least ${PASSWORD_MIN} characters`}
-      </span>
-    </div>
-  );
-}
-
 /**
  * /invite#<token>. The token stays in the fragment, so it never reaches a server log; it goes
  * to the API in a request body. Works signed out (sign up) and signed in (accept).
@@ -252,6 +137,7 @@ export function InvitePage({ me, onDone }: { me: Me | null | undefined; onDone: 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  const config = useAuthConfig();
 
   useEffect(() => {
     if (!token) return setPreview(null);
@@ -284,7 +170,7 @@ export function InvitePage({ me, onDone }: { me: Me | null | undefined; onDone: 
     ? `You’re invited to ARC as ${preview.email}.`
     : `${preview.email} is invited as ${ROLE_LABEL[preview.role]?.toLowerCase()}.`;
   const orgField = preview.newOrganization && (
-    <Input
+    <AuthInput
       id="org"
       label="Organization name"
       autoComplete="organization"
@@ -326,6 +212,7 @@ export function InvitePage({ me, onDone }: { me: Me | null | undefined; onDone: 
       return (
         <SignIn
           title={`Sign in as ${preview.email} to accept`}
+          initialEmail={preview.email}
           onDone={() => {
             setNeedsSignIn(false);
             onDone();
@@ -348,7 +235,7 @@ export function InvitePage({ me, onDone }: { me: Me | null | undefined; onDone: 
             });
             finish();
           } catch (err) {
-            setError(message(err));
+            setError(authMessage(err));
             setBusy(false);
           }
         }}
@@ -382,19 +269,34 @@ export function InvitePage({ me, onDone }: { me: Me | null | undefined; onDone: 
           if (err instanceof ApiError && err.code === 'account_exists') {
             setNeedsSignIn(true);
           } else {
-            setError(message(err));
+            setError(authMessage(err));
           }
           setBusy(false);
         }
       }}
     >
       {orgField}
-      <Input id="email" label="Email" type="email" value={preview.email} readOnly />
+      <AuthInput id="email" label="Email" type="email" value={preview.email} readOnly />
       <PasswordInput value={password} onChange={setPassword} />
       {errorLine}
       <button className="btn primary" disabled={busy || password.length < PASSWORD_MIN}>
         {busy ? 'Setting up…' : preview.newOrganization ? 'Create organization' : 'Join'}
       </button>
+      {config?.google && (
+        <>
+          <div className="or" aria-hidden="true">
+            or
+          </div>
+          <GoogleButton
+            app="dashboard"
+            disabled={preview.newOrganization && !organization.trim()}
+            extra={{
+              inviteToken: token,
+              ...(preview.newOrganization ? { organization: organization.trim() } : {}),
+            }}
+          />
+        </>
+      )}
       <p className="foot">
         Have an account?{' '}
         <button type="button" className="link-button" onClick={() => setNeedsSignIn(true)}>

@@ -15,7 +15,7 @@ The repository held only a README and LICENSE. There was no prior code to preser
 | 4   | Operations             | Metrics (ARC overhead vs provider TTFT), load tests + regression gates, alerts, backup/restore, controlled deploy/rollback                                                         | Ops checks and restore drill pass                                             |
 | 5   | App integration        | Echo, Aira, Data Science Studio with separate ARC keys                                                                                                                             | Each app passes smoke tests                                                   |
 | 6   | Dashboards (UI) + BYOK | Design tokens, superadmin console, customer dashboard — **each screen layout approved before coding**; customer sign-up/login; **users bring their own provider keys** through ARC | Approved screens implemented; a user's own key is used for their traffic only |
-| 7   | Post-MVP               | Owner MFA/password reset, provider packs, multimodal, BALANCED/DEEP, evaluation, billing, multi-server HA                                                                          | Separately approved increments                                                |
+| 7   | Post-MVP               | ~~Owner MFA/password reset~~ (done in Phase 6), provider packs, multimodal, BALANCED/DEEP, evaluation, billing, multi-server HA                                                    | Separately approved increments                                                |
 
 Provider packs (see [providers.md](providers.md)) land after the core gateway works:
 international, Chinese, local, speech/embeddings.
@@ -100,9 +100,9 @@ international, Chinese, local, speech/embeddings.
 - [x] LiteLLM pinned by digest to the verified 1.110.0 release
 - [x] Fixed Phase 4 bug: Prometheus UI port was never published (container only on an internal network)
 - [x] `ops` container for backups/restores/drill (matching PostgreSQL major, nothing on the host);
-      off-site copy to Oracle Object Storage (free 20 GB) via rclone — owner to create the bucket
+      off-site copy via rclone (Google Cloud Storage since the move to GCP) — owner to create the bucket
 - [x] `scripts/ops/vps-verify.sh`: drill + RTO/RPO + load test → dated report (passes locally)
-- [ ] Run `scripts/ops/vps-verify.sh` on the real Oracle VPS and keep its report (needs the server)
+- [ ] Run `scripts/ops/vps-verify.sh` on the real server (GCP VM) and keep its report (needs the server)
 
 ## Phase 5 status
 
@@ -159,8 +159,9 @@ Increment 2 — **Customer dashboard + sign-up/login + teams**: done. See
       "connect your app", Provider keys (BYOK), Usage, Team, Settings (regions), Account
 - [x] Tenant-scoped usage API; tests for sign-up, invitations, roles and cross-tenant isolation
       (9, real Postgres); axe-core clean on every dashboard screen; stack smoke checks `/dashboard`
-- [ ] Email verification, password reset and MFA for customers (needs transactional email); Google
-      sign-in — later increment
+- [x] Email verification (open sign-ups), password reset by email, two-step sign-in (TOTP +
+      recovery codes) and Google sign-in — for customers and the owner (see operations.md →
+      Accounts); transactional email through the alert SMTP account
 - [x] Decided: customers choose the models their own keys use (Models page; `tenant_models`),
       including ones ARC hasn't classified, on their own keys only
 
@@ -171,11 +172,11 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
 - [x] Apps' end-user keys through ARC: `PUT /v1/user-keys/:provider` + `x-arc-user`; stored in
       ARC's vault per app and hashed user id; that user's requests use only their keys
 - [x] HTTPS with Caddy (`--profile https`), API on loopback by default; Arm (`linux/arm64`) images
-      built in CI and every third-party image checked for an Arm build; Oracle deploy guide
-      ([deploy-oracle.md](deploy-oracle.md))
+      built in CI and every third-party image checked for an Arm build; deploy guide
+      ([deploy-gcp.md](deploy-gcp.md))
 - [ ] Switch Echo and the Studio to `/v1/user-keys` for their users' own Gemini keys (in those
       repos)
-- [ ] Deploy on the Oracle VM following deploy-oracle.md (owner; needs the account and domain)
+- [ ] Deploy on a Google Cloud VM following deploy-gcp.md (owner; needs the project and domain)
 
 ## Phase 6 scope: dashboards and users' own keys
 
@@ -211,7 +212,9 @@ Frontend, with **each screen layout approved before coding**:
 
 5. **Alerts:** by email (approved).
 6. **LiteLLM version:** 1.110.0, pinned by digest (done).
-7. **Hosting:** Oracle Cloud Always Free; see [costs.md](costs.md).
+7. **Hosting:** Google Cloud Compute Engine, one VM (e2-medium recommended, e2-small minimum;
+   the free e2-micro's 1 GB can't hold the stack); see [costs.md](costs.md) and
+   [deploy-gcp.md](deploy-gcp.md). Changed from Oracle Cloud by the owner.
 8. **Customer sign-up:** invitation-only by default, `SIGNUP_MODE=open` to allow anyone;
    invitations are links you send yourself until ARC has transactional email.
 9. **Design system:** one package (`@arc/ui`) and one [DESIGN.md](../DESIGN.md) for the console
@@ -220,6 +223,9 @@ Frontend, with **each screen layout approved before coding**:
     hasn't classified (their key, their bill); the owner's classification governs owner keys.
 11. **End users' own keys:** the app vouches for the user with `x-arc-user` on its own ARC key;
     ARC stores the user's key in its vault, scoped to the app and a hash of the user id.
+12. **Account security:** two-step sign-in for everyone (owner should turn it on before going
+    live); Google sign-in optional and off until configured; email confirmation only for open
+    sign-ups.
 
 ## Open decisions
 

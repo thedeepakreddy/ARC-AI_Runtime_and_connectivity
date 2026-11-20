@@ -20,8 +20,9 @@ colors:
   text: '#f5f5f7'
   text-2: 'rgba(235, 235, 245, 0.74)'
   text-3: 'rgba(235, 235, 245, 0.55)'
-  primary: '#f5f5f7'
-  on-primary: '#000000'
+  primary: 'linear-gradient(180deg, #1a3d6b, #0d2341)'
+  primary-rim: 'linear-gradient(100deg, #96c4f5, #559ade 45%, #96c4f5)'
+  on-primary: '#ffffff'
   accent: '#4f93e3'
   accent-text: '#79b3f2'
   focus: '#79b3f2'
@@ -111,7 +112,8 @@ components:
     states: [open, focus-trapped]
   switch:
     source: 'packages/ui/src/index.tsx'
-    on: '{colors.ok}'
+    on: "horizon art: Earth's limb glowing under stars ({colors.horizon})"
+    off: 'dark space with faint stars, 1px edge'
     states: [on, off, disabled-with-reason]
   traffic-chart:
     source: 'packages/ui/src/index.tsx'
@@ -132,7 +134,7 @@ icon, where Earth's limb catches the sunrise. The art is original (rendered by
 `scripts/art/render_space.py`), and the ARC wordmark is traced from the icon, letter for letter.
 
 It must never look like a generic AI dashboard: no purple gradients, no neon glows, no
-gradient text, no blue SaaS buttons, no emoji, no "✨", no glass cards stacked on glass. It must
+gradient text, no flat blue SaaS buttons, no emoji, no "✨", no glass cards stacked on glass. It must
 also never look like a game or a sci-fi HUD: the space is a backdrop, never decoration on
 controls.
 
@@ -142,7 +144,8 @@ controls.
 - Opaque grouped panels with inset hairline separators; glass only for what floats.
 - Wide, bold Mona Sans large titles and figures; Hubot Sans for controls; Martian Mono only for
   keys, IDs and timestamps.
-- White pill primary actions; blue only for links, selection and data.
+- Horizon primary actions: deep orbit blue with a luminous rim; blue also for links, selection
+  and data.
 - Status in words with a dot, never colour alone.
 
 ## Colors
@@ -174,7 +177,7 @@ A near-monochrome system on true black: greys carry structure, one blue carries 
 
 **The One Light Rule.** Blue is the only chromatic colour outside status. Never a second accent.
 
-**The White Action Rule.** A screen has at most one white primary button per area.
+**The One Horizon Rule.** A screen has at most one primary (horizon) button per area.
 
 ## Typography
 
@@ -218,7 +221,7 @@ the sheet), stat grids go to two columns. Touch (`pointer: coarse`) gets 44px hi
 
 The implementation in `packages/ui` is the source of truth.
 
-- **Buttons:** pills. Primary white on black; secondary on fill; ghost in link blue; danger as
+- **Buttons:** pills. Primary in horizon blue with a luminous rim and soft glow; secondary on fill; ghost in link blue; danger as
   red text. Press scales to 0.97.
 - **Panels and tables:** 16px corners, no borders, hairline separators inset from the left.
   A row's name is a real link or button; clicking anywhere in the row is a mouse shortcut.
@@ -226,7 +229,8 @@ The implementation in `packages/ui` is the source of truth.
 - **Sheets and dialogs:** glass, 26px corners; focus moves in, stays in, and returns to the
   opener; labelled by their title.
 - **Menus:** menu-button pattern (↑/↓/Home/End, Escape returns focus).
-- **Switch:** green when on; the off track has an edge; disabled switches say why.
+- **Switch:** on shows the icon's sunrise (Earth's limb glowing under stars), off is dark space;
+  the off track has an edge; disabled switches say why. Never iOS green.
 - **Traffic chart:** one series per plot; errors on their own strip and scale; crosshair with
   a tooltip; a text summary for screen readers.
 
@@ -250,7 +254,8 @@ The implementation in `packages/ui` is the source of truth.
 
 ### Don't:
 
-- **Don't** use blue filled buttons, purple, gradients on text, or outer glows.
+- **Don't** use flat bright-blue SaaS buttons, purple, gradients on text, or neon glows (the
+  horizon button's soft rim glow is the one exception).
 - **Don't** put space art behind text inside a panel; panels are opaque.
 - **Don't** put two series with different scales on one axis.
 - **Don't** use Martian Mono for numbers in tables or tiles.

@@ -1,9 +1,11 @@
 import { Dot, Icon, Wordmark } from '@arc/ui';
 import { AccountPage } from '@arc/ui/account';
+import { AdSlot } from './AdSlot';
 import { type Me, api, get, onUnauthorized, setTenant } from '@arc/ui/api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { AuthScreen, InvitePage, SignIn, SignUp } from './auth';
+import { AuthScreen, ResetPasswordScreen, VerifyEmailScreen } from '@arc/ui/auth';
+import { InvitePage, SignIn, SignUp } from './auth';
 import { AppDetailPage, AppsPage } from './pages/Apps';
 import { KeysPage } from './pages/Keys';
 import { ModelsPage } from './pages/Models';
@@ -41,6 +43,8 @@ export function App() {
   }, [load]);
 
   if (location.pathname === '/invite') return <InvitePage me={me} onDone={load} />;
+  if (location.pathname === '/reset') return <ResetPasswordScreen app="dashboard" />;
+  if (location.pathname === '/verify') return <VerifyEmailScreen app="dashboard" />;
   if (me === undefined) return null;
   if (me === null) {
     return (
@@ -172,6 +176,7 @@ function Shell({
           <NavLink to="/team">Team</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>
+        <AdSlot />
         <div className="sidebar-foot">
           <div className="system-line">
             <Dot tone="ok" />
@@ -186,6 +191,7 @@ function Shell({
         </div>
       </aside>
       <main className="main" id="main" tabIndex={-1}>
+        {!me.user.emailVerified && <VerifyBanner />}
         <Routes>
           <Route path="/" element={<OverviewPage />} />
           <Route path="/apps" element={<AppsPage />} />
@@ -195,7 +201,7 @@ function Shell({
           <Route path="/usage" element={<UsagePage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/account" element={<AccountPage me={me} />} />
+          <Route path="/account" element={<AccountPage me={me} app="dashboard" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
@@ -225,5 +231,25 @@ function OrgSwitcher({ orgs, onSwitch }: { orgs: Me['tenants']; onSwitch: (id: s
         ))}
       </select>
     </label>
+  );
+}
+
+/** Open sign-ups confirm their email before creating apps and keys. */
+function VerifyBanner() {
+  const [sent, setSent] = useState(false);
+  return (
+    <div className="verify-banner" role="status">
+      <span>Confirm your email to create apps and keys: the link is in your inbox.</span>
+      <button
+        className="btn sm"
+        disabled={sent}
+        onClick={async () => {
+          await api('POST', '/auth/verify-email/send', { app: 'dashboard' }).catch(() => undefined);
+          setSent(true);
+        }}
+      >
+        {sent ? 'Sent' : 'Send again'}
+      </button>
+    </div>
   );
 }

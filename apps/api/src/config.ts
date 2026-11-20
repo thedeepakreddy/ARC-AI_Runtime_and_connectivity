@@ -50,6 +50,32 @@ export const apiEnvSchema = baseEnvSchema.extend({
    * admin; 'open' lets anyone create an organization. Customers only ever use their own keys.
    */
   SIGNUP_MODE: z.enum(['invite', 'open']).default('invite'),
+  /** Public address of this ARC (https://arc.example.com), for links in emails and Google sign-in. */
+  PUBLIC_URL: z.preprocess((v) => (v === '' ? undefined : v), z.url().optional()),
+  /** Transactional email (password reset, email verification). Off unless all are set. */
+  MAIL_SMTP_HOST: z.string().optional(),
+  MAIL_SMTP_USER: z.string().optional(),
+  MAIL_SMTP_PASSWORD_FILE: z.string().default('/run/secrets/arc/smtp-password'),
+  MAIL_FROM: z.string().optional(),
+  MAIL_REQUIRE_TLS: bool.default(true),
+  /** Google AdSense in the customer dashboard's sidebar. Off unless both are set. */
+  ADSENSE_CLIENT: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z
+      .string()
+      .regex(/^ca-pub-\d{10,20}$/, 'ca-pub-…')
+      .optional(),
+  ),
+  ADSENSE_SLOT: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z
+      .string()
+      .regex(/^\d{6,20}$/)
+      .optional(),
+  ),
+  /** Google sign-in. Off unless GOOGLE_CLIENT_ID and PUBLIC_URL are set. */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET_FILE: z.string().default('/run/secrets/arc/google-client-secret'),
   METRICS_PORT: z.coerce.number().int().min(0).max(65535).default(9464),
   /** "redis" shares revocations, cooldowns and routing changes across API instances. */
   COORDINATION: z.enum(['redis', 'local']).default('redis'),

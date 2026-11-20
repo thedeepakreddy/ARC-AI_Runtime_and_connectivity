@@ -9,6 +9,7 @@ import { authRoutes } from './routes/auth.js';
 import { catalogueRoutes } from './routes/catalogue.js';
 import { consoleRoutes } from './routes/console.js';
 import { customerRoutes } from './routes/customers.js';
+import { securityRoutes } from './routes/security.js';
 import { serveApp } from './console-static.js';
 import type { AdminDeps } from './routes/deps.js';
 import { type InferenceDeps, inferenceRoutes } from './routes/inference.js';
@@ -27,6 +28,8 @@ export interface BuildAppOptions {
   /** Built console (apps/console/dist), served at /console. */
   consoleDir?: string | undefined;
   dashboardDir?: string | undefined;
+  /** Google AdSense in the dashboard (off when absent). */
+  ads?: { client: string; slot: string } | undefined;
 }
 
 export function buildApp(opts: BuildAppOptions): FastifyInstance {
@@ -74,6 +77,7 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
         await scope.register((s) => routingRoutes(s, admin));
         await scope.register((s) => consoleRoutes(s, admin));
         await scope.register((s) => customerRoutes(s, admin));
+        await scope.register((s) => securityRoutes(s, admin));
       },
       { prefix: '/admin/v1' },
     );
@@ -85,7 +89,16 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
   }
 
   if (opts.consoleDir) serveApp(app, '/console', opts.consoleDir);
-  if (opts.dashboardDir) serveApp(app, '/dashboard', opts.dashboardDir);
+  if (opts.dashboardDir) serveApp(app, '/dashboard', opts.dashboardDir, { ads: !!opts.ads });
+  // AdSense requires ads.txt at the site root, naming the publisher.
+  const ads = opts.ads;
+  if (ads) {
+    app.get('/ads.txt', (_req, reply) =>
+      reply
+        .type('text/plain; charset=utf-8')
+        .send(`google.com, ${ads.client.replace(/^ca-/, '')}, DIRECT, f08c47fec0942fa0\n`),
+    );
+  }
 
   return app;
 }

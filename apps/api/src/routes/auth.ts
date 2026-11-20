@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { recordAudit } from '../audit.js';
 import { currentUser, requireUser } from '../auth/context.js';
 import { PASSWORD_MAX_LENGTH, verifyAgainstDummy, verifyPassword } from '../auth/password.js';
-import { SESSION_COOKIE, createSession, revokeSession } from '../auth/sessions.js';
+import { SESSION_COOKIE, revokeSession } from '../auth/sessions.js';
 import { localThrottle } from '../coordination/throttle.js';
 import { ArcError, parseInput } from '../errors.js';
 import type { AdminDeps } from './deps.js';
+import { finishSignIn } from './security.js';
 
 const loginSchema = z.object({
   email: z.email().max(320),
@@ -57,12 +58,8 @@ export async function authRoutes(app: FastifyInstance, deps: AdminDeps): Promise
     }
 
     await perEmail.reset(emailKey);
-    const token = await createSession(db, user.id, deps.sessionTtlMs, req.headers['user-agent']);
-    await db.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
-    await recordAudit(db, { tenantId: null, actorUserId: user.id, action: 'auth.login' });
-
-    setSessionCookie(reply, token, deps);
-    return { ok: true };
+    // A session now, or the second step when two-step sign-in is on.
+    return finishSignIn(db, deps, req, reply, user.id, 'password');
   });
 
   app.register(async (authed) => {
@@ -77,7 +74,12 @@ export async function authRoutes(app: FastifyInstance, deps: AdminDeps): Promise
         [user.userId],
       );
       return {
-        user: { id: user.userId, email: user.email, isSuperadmin: user.isSuperadmin },
+        user: {
+          id: user.userId,
+          email: user.email,
+          isSuperadmin: user.isSuperadmin,
+          emailVerified: user.emailVerified,
+        },
         tenants: rows,
       };
     });

@@ -4,6 +4,7 @@ import type { Cooldowns } from '../inference/cooldowns.js';
 import type { ProviderProbe } from '../providers/probe.js';
 import type { ReadinessReport } from '../readiness.js';
 import type { ThrottleFactory } from '../coordination/throttle.js';
+import type { Mailer } from '../mail/mailer.js';
 import type { CredentialService } from '../vault/credentials.js';
 
 export interface AdminDeps {
@@ -14,6 +15,14 @@ export interface AdminDeps {
   sessionTtlMs: number;
   /** Attempt limits (sign-in, sign-up); shared through Redis when configured. Default: local. */
   throttle?: ThrottleFactory;
+  /** Transactional email; password reset and email verification need it. */
+  mailer?: Mailer | undefined;
+  /** Public address (https://arc.example.com) for links in emails and Google sign-in. */
+  publicUrl?: string | undefined;
+  /** Google sign-in; off when absent. */
+  google?: GoogleConfig | undefined;
+  /** Google AdSense for the dashboard sidebar; off when absent. */
+  ads?: { client: string; slot: string } | undefined;
   /** Customer sign-up: invitation only (default) or open. */
   signupMode?: 'invite' | 'open';
   probeTimeoutMs: number;
@@ -33,3 +42,12 @@ export interface AdminDeps {
 
 export const isUniqueViolation = (err: unknown) =>
   typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
+
+export interface GoogleConfig {
+  clientId: string;
+  clientSecret: string;
+  /** Overridable for tests; Google's endpoints by default. */
+  authUrl?: string;
+  tokenUrl?: string;
+  userinfoUrl?: string;
+}

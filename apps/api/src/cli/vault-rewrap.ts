@@ -1,4 +1,4 @@
-/** Re-wrap every credential's data key under the current vault key version. */
+/** Re-wrap every credential's (and MFA secret's) data key under the current vault key version. */
 import { createPool } from '../db/pool.js';
 import { CredentialService } from '../vault/credentials.js';
 import { loadKeyRing } from '../vault/vault.js';
@@ -12,7 +12,7 @@ if (!url || !keyFile) {
 const db = createPool(url);
 try {
   const count = await new CredentialService(loadKeyRing(keyFile)).rewrapAll(db);
-  console.log(`re-wrapped ${count} credential(s)`);
+  console.log(`re-wrapped ${count} secret(s)`);
 } finally {
   await db.end();
 }
