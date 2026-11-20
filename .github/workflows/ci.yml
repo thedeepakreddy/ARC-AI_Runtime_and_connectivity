@@ -168,9 +168,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SMOKE_WORK_DIR: ${{ runner.temp }}/arc-smoke
       KEEP: '1'
     steps:
+      # (The runner context is not available in job-level env, so the work dir is set here.)
+      - run: echo "SMOKE_WORK_DIR=$RUNNER_TEMP/arc-smoke" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:

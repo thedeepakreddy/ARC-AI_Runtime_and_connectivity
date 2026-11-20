@@ -28,6 +28,6 @@ Status: Accepted · Phase 1
 
 ## Deferred (tracked in the plan)
 
-Owner MFA, email verification, password reset, Google sign-in, invitations and customer signup
-arrive with full customer auth (Phase 7). Until then the admin API should only be exposed over
+Customer sign-up, email verification and invitations arrive in Phase 6 (needed for users' own
+keys); owner MFA, password reset and Google sign-in in Phase 7. Until then the admin API should only be exposed over
 HTTPS, ideally restricted by network/firewall.

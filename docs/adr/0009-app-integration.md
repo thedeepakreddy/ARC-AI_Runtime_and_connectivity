@@ -20,7 +20,7 @@ messages, users' own keys, model discovery).
   behaviour. One ARC key per app, issued with `scripts/ops/arc-admin.mjs`.
 - **Fallback belongs to ARC.** Echo's own model rotation is off through ARC. The studio keeps its
   Gemini key and visitors' keys only as a fallback when ARC can't answer.
-- **Users' own keys stay direct to Google** until ARC has BYOK (Phase 7).
+- **Users' own keys stay direct to Google** until users can bring their own keys through ARC (Phase 6).
 - **Errors keep the apps' existing meanings**: ARC 401 → bad key, 429 → per-minute limit,
   `503 no_eligible_route` → a short "capacity used up" rest (lets Echo users with their own key
   continue), 5xx → busy.
