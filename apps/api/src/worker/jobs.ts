@@ -177,10 +177,19 @@ export async function revalidateStaleAccounts(
   });
 }
 
-export async function pruneObservations(db: Db, retentionHours = 24): Promise<number> {
+export async function pruneObservations(
+  db: Db,
+  retentionHours = 24,
+  rollupRetentionDays = 30,
+): Promise<number> {
   const r = await db.query(
     'DELETE FROM route_observations WHERE bucket < now() - make_interval(hours => $1)',
     [retentionHours],
   );
-  return r.rowCount ?? 0;
+  // Per-app traffic for the console and dashboards is kept longer (30 days by default).
+  const rollups = await db.query(
+    'DELETE FROM request_rollups WHERE bucket < now() - make_interval(days => $1)',
+    [rollupRetentionDays],
+  );
+  return (r.rowCount ?? 0) + (rollups.rowCount ?? 0);
 }

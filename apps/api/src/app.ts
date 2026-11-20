@@ -7,6 +7,8 @@ import { accountRoutes } from './routes/accounts.js';
 import { apiKeyRoutes } from './routes/api-keys.js';
 import { authRoutes } from './routes/auth.js';
 import { catalogueRoutes } from './routes/catalogue.js';
+import { consoleRoutes } from './routes/console.js';
+import { serveConsole } from './console-static.js';
 import type { AdminDeps } from './routes/deps.js';
 import { type InferenceDeps, inferenceRoutes } from './routes/inference.js';
 import { routingRoutes } from './routes/routing.js';
@@ -21,6 +23,8 @@ export interface BuildAppOptions {
   inference?: InferenceDeps;
   logger?: FastifyServerOptions['logger'];
   trustProxy?: boolean;
+  /** Built console (apps/console/dist), served at /console. */
+  consoleDir?: string | undefined;
 }
 
 export function buildApp(opts: BuildAppOptions): FastifyInstance {
@@ -66,6 +70,7 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
         await scope.register((s) => tenantRoutes(s, admin));
         await scope.register((s) => apiKeyRoutes(s, admin));
         await scope.register((s) => routingRoutes(s, admin));
+        await scope.register((s) => consoleRoutes(s, admin));
       },
       { prefix: '/admin/v1' },
     );
@@ -75,6 +80,8 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
   if (inference) {
     app.register((scope) => inferenceRoutes(scope, inference), { prefix: '/v1' });
   }
+
+  if (opts.consoleDir) serveConsole(app, opts.consoleDir);
 
   return app;
 }

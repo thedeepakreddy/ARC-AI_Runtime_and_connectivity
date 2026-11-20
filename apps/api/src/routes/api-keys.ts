@@ -12,6 +12,12 @@ const KEY_COLUMNS = `id, application_id AS "applicationId", name, display_prefix
 
 const appParam = z.object({ appId: z.uuid() });
 const idParam = z.object({ id: z.uuid() });
+const rotateSchema = z
+  .object({
+    /** Keep the old key working this long, so the app can be updated without downtime. */
+    overlapMinutes: z.union([z.literal(0), z.literal(60), z.literal(1440)]).default(0),
+  })
+  .default({ overlapMinutes: 0 });
 const createSchema = z.object({
   name: z.string().trim().min(1).max(100),
   scopes: z
@@ -131,6 +137,38 @@ export async function apiKeyRoutes(app: FastifyInstance, deps: AdminDeps): Promi
     return row;
   }
 
+  async function expireLater(
+    q: Parameters<typeof recordAudit>[0],
+    tenantId: string,
+    id: string,
+    userId: string,
+    minutes: number,
+  ) {
+    const { rows } = await q.query<{
+      key_id: string;
+      application_id: string;
+      name: string;
+      scopes: string[];
+    }>(
+      `UPDATE api_keys
+          SET expires_at = LEAST(coalesce(expires_at, 'infinity'), now() + make_interval(mins => $3))
+        WHERE id = $1 AND tenant_id = $2 AND revoked_at IS NULL
+        RETURNING key_id, application_id, name, scopes`,
+      [id, tenantId, minutes],
+    );
+    const row = rows[0];
+    if (!row) throw notFound('Active API key');
+    await recordAudit(q, {
+      tenantId,
+      actorUserId: userId,
+      action: 'api_key.rotated_with_overlap',
+      targetType: 'api_key',
+      targetId: id,
+      metadata: { overlapMinutes: minutes },
+    });
+    return row;
+  }
+
   app.delete('/api-keys/:id', async (req, reply) => {
     const user = currentUser(req);
     const t = await tenantContext(db, req, 'admin');
@@ -140,13 +178,19 @@ export async function apiKeyRoutes(app: FastifyInstance, deps: AdminDeps): Promi
     return reply.code(204).send();
   });
 
-  /** Issue a replacement with the same name and scopes, and revoke the old key. */
+  /**
+   * Issue a replacement with the same name and scopes. The old key is revoked at once, or keeps
+   * working for an overlap (1 h or 24 h) and then expires, so the app can switch without downtime.
+   */
   app.post('/api-keys/:id/rotate', async (req, reply) => {
     const user = currentUser(req);
     const t = await tenantContext(db, req, 'admin');
     const { id } = parseInput(idParam, req.params);
+    const { overlapMinutes } = parseInput(rotateSchema, req.body ?? {});
     const { created, oldKeyId } = await withTransaction(db, async (tx) => {
-      const old = await revoke(tx, t.tenantId, id, user.userId);
+      const old = overlapMinutes
+        ? await expireLater(tx, t.tenantId, id, user.userId, overlapMinutes)
+        : await revoke(tx, t.tenantId, id, user.userId);
       const fresh = await issue(
         tx,
         t.tenantId,

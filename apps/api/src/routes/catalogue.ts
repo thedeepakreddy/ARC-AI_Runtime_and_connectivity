@@ -22,7 +22,7 @@ export const ELIGIBILITY = ['VERIFIED_FREE', 'RESTRICTED_FREE', 'PAID', 'UNKNOWN
 
 const MODEL_COLUMNS = `id, provider_id AS "providerId", model_id AS "modelId", display_name AS "displayName",
   capabilities, eligibility, eligibility_evidence_url AS "eligibilityEvidenceUrl",
-  eligibility_checked_at AS "eligibilityCheckedAt", enabled, source,
+  eligibility_checked_at AS "eligibilityCheckedAt", terms_note AS "termsNote", enabled, source,
   created_at AS "createdAt", updated_at AS "updatedAt"`;
 
 const idParam = z.object({ id: z.uuid() });
@@ -46,6 +46,8 @@ const updateModelSchema = z
     eligibility: z.enum(ELIGIBILITY).optional(),
     eligibilityEvidenceUrl: z.url().max(2000).optional(),
     enabled: z.boolean().optional(),
+    /** The provider's terms for a restricted-free model, e.g. "50 requests/day". */
+    termsNote: z.string().trim().max(500).nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, 'Provide at least one field');
 
@@ -151,6 +153,7 @@ export async function catalogueRoutes(app: FastifyInstance, deps: AdminDeps): Pr
          eligibility_checked_at = CASE WHEN $5 = 'UNKNOWN' THEN NULL
                                        WHEN $7 THEN now() ELSE eligibility_checked_at END,
          enabled = $8,
+         terms_note = CASE WHEN $9 THEN nullif($10, '') ELSE terms_note END,
          updated_at = now()
        WHERE id = $1 RETURNING ${MODEL_COLUMNS}`,
       [
@@ -162,6 +165,8 @@ export async function catalogueRoutes(app: FastifyInstance, deps: AdminDeps): Pr
         evidenceUrl,
         touchEvidence,
         enabled,
+        body.termsNote !== undefined,
+        body.termsNote ?? null,
       ],
     );
     await recordAudit(db, {
