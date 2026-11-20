@@ -1,6 +1,6 @@
 /**
  * A tiny OpenAI-compatible provider for tests: /models, /chat/completions (JSON and SSE),
- * /embeddings, and optionally /audio/transcriptions and /audio/speech. Records the Authorization header it saw so tests can check which key ARC used.
+ * /embeddings, and optionally /audio/transcriptions, /audio/speech and /images/generations. Records the Authorization header it saw so tests can check which key ARC used.
  */
 import { type Server, createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -26,6 +26,10 @@ export interface MockProvider {
 
 /** Bytes the mock's /audio/speech returns (an MP3 frame header and padding). */
 export const MOCK_SPEECH = Buffer.from([0xff, 0xfb, 0x90, 0x64, ...Array<number>(60).fill(0)]);
+
+/** A 1×1 PNG, as /images/generations returns it. */
+export const MOCK_IMAGE_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 export async function startMockProvider(
   opts: { extraModels?: string[] } = {},
@@ -81,6 +85,15 @@ export async function startMockProvider(
       }
       const body = raw.length ? JSON.parse(raw.toString('utf8')) : {};
       state.lastBody = body;
+      if (path === '/images/generations') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(
+          JSON.stringify({
+            created: Math.floor(Date.now() / 1000),
+            data: Array.from({ length: Number(body.n ?? 1) }, () => ({ b64_json: MOCK_IMAGE_B64 })),
+          }),
+        );
+      }
       if (path === '/audio/speech') {
         res.writeHead(200, { 'content-type': 'audio/mpeg' });
         return res.end(MOCK_SPEECH);

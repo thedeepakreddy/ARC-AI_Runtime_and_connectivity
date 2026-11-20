@@ -15,7 +15,12 @@ import { CredentialService } from '../src/vault/credentials.js';
 import { generateKeyFile, parseKeyRing } from '../src/vault/vault.js';
 import { TEST_DATABASE_URL, createTestDatabase } from './helpers/db.js';
 import { DirectGateway } from './helpers/direct-gateway.js';
-import { MOCK_SPEECH, type MockProvider, startMockProvider } from './helpers/mock-provider.js';
+import {
+  MOCK_IMAGE_B64,
+  MOCK_SPEECH,
+  type MockProvider,
+  startMockProvider,
+} from './helpers/mock-provider.js';
 import { tamperLastChar } from './helpers/tamper.js';
 
 const LITELLM_TEST_URL = process.env.LITELLM_TEST_URL;
@@ -80,7 +85,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
 
     beforeAll(async () => {
       ({ db, drop } = await createTestDatabase());
-      mock = await startMockProvider({ extraModels: ['mock-tts', 'mock-whisper'] });
+      mock = await startMockProvider({ extraModels: ['mock-image', 'mock-tts', 'mock-whisper'] });
       const credentials = new CredentialService(parseKeyRing(generateKeyFile()));
       const verifier = new ApiKeyVerifier(db);
       candidates.store = new CandidateStore(db);
@@ -158,7 +163,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
         expect(res.statusCode).toBe(201);
         accountIds.push(res.json().id);
         const v = await call('POST', `/provider-accounts/${res.json().id}/validate`);
-        expect(v.json()).toMatchObject({ status: 'healthy', modelsSeen: 4 });
+        expect(v.json()).toMatchObject({ status: 'healthy', modelsSeen: 5 });
       }
 
       // Classify discovered models with evidence, then enable them.
@@ -169,6 +174,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       for (const m of models) {
         const capabilities = {
           'mock-embed': ['embeddings'],
+          'mock-image': ['image_generation'],
           'mock-tts': ['speech'],
           'mock-whisper': ['transcription'],
         }[m.modelId] ?? ['text', 'streaming'];
@@ -299,6 +305,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
           'arc/deep',
           'llama-cpp/mock-chat',
           'llama-cpp/mock-embed',
+          'llama-cpp/mock-image',
           'llama-cpp/mock-tts',
           'llama-cpp/mock-whisper',
         ]);
@@ -536,6 +543,41 @@ describe.skipIf(!TEST_DATABASE_URL)(
         });
         expect(res.statusCode).toBeGreaterThanOrEqual(400);
         expect(res.statusCode).toBeLessThan(500);
+      });
+    });
+
+    describe('/v1/images/generations', () => {
+      it('routes to an image model and returns its images', async () => {
+        const res = await v1('POST', '/images/generations', {
+          model: 'auto',
+          prompt: 'A lighthouse at dawn',
+          n: 2,
+          size: '1024x1024',
+          response_format: 'b64_json',
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['x-arc-route-model']).toBe('llama-cpp/mock-image');
+        // LiteLLM adds null fields (url, revised_prompt…); the images are the provider's.
+        expect(res.json().data.map((d: { b64_json: string }) => d.b64_json)).toEqual([
+          MOCK_IMAGE_B64,
+          MOCK_IMAGE_B64,
+        ]);
+        expect(mock.lastBody).toMatchObject({ prompt: 'A lighthouse at dawn', n: 2 });
+      });
+
+      it('rejects malformed sizes and never picks a chat model', async () => {
+        const bad = await v1('POST', '/images/generations', {
+          model: 'auto',
+          prompt: 'x',
+          size: 'huge',
+        });
+        expect(bad.statusCode).toBe(400);
+        const chat = await v1('POST', '/images/generations', {
+          model: 'llama-cpp/mock-chat',
+          prompt: 'x',
+        });
+        expect(chat.statusCode).toBeGreaterThanOrEqual(400);
+        expect(chat.statusCode).toBeLessThan(500);
       });
     });
 

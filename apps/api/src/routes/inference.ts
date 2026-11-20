@@ -31,6 +31,8 @@ import {
   embeddingPassthrough,
   embeddingRequestSchema,
   requiredChatCapabilities,
+  imagePassthrough,
+  imageRequestSchema,
   speechPassthrough,
   speechRequestSchema,
   transcriptionFieldsSchema,
@@ -670,6 +672,20 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
       body.model,
       new Set<Capability>(['speech']),
       speechPassthrough(body),
+      false,
+    );
+  });
+
+  app.post('/images/generations', { bodyLimit: deps.bodyLimitBytes }, async (req, reply) => {
+    requireScope(req, 'inference');
+    const body = parseInput(imageRequestSchema, req.body);
+    return execute(
+      req,
+      reply,
+      'images/generations',
+      body.model,
+      new Set<Capability>(['image_generation']),
+      imagePassthrough(body),
       false,
     );
   });

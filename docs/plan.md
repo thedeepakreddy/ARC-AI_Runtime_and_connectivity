@@ -185,8 +185,9 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
 - [x] Multimodal, increment 1: `POST /v1/audio/transcriptions` (multipart upload) and
       `POST /v1/audio/speech` (binary audio back), routed and with fallback like chat; new
       `speech` capability (migration 0009); tested through real LiteLLM 1.110.0 in CI
-- [ ] Multimodal, increment 2: image generation (`/v1/images/generations`), and a dashboard
-      "try it" for audio
+- [x] Multimodal, increment 2: `POST /v1/images/generations` with a new `image_generation`
+      capability (migration 0010), and the dashboard **Playground** (chat, speech, transcription,
+      images with one of the organization's ARC keys; the key is never stored)
 - [ ] Provider packs, BALANCED/DEEP, evaluation, billing, multi-server HA
 
 ## Phase 6 scope: dashboards and users' own keys
@@ -242,6 +243,10 @@ Frontend, with **each screen layout approved before coding**:
 13. **Speech is its own capability:** `speech` (text to speech, `/v1/audio/speech`) is separate
     from `audio_output` (a chat model answering with audio), so routing never sends speech to a
     chat model. Transcriptions use the existing `transcription` capability.
+
+14. **Image generation is its own capability** (`image_generation`), separate from `vision`
+    (reading images). The Playground uses a pasted ARC key held in the tab only, so it goes
+    through exactly the path apps use and needs no new server-side credential.
 
 ## Open decisions
 

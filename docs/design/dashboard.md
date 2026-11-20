@@ -21,6 +21,7 @@ keys · calm, precise, the same "mission control at night" as the console, with 
 | App           | `/apps/:id`       | ARC keys (issue, show once, rotate, revoke), "Connect your app" (base URL, key, first request), 24 h usage | Admins manage keys                 |
 | Provider keys | `/keys`           | The organization's own keys (BYOK): add and check, details, on/off, replace, delete                        | Admins (members see why not)       |
 | Usage         | `/usage`          | Requests, errors, fallbacks, overhead; breakdown by app, provider, model, key                              | Everyone                           |
+| Playground    | `/playground`     | Try chat, speech, transcription and images with a pasted ARC key; shows the route taken                    | Everyone with a key                |
 | Team          | `/team`           | Members and roles, pending invitations, invite by link                                                     | Admins invite; owners change roles |
 | Settings      | `/settings`       | Organization name; allowed regions                                                                         | Owners                             |
 | Account       | `/account`        | Password and signed-in devices (shared with the console)                                                   | Everyone                           |
@@ -61,6 +62,10 @@ apps send to ARC), **provider key** (the organization's own Gemini/Groq/… key)
 
 - Models page: customers choose which models their own keys use (decided by the owner).
 - End users' own keys go through ARC via `/v1/user-keys` (see inference-api.md).
+
+- Playground (Phase 7): the key is held in the tab only; results show which model answered,
+  attempts, fallback and ARC's overhead. axe-core: no violations on every tab; checked at
+  1440×900 and 390×844 (tabs wrap on phones). File inputs got a pill picker matching the buttons.
 
 ## Open
 

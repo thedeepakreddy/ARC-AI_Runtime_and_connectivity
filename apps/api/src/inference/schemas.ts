@@ -76,6 +76,37 @@ export const speechRequestSchema = z
     instructions: z.string().max(4096).optional(),
   })
   .loose();
+/**
+ * Image generation (/v1/images/generations). OpenAI's fields; sizes and qualities are the
+ * provider's own words, so ARC checks their shape, not their values.
+ */
+export const imageRequestSchema = z
+  .object({
+    model: z.string().min(1).max(320),
+    prompt: z.string().min(1).max(32000),
+    n: z.number().int().min(1).max(4).optional(),
+    size: z
+      .string()
+      .regex(/^(\d{2,5}x\d{2,5}|auto)$/)
+      .optional(),
+    quality: z.string().max(20).optional(),
+    style: z.string().max(20).optional(),
+    response_format: z.enum(['url', 'b64_json']).optional(),
+    output_format: z.enum(['png', 'jpeg', 'webp']).optional(),
+    background: z.enum(['transparent', 'opaque', 'auto']).optional(),
+  })
+  .loose();
+const IMAGE_PASSTHROUGH = [
+  'prompt',
+  'n',
+  'size',
+  'quality',
+  'style',
+  'response_format',
+  'output_format',
+  'background',
+] as const;
+
 const SPEECH_PASSTHROUGH = ['input', 'voice', 'response_format', 'speed', 'instructions'] as const;
 
 /**
@@ -95,6 +126,7 @@ export const transcriptionFieldsSchema = z.object({
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 export type SpeechRequest = z.infer<typeof speechRequestSchema>;
+export type ImageRequest = z.infer<typeof imageRequestSchema>;
 export type TranscriptionFields = z.infer<typeof transcriptionFieldsSchema>;
 export type EmbeddingRequest = z.infer<typeof embeddingRequestSchema>;
 
@@ -106,6 +138,7 @@ function pick(body: Record<string, unknown>, keys: readonly string[]): Record<st
 
 export const chatPassthrough = (body: ChatRequest) => pick(body, CHAT_PASSTHROUGH);
 export const embeddingPassthrough = (body: EmbeddingRequest) => pick(body, EMBEDDING_PASSTHROUGH);
+export const imagePassthrough = (body: ImageRequest) => pick(body, IMAGE_PASSTHROUGH);
 export const speechPassthrough = (body: SpeechRequest) => pick(body, SPEECH_PASSTHROUGH);
 /** Form fields for the provider, as strings (the model is ARC's choice, added later). */
 export const transcriptionPassthrough = (f: TranscriptionFields): Record<string, string> => {
@@ -123,6 +156,7 @@ export type Capability =
   | 'transcription'
   | 'audio_output'
   | 'speech'
+  | 'image_generation'
   | 'embeddings'
   | 'video'
   | 'documents'

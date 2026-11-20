@@ -1,6 +1,11 @@
 import type { Candidate } from './candidates.js';
 
-export type Endpoint = 'chat/completions' | 'embeddings' | 'audio/transcriptions' | 'audio/speech';
+export type Endpoint =
+  | 'chat/completions'
+  | 'embeddings'
+  | 'audio/transcriptions'
+  | 'audio/speech'
+  | 'images/generations';
 
 export interface DispatchInput {
   endpoint: Endpoint;

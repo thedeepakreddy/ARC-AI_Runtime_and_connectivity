@@ -578,6 +578,15 @@ textarea {
   font-size: 13px;
   color: var(--text-3);
 }
+/* Links inside running text are underlined, not told apart by colour alone. */
+.hint a,
+.play-note a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.panel-pad > .field:last-child {
+  margin-bottom: 0;
+}
 .error-text {
   font-size: 13.5px;
   color: var(--bad);
@@ -617,6 +626,7 @@ textarea {
 }
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 16px;
 }
@@ -1700,4 +1710,49 @@ table.fixed td.w {
   margin: 0;
   padding: 0;
   min-width: 0;
+}
+
+/* File inputs: the picker button as a secondary pill, the file name beside it. */
+.input[type='file'] {
+  height: auto;
+  padding: 6px 8px;
+  color: var(--text-2);
+}
+.input[type='file']::file-selector-button {
+  height: 28px;
+  margin-right: 10px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill-strong);
+  color: var(--text);
+  font: 600 13px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+/* Playground (dashboard): results of a /v1 call. */
+.play-result {
+  padding: 14px 16px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.play-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.play-audio {
+  display: block;
+  width: 100%;
+}
+.play-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.play-images img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-sm);
 }

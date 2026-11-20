@@ -23,6 +23,8 @@ const CSP = [
   "script-src 'self'",
   "style-src 'self'",
   "img-src 'self' data:",
+  // The dashboard's playground plays generated speech from a blob: URL.
+  "media-src 'self' blob:",
   "font-src 'self'",
   "connect-src 'self'",
   "frame-ancestors 'none'",
@@ -43,6 +45,7 @@ const adsCsp = (nonce: string) =>
     `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
+    "media-src 'self' blob:",
     "font-src 'self'",
     "connect-src 'self' https:",
     'frame-src https:',
