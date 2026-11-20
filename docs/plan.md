@@ -125,11 +125,11 @@ Increment 1 — **Console (owner)**: done. Layouts approved one by one (page lis
 Overview "needs you first", Providers grouped list, Models tabs + bulk classify with terms note,
 Apps list + detail with rotation overlap); the rest built to the same system.
 
-- [x] Design system "Orbit" from the ARC mark: true black, planet-limb horizon, wide-tracked uppercase
-      labels (Hubot Sans, expanded), titles and figures (Michroma), text (Mona Sans), keys (Martian
-      Mono), one horizon-blue accent; phone layout;
-      Liquid Glass material for floating layers (sheets, dialogs, menus, toasts, controls); fonts
-      bundled, no third-party requests (strict CSP)
+- [x] Design system: space for the backdrop, Apple for the surfaces — grouped borderless panels,
+      inset separators, sentence-case labels, filled controls, capsule buttons, Liquid Glass only for
+      floating layers. ARC wordmark traced from the app icon. Type: Mona Sans (wide bold titles and
+      figures, text), Hubot Sans (controls), Martian Mono (keys); bundled, strict CSP. Original space
+      art (Earth limb, stars, Milky Way) rendered by `scripts/art/render_space.py`
 - [x] Pages: sign-in, Overview, Providers & keys, Models, Apps (+ detail), Routing (+ "what would
       ARC pick?"), Traffic, Customers, Audit log, Account (theme, password, sessions)
 - [x] Backend: per-app traffic rollups, console overview/traffic/customers APIs, terms note, key

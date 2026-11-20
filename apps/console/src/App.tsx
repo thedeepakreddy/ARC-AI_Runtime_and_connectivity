@@ -12,6 +12,7 @@ import { ProvidersPage } from './pages/Providers';
 import { RoutingPage } from './pages/Routing';
 import { TrafficPage } from './pages/Traffic';
 import { Dot, Icon } from './ui';
+import { Wordmark } from './ui/Wordmark';
 
 export function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
@@ -73,13 +74,13 @@ function Shell({ me }: { me: Me }) {
           height={22}
           style={{ borderRadius: 6 }}
         />
-        <span className="brand-word">ARC</span>
+        <Wordmark height={12} />
       </div>
       {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
       <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
         <div className="brand">
           <img src="/console/icon-192.png" alt="" />
-          <span className="brand-word">ARC</span>
+          <Wordmark height={13} />
           <span className="brand-sub">Console</span>
         </div>
         <nav className="nav" aria-label="Console">
@@ -151,14 +152,12 @@ function SignIn({ onDone }: { onDone: () => void }) {
   }
   return (
     <div className="signin">
-      <div className="stars" />
-      <div className="signin-limb" />
       <form className="signin-card" onSubmit={submit}>
-        <span className="signin-word" aria-label="ARC">
-          ARC
-        </span>
+        <div className="signin-mark">
+          <Wordmark height={46} />
+        </div>
         <span className="eyebrow">AI Runtime &amp; Connectivity</span>
-        <h1>Console sign-in</h1>
+        <h1>Sign in to the console</h1>
         <div className="field">
           <label htmlFor="email" className="sr-only">
             Email
@@ -207,10 +206,10 @@ function SignIn({ onDone }: { onDone: () => void }) {
 function NotOwner({ email }: { email: string }) {
   return (
     <div className="signin">
-      <div className="stars" />
-      <div className="signin-limb" />
-      <div className="signin-card" style={{ textAlign: 'center' }}>
-        <span className="signin-word">ARC</span>
+      <div className="signin-card">
+        <div className="signin-mark">
+          <Wordmark height={46} />
+        </div>
         <h1>Owner access only</h1>
         <p className="lead">
           {email} is signed in, but this console is for the ARC owner. Customers use the ARC

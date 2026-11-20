@@ -13,7 +13,6 @@
     "@fontsource-variable/hubot-sans": "^5.3.0",
     "@fontsource-variable/martian-mono": "^5.3.0",
     "@fontsource-variable/mona-sans": "^5.3.0",
-    "@fontsource/michroma": "^5.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.6"
