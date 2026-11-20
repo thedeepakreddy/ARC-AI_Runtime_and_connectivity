@@ -1,0 +1,31 @@
+# Rendered by start.sh: each $-brace placeholder is replaced from the environment (.env, ALERT_*).
+# The SMTP password is never in this file: it is read from the mounted secrets directory.
+global:
+  smtp_smarthost: '${ALERT_SMTP_HOST}'
+  smtp_from: '${ALERT_EMAIL_FROM}'
+  smtp_auth_username: '${ALERT_SMTP_USER}'
+  smtp_auth_password_file: /run/secrets/arc/smtp-password
+  smtp_require_tls: ${ALERT_SMTP_REQUIRE_TLS}
+  resolve_timeout: 5m
+
+route:
+  receiver: owner-email
+  group_by: [alertname]
+  # Wait briefly so related alerts arrive in one email; then at most one email per group every
+  # 5 minutes, and a reminder every 4 hours while something stays broken.
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+# While ARC itself is down, don't also email every alert that follows from it.
+inhibit_rules:
+  - source_matchers: [alertname = ArcApiDown]
+    target_matchers: [severity = warning]
+
+receivers:
+  - name: owner-email
+    email_configs:
+      - to: '${ALERT_EMAIL_TO}'
+        send_resolved: true
+        headers:
+          Subject: '[ARC] {{ .Status | toUpper }}: {{ .CommonLabels.alertname }}'

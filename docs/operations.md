@@ -52,12 +52,43 @@ API routing tunables: `MAX_ATTEMPTS` (3), `MIN_ATTEMPT_MS` (250).
 ## Monitoring
 
 - Metrics: API `api:9464/metrics`, worker `worker:9465/metrics` (private network only).
-- Prometheus with ARC's alert rules: `docker compose --profile monitoring up -d`, UI on
-  `127.0.0.1:9090`. To get notified, add an Alertmanager with your destination (email, Slack,
-  PagerDuty …) in `infra/prometheus/prometheus.yml`.
+- Prometheus with ARC's alert rules, and Alertmanager emailing them:
+  `docker compose --profile monitoring up -d`. UIs on the server's loopback only: Prometheus
+  `127.0.0.1:9090`, Alertmanager `127.0.0.1:9093` (reach them with `ssh -L 9090:127.0.0.1:9090 …`).
 - Key signals: `arc_overhead_ms` (ARC's own time, target p95 ≤ 30 ms), `arc_provider_ttfb_ms`,
   `arc_first_chunk_ms`, `arc_requests_total{outcome}`, `arc_fallbacks_total`,
   `arc_dependency_up`, `arc_worker_heartbeat_age_seconds`.
+
+## Alerts by email
+
+Alertmanager (`infra/alertmanager`) sends every firing and resolved alert to one inbox, grouped
+(at most one email per alert group every 5 minutes, a reminder every 4 hours while it lasts).
+With Gmail (free):
+
+1. Turn on 2-Step Verification for the Google account, then create an **App Password**
+   (Google Account → Security → App passwords).
+2. In `.env`:
+
+   ```bash
+   ALERT_EMAIL_TO=you@example.com
+   ALERT_EMAIL_FROM=you@gmail.com
+   ALERT_SMTP_USER=you@gmail.com
+   ALERT_SMTP_HOST=smtp.gmail.com:587
+   ```
+
+3. The App Password goes in a file, never in `.env`:
+
+   ```bash
+   read -s P && printf '%s\n' "$P" > secrets/smtp-password && unset P
+   sudo chown 65534 secrets/smtp-password && chmod 600 secrets/smtp-password  # Alertmanager runs as "nobody"
+   docker compose --profile monitoring up -d
+   ```
+
+4. Test it: `docker compose exec api node --input-type=module -e 'await fetch("http://alertmanager:9093/api/v2/alerts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify([{labels:{alertname:"ArcTestAlert",severity:"info"}}])})'`
+   — an email titled `[ARC] FIRING: ArcTestAlert` arrives within a minute.
+
+Alertmanager refuses to start if a setting or the password file is missing, so alerts never
+vanish silently.
 
 ## Scaling and coordination
 
@@ -67,11 +98,31 @@ Redis. Size LiteLLM with `LITELLM_NUM_WORKERS` (default 4; see ADR 0008) to the 
 
 ## Backups and restore
 
+Backups, restores and the drill run in the `ops` container, on the stack's private network and
+with the same PostgreSQL major as the server (nothing to install on the host):
+
 ```bash
-# Nightly (cron): encrypted backup, optional off-site copy
-DATABASE_URL=postgres://arc@127.0.0.1:5432/arc BACKUP_PASSPHRASE_FILE=/secure/backup-pass \
-BACKUP_DIR=/var/backups/arc BACKUP_RCLONE_REMOTE=oci:arc-backups scripts/ops/backup.sh
+openssl rand -base64 32 > secrets/backup-passphrase && chmod 600 secrets/backup-passphrase
+# Nightly, from cron (crontab -e), e.g. 03:17 UTC:
+17 3 * * * cd /opt/arc && docker compose --profile ops run --rm -T ops scripts/ops/backup.sh >> /var/log/arc-backup.log 2>&1
 ```
+
+Backups land in `./backups` (`ARC_BACKUP_DIR`), kept 14 days (`BACKUP_RETENTION_DAYS`).
+
+**Off-site copy (free: Oracle Object Storage, 20 GB).** Create a bucket (e.g. `arc-backups`) and
+a Customer Secret Key (Profile → Customer secret keys), then `secrets/rclone.conf`:
+
+```ini
+[oci]
+type = s3
+provider = Other
+access_key_id = <customer secret key id>
+secret_access_key = <customer secret key>
+endpoint = https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
+region = <region>
+```
+
+and `BACKUP_RCLONE_REMOTE=oci:arc-backups` in `.env`. Every backup is then copied off-site.
 
 - Use the same PostgreSQL major version for `pg_dump`, `pg_restore` and the servers you back up
   and restore to: `pg_dump` refuses newer servers, and a newer `pg_dump` can write settings an
@@ -86,6 +137,32 @@ scripts/ops/restore-drill.sh` — restores into a scratch database, checks schem
   that every credential decrypts, then drops it. Proposed pilot targets: RTO 4 h, RPO 24 h (not
   yet proven on the real VPS).
 
+## Verifying the server (RTO / RPO / load)
+
+On the VPS, with the stack running and a nightly backup in place:
+
+```bash
+scripts/ops/vps-verify.sh            # restore drill + load test → ops-reports/vps-verify-<time>.md
+scripts/ops/vps-verify.sh --drill-only
+```
+
+It runs the restore drill (backup → scratch restore → schema, row counts, every credential
+decrypts → drop) and records its duration against the RTO target (4 h), the newest backup's age
+against the RPO target (24 h), and runs the load-test gate against this server's real LiteLLM
+(run that in a quiet period). Re-run it after changing the server size or `LITELLM_NUM_WORKERS`.
+
+## Full-stack smoke test
+
+`scripts/ops/stack-smoke.sh` builds and starts the whole stack in an isolated Compose project
+(your `.env` and `secrets/` are not touched), with a stand-in provider and mail catcher, and
+checks health, the admin flow, inference for two apps with separate keys, Prometheus, an alert
+email and — with `ECHO_DIR` / `DSS_DIR` — the apps' own ARC smoke tests. CI runs it on every push.
+
+## Connecting apps
+
+See [app-integration.md](app-integration.md): `scripts/ops/arc-admin.mjs` adds provider keys,
+enables models and issues one ARC key per app.
+
 ## Deploying updates
 
 ```bash
@@ -98,6 +175,8 @@ be backward compatible with the previous release (expand/contract: add columns/t
 remove them only in a later release).
 
 ## Load testing
+
+On the server: `scripts/ops/vps-verify.sh`. During development:
 
 ```bash
 cd apps/api && pnpm build

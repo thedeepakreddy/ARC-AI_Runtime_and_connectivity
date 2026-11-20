@@ -5,3 +5,7 @@
 .env
 .env.*
 docs
+# Never send secrets, backups or reports into an image build
+secrets
+backups
+ops-reports

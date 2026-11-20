@@ -1,0 +1,23 @@
+# Smoke-test overlay: a stand-in model provider and a mail catcher, so the full stack can be
+# verified end to end without real provider keys or a real mailbox. Used by
+# scripts/ops/stack-smoke.sh — never deploy this file.
+services:
+  mock-provider:
+    image: node:22-alpine
+    command: ['node', '/smoke/mock-provider.mjs']
+    volumes:
+      - ./scripts/smoke:/smoke:ro
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9000/health']
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    networks: [backend]
+
+  # Catches the alert emails Alertmanager sends (SMTP :1025, API :8025). It offers no login, so
+  # Alertmanager sends without one (it never sends a password over an unencrypted connection;
+  # real SMTP servers such as Gmail on :587 use STARTTLS).
+  mailpit:
+    profiles: [monitoring]
+    image: axllent/mailpit:v1.27.11
+    networks: [backend]

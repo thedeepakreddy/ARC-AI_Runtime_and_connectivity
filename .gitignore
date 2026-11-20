@@ -9,3 +9,7 @@ coverage/
 
 # Vault keys and other local secrets
 secrets/
+
+# Local backups and ops reports (scripts/ops/vps-verify.sh)
+backups/
+ops-reports/

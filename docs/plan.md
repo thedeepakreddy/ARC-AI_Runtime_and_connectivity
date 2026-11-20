@@ -30,8 +30,7 @@ international, Chinese, local, speech/embeddings.
 - [x] Docker Compose: Postgres, Redis, LiteLLM (separate DB), API, worker; private backend network
 - [x] CI: build, format, lint, typecheck, test, compose validation
 - [x] ADRs and threat model
-- [ ] Full `docker compose up` verified on a machine with a Docker daemon (not available in the
-      build container; compose files validated with `docker compose config`)
+- [x] Full `docker compose up` verified end to end (Phase 5: `scripts/ops/stack-smoke.sh`, in CI)
 
 ## Phase 1 status
 
@@ -97,9 +96,28 @@ international, Chinese, local, speech/embeddings.
 - [x] LiteLLM worker sizing measured; default 4 workers
 - [x] Encrypted backups, restore, and a restore drill (passes; fails correctly with a wrong key)
 - [x] Controlled deploy with approval, pre-deploy backup, health check and automatic rollback
-- [ ] Alertmanager destination (email/Slack/PagerDuty) — owner to choose
-- [ ] Run the drill and load test on the real Oracle VPS; confirm RTO/RPO there
-- [ ] Off-site backup target (e.g. OCI Object Storage via rclone) — owner to choose
+- [x] Alerts by email (owner's choice): Alertmanager + SMTP (Gmail App Password); verified end to end
+- [x] LiteLLM pinned by digest to the verified 1.110.0 release
+- [x] Fixed Phase 4 bug: Prometheus UI port was never published (container only on an internal network)
+- [x] `ops` container for backups/restores/drill (matching PostgreSQL major, nothing on the host);
+      off-site copy to Oracle Object Storage (free 20 GB) via rclone — owner to create the bucket
+- [x] `scripts/ops/vps-verify.sh`: drill + RTO/RPO + load test → dated report (passes locally)
+- [ ] Run `scripts/ops/vps-verify.sh` on the real Oracle VPS and keep its report (needs the server)
+
+## Phase 5 status
+
+See [app-integration.md](app-integration.md) and ADR 0009.
+
+- [x] `scripts/ops/arc-admin.mjs`: provider keys, model enablement and one ARC key per app,
+      through the audited admin API
+- [x] Echo Phone → ARC (`lib/arc.js`): chat, streaming, tools, voice/images, JSON, embeddings;
+      opt-in via `ARC_BASE_URL`/`ARC_API_KEY`; users' own Gemini keys stay direct
+- [x] Data Science Studio → ARC (`arcClient.ts`): every AI call (JSON schema, agent tool loop);
+      ARC first, Gemini keys as fallback
+- [x] Smoke tests: each app passes its own `scripts/arc-smoke.*` against a real ARC stack with its
+      own key; ARC CI runs them on every push
+- [ ] Deploy: issue the keys on the VPS and set them on Render (owner)
+- [ ] Aira, Echo Mac, Echo web extension — later, same pattern
 
 ## Approved decisions
 
@@ -110,7 +128,10 @@ international, Chinese, local, speech/embeddings.
    separate off-site backup; move to a KMS later (approved).
 4. **Pilot RTO/RPO:** RTO 4h, RPO 24h — targets only until a restore drill proves them (approved).
 
+5. **Alerts:** by email (approved).
+6. **LiteLLM version:** 1.110.0, pinned by digest (done).
+7. **Hosting:** Oracle Cloud Always Free; see [costs.md](costs.md).
+
 ## Open decisions
 
-1. **LiteLLM version:** pin a specific release/digest before production (currently `main-stable`).
-   ARC's passthrough is verified against **1.110.0**; pin that version (or re-verify a newer one).
+1. Trademark/domain check for the name ARC.
