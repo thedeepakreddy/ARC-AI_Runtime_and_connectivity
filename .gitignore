@@ -13,3 +13,4 @@ secrets/
 # Local backups and ops reports (scripts/ops/vps-verify.sh)
 backups/
 ops-reports/
+*.whl
