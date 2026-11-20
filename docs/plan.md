@@ -6,16 +6,16 @@ The repository held only a README and LICENSE. There was no prior code to preser
 
 ## Phases
 
-| #   | Phase               | Scope                                                                                                                                                  | Exit criteria                                         |
-| --- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| 0   | Foundation          | Monorepo, lint/typecheck/test, CI, Docker Compose, ADRs, threat model, health/readiness                                                                | Reproducible setup; baseline checks pass              |
-| 1   | Control plane       | Schema/migrations, owner/admin auth, encrypted credential vault, provider registry with **unlimited keys per provider**, model catalogue + eligibility | Multiple keys per provider register and validate      |
-| 2   | Fast-path inference | ARC key format/auth, `/v1/models`, `/v1/chat/completions` via LiteLLM, streaming + cancellation, `/v1/embeddings`, error model                         | Test app makes an end-to-end streamed request         |
-| 3   | Intelligent routing | Eligibility gates (incl. jurisdiction), cached ranking + key selection, async health/quota workers, bounded fallback, route explanations               | Explainable routes; paid/unknown owner routes blocked |
-| 4   | Operations          | Metrics (ARC overhead vs provider TTFT), load tests + regression gates, alerts, backup/restore, controlled deploy/rollback                             | Ops checks and restore drill pass                     |
-| 5   | App integration     | Echo, Aira, Data Science Studio with separate ARC keys                                                                                                 | Each app passes smoke tests                           |
-| 6   | Dashboards (UI)     | Design tokens, superadmin console, customer dashboard — **each screen layout approved before coding**                                                  | Approved screens implemented                          |
-| 7   | Post-MVP            | Full customer auth, BYOK, provider packs, multimodal, BALANCED/DEEP, evaluation, billing, multi-server HA                                              | Separately approved increments                        |
+| #   | Phase                  | Scope                                                                                                                                                                              | Exit criteria                                                                 |
+| --- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 0   | Foundation             | Monorepo, lint/typecheck/test, CI, Docker Compose, ADRs, threat model, health/readiness                                                                                            | Reproducible setup; baseline checks pass                                      |
+| 1   | Control plane          | Schema/migrations, owner/admin auth, encrypted credential vault, provider registry with **unlimited keys per provider**, model catalogue + eligibility                             | Multiple keys per provider register and validate                              |
+| 2   | Fast-path inference    | ARC key format/auth, `/v1/models`, `/v1/chat/completions` via LiteLLM, streaming + cancellation, `/v1/embeddings`, error model                                                     | Test app makes an end-to-end streamed request                                 |
+| 3   | Intelligent routing    | Eligibility gates (incl. jurisdiction), cached ranking + key selection, async health/quota workers, bounded fallback, route explanations                                           | Explainable routes; paid/unknown owner routes blocked                         |
+| 4   | Operations             | Metrics (ARC overhead vs provider TTFT), load tests + regression gates, alerts, backup/restore, controlled deploy/rollback                                                         | Ops checks and restore drill pass                                             |
+| 5   | App integration        | Echo, Aira, Data Science Studio with separate ARC keys                                                                                                                             | Each app passes smoke tests                                                   |
+| 6   | Dashboards (UI) + BYOK | Design tokens, superadmin console, customer dashboard — **each screen layout approved before coding**; customer sign-up/login; **users bring their own provider keys** through ARC | Approved screens implemented; a user's own key is used for their traffic only |
+| 7   | Post-MVP               | Owner MFA/password reset, provider packs, multimodal, BALANCED/DEEP, evaluation, billing, multi-server HA                                                                          | Separately approved increments                                                |
 
 Provider packs (see [providers.md](providers.md)) land after the core gateway works:
 international, Chinese, local, speech/embeddings.
@@ -46,7 +46,7 @@ international, Chinese, local, speech/embeddings.
       evidence URL; `UNKNOWN` can never be enabled (enforced in API and database)
 - [x] Applications registry (first-party apps in the platform tenant only), audit log
 - [x] Integration tests on real PostgreSQL incl. cross-tenant isolation; CI runs them
-- [ ] Owner MFA, password reset, invitations/signup — deferred to customer auth (Phase 7)
+- [ ] Customer sign-up/login and invitations — Phase 6 (needed for BYOK); owner MFA and password reset — Phase 7
 - [ ] Login throttling in Redis — needed before running multiple API instances
 - [ ] Background re-validation of keys — moves to the worker in Phase 3
 
@@ -118,6 +118,29 @@ See [app-integration.md](app-integration.md) and ADR 0009.
       own key; ARC CI runs them on every push
 - [ ] Deploy: issue the keys on the VPS and set them on Render (owner)
 - [ ] Aira, Echo Mac, Echo web extension — later, same pattern
+
+## Phase 6 scope (next): dashboards and users' own keys
+
+Frontend, with **each screen layout approved before coding**:
+
+- Design tokens and a shared component set.
+- **Superadmin console** (owner): provider keys per provider (add, validate, enable/disable,
+  rotate), model catalogue and eligibility, apps and their ARC keys, routing policies and route
+  explanations, health/metrics and alerts, audit log. Everything `scripts/ops/arc-admin.mjs` does
+  today, without the command line.
+- **Customer dashboard**: sign-up/login, their apps and ARC keys, usage, and their own provider keys.
+
+**Users bring their own API keys (BYOK) through ARC** — moved here from Phase 7:
+
+- Customers add their own provider keys in the dashboard (the vault already stores
+  `tenant_byok` keys, encrypted and scoped to the tenant; customer keys may route to paid models
+  under the customer's own policy). Their traffic uses only their keys.
+- App users' own keys (today Echo's and the studio's "your own Gemini key", sent to Google
+  directly) go through ARC instead, so they get ARC's routing, fallback and monitoring. Design to
+  approve first: how an app identifies the user to ARC (e.g. a per-user ARC key or a user id the
+  app vouches for) and how the key is stored (ARC's vault, never the app).
+- Prerequisite: customer sign-up/login (moved from Phase 7); same tenant-isolation tests as
+  today.
 
 ## Approved decisions
 

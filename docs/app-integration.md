@@ -11,7 +11,7 @@ are separate. Apps never hold provider keys: ARC does.
 
 Both integrations are **opt-in**: with `ARC_BASE_URL` and `ARC_API_KEY` unset, the apps behave
 exactly as before (Gemini directly). Users' own Gemini keys (BYOK in the apps) keep going to
-Google directly — ARC's BYOK is a Phase 7 feature.
+Google directly — users bringing their own keys through ARC is part of Phase 6.
 
 ## 1. Prepare ARC (once)
 
