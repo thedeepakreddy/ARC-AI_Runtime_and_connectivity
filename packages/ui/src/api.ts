@@ -213,3 +213,38 @@ export interface Explain {
   fallbackOrder?: { model: string; accountId: string }[];
   candidates: Verdict[];
 }
+
+// ---- Customers (dashboard) ----
+
+export interface Tenant {
+  id: string;
+  kind: string;
+  name: string;
+  role: 'owner' | 'admin' | 'member';
+  createdAt: string;
+}
+export interface Member {
+  userId: string;
+  email: string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
+  lastLoginAt: string | null;
+  you: boolean;
+}
+export interface Invitation {
+  id: string;
+  email: string;
+  role: 'owner' | 'admin' | 'member';
+  createdAt: string;
+  expiresAt: string;
+  invitedBy: string | null;
+  /** Only in the response that creates it. */
+  token?: string;
+}
+export interface InvitationPreview {
+  email: string;
+  role: 'owner' | 'admin' | 'member';
+  organization: string | null;
+  newOrganization: boolean;
+  expiresAt: string;
+}

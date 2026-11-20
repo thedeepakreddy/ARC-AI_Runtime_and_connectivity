@@ -327,7 +327,7 @@ export function Sheet({
   return (
     <>
       <div className="scrim" onClick={onClose} />
-      <aside
+      <div
         className="sheet"
         role="dialog"
         aria-modal="true"
@@ -352,7 +352,7 @@ export function Sheet({
         </div>
         <div className="sheet-body">{children}</div>
         {footer && <div className="sheet-foot">{footer}</div>}
-      </aside>
+      </div>
     </>
   );
 }

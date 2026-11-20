@@ -2,7 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ApiError, type Me, type Overview, api, get, onUnauthorized } from '@arc/ui/api';
 import { usePolling } from '@arc/ui/hooks';
-import { AccountPage } from './pages/Account';
+import { AccountPage } from '@arc/ui/account';
 import { AppDetailPage, AppsPage } from './pages/Apps';
 import { AuditPage } from './pages/Audit';
 import { CustomersPage } from './pages/Customers';

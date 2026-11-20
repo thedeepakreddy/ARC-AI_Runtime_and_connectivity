@@ -10,7 +10,9 @@
     "./format": "./src/format.ts",
     "./hooks": "./src/hooks.ts",
     "./fonts": "./src/fonts.ts",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./keys": "./src/keys.tsx",
+    "./account": "./src/account.tsx"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -1451,6 +1451,8 @@ table.fixed td.w {
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
+    /* The bar keeps its height; short pages don't stretch it. */
+    grid-template-rows: auto 1fr;
   }
   .sidebar {
     position: fixed;

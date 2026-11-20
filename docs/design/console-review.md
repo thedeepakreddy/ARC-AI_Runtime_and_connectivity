@@ -71,5 +71,9 @@ disabled switch explains itself. No marketing filler, no emoji, no placeholder n
 
 ## Verification
 
-- axe-core (wcag2a, wcag2aa, best-practice) on every route: see the plan for results after fixes.
+- axe-core (wcag2a, wcag2aa, best-practice) on every route: no violations after the fixes (before:
+  serious contrast failures on all ten routes, empty table headers on four).
+- Keyboard walk-through: skip link first; Enter on an app's name opens it; the action menu opens
+  on Enter, moves with arrows, Escape returns to its button; a sheet keeps focus inside and
+  returns it to the row on close.
 - Screens re-shot at desktop and mobile and compared with the "before" set.

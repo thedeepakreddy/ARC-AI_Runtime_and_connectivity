@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { type Customer, api } from '@arc/ui/api';
-import { date, num } from '@arc/ui/format';
+import { type Customer, type Invitation, api } from '@arc/ui/api';
+import { ago, date, num } from '@arc/ui/format';
 import { useData } from '@arc/ui/hooks';
 import {
   Badge,
   Confirm,
+  CopyButton,
+  Dialog,
   Empty,
   ErrorNote,
+  Field,
+  Icon,
   Loading,
   Menu,
   PageHead,
@@ -21,6 +25,9 @@ export function CustomersPage() {
     null,
   );
   const toast = useToast();
+  const invitations = useData<{ data: Invitation[] }>('/console/invitations');
+  const [inviting, setInviting] = useState(false);
+  const [link, setLink] = useState<Invitation | null>(null);
   const rows = (data?.data ?? []).filter(
     (c) => !query.trim() || c.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
@@ -30,6 +37,11 @@ export function CustomersPage() {
       <PageHead
         title="Customers"
         sub="Organizations using ARC with their own keys. They never see your keys, apps or settings."
+        actions={
+          <button className="btn primary" onClick={() => setInviting(true)}>
+            <Icon name="plus" size={14} /> Invite customer
+          </button>
+        }
       />
       <div className="toolbar">
         <SearchInput value={query} onChange={setQuery} placeholder="Search customers" />
@@ -40,7 +52,7 @@ export function CustomersPage() {
       ) : data.data.length === 0 ? (
         <div className="panel">
           <Empty title="No customers yet">
-            Customers appear here when they sign up through the ARC dashboard.
+            Invite one: they get a link to set up their organization in the ARC dashboard.
           </Empty>
         </div>
       ) : (
@@ -98,6 +110,76 @@ export function CustomersPage() {
           </table>
         </div>
       )}
+      {(invitations.data?.data.length ?? 0) > 0 && (
+        <section className="section">
+          <div className="section-head">
+            <h2 className="section-title">Invited, not signed up yet</h2>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Expires</th>
+                  <th>
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {invitations.data!.data.map((i) => (
+                  <tr key={i.id}>
+                    <td style={{ fontWeight: 500 }}>{i.email}</td>
+                    <td className="muted">{ago(i.expiresAt)}</td>
+                    <td className="w">
+                      <button
+                        className="btn ghost sm"
+                        onClick={async () => {
+                          await api('DELETE', `/console/invitations/${i.id}`);
+                          toast('Invitation revoked');
+                          void invitations.reload();
+                        }}
+                      >
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+      {inviting && (
+        <InviteCustomerDialog
+          onClose={() => setInviting(false)}
+          onCreated={(i) => {
+            setInviting(false);
+            setLink(i);
+            void invitations.reload();
+          }}
+        />
+      )}
+      {link?.token && (
+        <Dialog
+          title="Send this link"
+          onClose={() => setLink(null)}
+          footer={
+            <button className="btn primary" onClick={() => setLink(null)}>
+              Done
+            </button>
+          }
+        >
+          <p className="muted" style={{ marginTop: 0 }}>
+            Send it to {link.email} yourself. It works once, for 7 days, and only for that email;
+            they name their organization and choose a password. ARC shows it only now.
+          </p>
+          <div className="secret-box">
+            <span style={{ flex: 1 }}>{inviteLink(link.token)}</span>
+            <CopyButton text={inviteLink(link.token)} />
+          </div>
+        </Dialog>
+      )}
       {acting && (
         <Confirm
           title={
@@ -123,5 +205,68 @@ export function CustomersPage() {
         />
       )}
     </div>
+  );
+}
+
+const inviteLink = (token: string) => `${location.origin}/dashboard/invite#${token}`;
+
+function InviteCustomerDialog({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (i: Invitation) => void;
+}) {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog
+      title="Invite a customer"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={!/^\S+@\S+\.\S+$/.test(email.trim()) || busy}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              try {
+                onCreated(
+                  await api<Invitation>('POST', '/console/invitations', { email: email.trim() }),
+                );
+              } catch (e) {
+                setError((e as Error).message);
+                setBusy(false);
+              }
+            }}
+          >
+            Create link
+          </button>
+        </>
+      }
+    >
+      <p className="muted" style={{ marginTop: 0 }}>
+        They become the owner of a new organization. Their apps only ever use the provider keys they
+        add themselves.
+      </p>
+      <Field label="Email">
+        {(id) => (
+          <input
+            id={id}
+            className="input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@company.com"
+          />
+        )}
+      </Field>
+      {error && <p className="error-text">{error}</p>}
+    </Dialog>
   );
 }

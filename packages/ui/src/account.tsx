@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { type Me, type Session, api } from '@arc/ui/api';
-import { ago, dateTime } from '@arc/ui/format';
-import { useData } from '@arc/ui/hooks';
-import { Badge, Field, PageHead, useToast } from '@arc/ui';
+import { type Me, type Session, api } from './api';
+import { ago, dateTime } from './format';
+import { useData } from './hooks';
+import { Badge, Field, PageHead, useToast } from './index';
 
 function browserName(ua: string | null) {
   if (!ua) return 'Unknown device';

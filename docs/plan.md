@@ -46,7 +46,7 @@ international, Chinese, local, speech/embeddings.
       evidence URL; `UNKNOWN` can never be enabled (enforced in API and database)
 - [x] Applications registry (first-party apps in the platform tenant only), audit log
 - [x] Integration tests on real PostgreSQL incl. cross-tenant isolation; CI runs them
-- [ ] Customer sign-up/login and invitations — Phase 6 (needed for BYOK); owner MFA and password reset — Phase 7
+- [x] Customer sign-up/login and invitations — Phase 6 increment 2; owner MFA and password reset — Phase 7
 - [ ] Login throttling in Redis — needed before running multiple API instances
 - [ ] Background re-validation of keys — moves to the worker in Phase 3
 
@@ -136,9 +136,40 @@ Apps list + detail with rotation overlap); the rest built to the same system.
       rotation overlap, customer suspension, sessions and password change; served at `/console`
 - [x] Tests: console API (9, real Postgres); every page rendered and reviewed in dark, light and
       phone widths against a seeded ARC (`scripts/dev/seed-demo.mjs`)
-- [ ] Increment 2 — Customer dashboard + customer sign-up/login (email verification, Google
-      sign-in, MFA, password reset) + teams/invitations
-- [ ] Increment 3 — Users' own keys through ARC (customer BYOK in the dashboard; apps' end-user keys)
+      Increment 1.1 — **Design review of the console**: done. See [design/console-review.md](design/console-review.md).
+
+- [x] Review with the design skills (creative direction, design review, critique, WCAG 2.1 AA
+      audit, dataviz, UX copy); axe-core clean on every route (was contrast failures on all of them)
+- [x] Fixes: `--text-3` ≥ 4.5:1, white primary buttons (blue-on-white was 3.2:1), solid focus
+      ring, keyboard-reachable rows, focus-trapped sheets/dialogs, menu-button keyboard pattern,
+      skip link, errors charted on their own scale, space backdrop on every page, sidebar wordmark
+      over the icon's horizon arc, tabular Mona Sans figures, 44 px touch targets
+- [x] `@arc/ui` (packages/ui): the design system, shared key flows, account page and API client,
+      used by both apps; [DESIGN.md](../DESIGN.md) documents it (tokens, rules, known deviations)
+
+Increment 2 — **Customer dashboard + sign-up/login + teams**: done. See
+[design/dashboard.md](design/dashboard.md).
+
+- [x] Sign-up by invitation (default) or open (`SIGNUP_MODE`); the owner invites customers from
+      the console, tenant admins invite teammates; one-use, 7-day links shown once, tokens hashed
+      and kept out of URLs sent to servers
+- [x] Team: owner/admin/member roles, last-owner protection, leave/remove; organization rename;
+      multi-organization users switch in the sidebar (`x-arc-tenant`)
+- [x] Dashboard at `/dashboard`: Overview (get started, needs you, usage), Apps + ARC keys +
+      "connect your app", Provider keys (BYOK), Usage, Team, Settings (regions), Account
+- [x] Tenant-scoped usage API; tests for sign-up, invitations, roles and cross-tenant isolation
+      (9, real Postgres); axe-core clean on every dashboard screen; stack smoke checks `/dashboard`
+- [ ] Email verification, password reset and MFA for customers (needs transactional email); Google
+      sign-in — later increment
+- [ ] Decide: may customers enable models found by their own keys? Today the owner's global
+      classification gates every tenant (see design/dashboard.md, "Open")
+
+Increment 3 — **Users' own keys through ARC**:
+
+- [x] Customer BYOK in the dashboard (their traffic uses only their keys; routing already filters
+      by tenant)
+- [ ] Apps' end-user keys (Echo's and the studio's "your own Gemini key") through ARC — design to
+      approve first
 
 ## Phase 6 scope: dashboards and users' own keys
 
@@ -175,6 +206,10 @@ Frontend, with **each screen layout approved before coding**:
 5. **Alerts:** by email (approved).
 6. **LiteLLM version:** 1.110.0, pinned by digest (done).
 7. **Hosting:** Oracle Cloud Always Free; see [costs.md](costs.md).
+8. **Customer sign-up:** invitation-only by default, `SIGNUP_MODE=open` to allow anyone;
+   invitations are links you send yourself until ARC has transactional email.
+9. **Design system:** one package (`@arc/ui`) and one [DESIGN.md](../DESIGN.md) for the console
+   and the dashboard.
 
 ## Open decisions
 
