@@ -25,6 +25,7 @@ export const ELIGIBILITY = ['VERIFIED_FREE', 'RESTRICTED_FREE', 'PAID', 'UNKNOWN
 const MODEL_COLUMNS = `id, provider_id AS "providerId", model_id AS "modelId", display_name AS "displayName",
   capabilities, eligibility, eligibility_evidence_url AS "eligibilityEvidenceUrl",
   eligibility_checked_at AS "eligibilityCheckedAt", terms_note AS "termsNote", enabled, source,
+  classified_by AS "classifiedBy", suggestion,
   created_at AS "createdAt", updated_at AS "updatedAt"`;
 
 const idParam = z.object({ id: z.uuid() });
@@ -50,6 +51,8 @@ const updateModelSchema = z
     enabled: z.boolean().optional(),
     /** The provider's terms for a restricted-free model, e.g. "50 requests/day". */
     termsNote: z.string().trim().max(500).nullable().optional(),
+    /** Go back to ARC's automatic classification (and keep following it). */
+    useSuggestion: z.literal(true).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, 'Provide at least one field');
 
@@ -112,6 +115,35 @@ export async function catalogueRoutes(app: FastifyInstance, deps: AdminDeps): Pr
     const { id } = parseInput(idParam, req.params);
     const body = parseInput(updateModelSchema, req.body);
 
+    if (body.useSuggestion) {
+      const { rows } = await db.query(
+        `UPDATE models SET
+           eligibility = suggestion->>'eligibility',
+           eligibility_evidence_url = suggestion->>'evidenceUrl',
+           eligibility_checked_at = CASE WHEN suggestion->>'eligibility' = 'UNKNOWN' THEN NULL
+                                         ELSE now() END,
+           capabilities = ARRAY(SELECT jsonb_array_elements_text(suggestion->'capabilities')),
+           enabled = (suggestion->>'eligibility') <> 'UNKNOWN' AND (suggestion->>'enable')::boolean,
+           terms_note = NULL,
+           classified_by = 'auto',
+           updated_at = now()
+         WHERE id = $1 AND suggestion IS NOT NULL RETURNING ${MODEL_COLUMNS}`,
+        [id],
+      );
+      if (!rows[0]) {
+        throw new ArcError(409, 'no_suggestion', 'Validate a key that sees this model first');
+      }
+      await recordAudit(db, {
+        tenantId: null,
+        actorUserId: user.userId,
+        action: 'model.updated',
+        targetType: 'model',
+        targetId: id,
+        metadata: { fields: ['useSuggestion'], eligibility: rows[0].eligibility },
+      });
+      return rows[0];
+    }
+
     const current = await db.query<{
       eligibility: string;
       enabled: boolean;
@@ -156,6 +188,7 @@ export async function catalogueRoutes(app: FastifyInstance, deps: AdminDeps): Pr
                                        WHEN $7 THEN now() ELSE eligibility_checked_at END,
          enabled = $8,
          terms_note = CASE WHEN $9 THEN nullif($10, '') ELSE terms_note END,
+         classified_by = 'owner',
          updated_at = now()
        WHERE id = $1 RETURNING ${MODEL_COLUMNS}`,
       [

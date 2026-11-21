@@ -317,6 +317,64 @@ describe.skipIf(!TEST_DATABASE_URL)('control plane (PostgreSQL)', () => {
       });
     });
 
+    it("classifies OpenRouter models automatically; the owner's choice is never overwritten", async () => {
+      const call = as(ownerCookie);
+      const created = await call('POST', '/provider-accounts', {
+        providerId: 'openrouter',
+        label: 'Router',
+        apiKey: 'sk-or-v1-fake-key-0000000000',
+      });
+      const accountId = created.json().id;
+      probe.next = {
+        status: 'healthy',
+        models: ['meta/llama:free', 'openai/gpt-x'],
+        hints: {
+          'meta/llama:free': {
+            pricing: { prompt: '0', completion: '0' },
+            inputModalities: ['text', 'image'],
+            supportedParameters: ['tools'],
+          },
+          'openai/gpt-x': { pricing: { prompt: '0.000002', completion: '0.00001' } },
+        },
+      };
+      await call('POST', `/provider-accounts/${accountId}/validate`);
+      const list = (await call('GET', '/models?provider=openrouter')).json().data as Array<{
+        id: string;
+        modelId: string;
+        eligibility: string;
+        enabled: boolean;
+        classifiedBy: string;
+        capabilities: string[];
+      }>;
+      const free = list.find((m) => m.modelId === 'meta/llama:free')!;
+      const paid = list.find((m) => m.modelId === 'openai/gpt-x')!;
+      expect(free).toMatchObject({
+        eligibility: 'VERIFIED_FREE',
+        enabled: true,
+        classifiedBy: 'auto',
+      });
+      expect(free.capabilities).toEqual(expect.arrayContaining(['text', 'vision', 'tools']));
+      expect(paid).toMatchObject({ eligibility: 'PAID', enabled: false, classifiedBy: 'auto' });
+
+      // The owner switches the free model off; validating again keeps it off.
+      await call('PATCH', `/models/${free.id}`, { enabled: false });
+      await call('POST', `/provider-accounts/${accountId}/validate`);
+      const again = (await call('GET', '/models?provider=openrouter')).json().data;
+      expect(again.find((m: { id: string }) => m.id === free.id)).toMatchObject({
+        enabled: false,
+        classifiedBy: 'owner',
+      });
+
+      // "Use automatic" brings the suggestion back.
+      const back = await call('PATCH', `/models/${free.id}`, { useSuggestion: true });
+      expect(back.json()).toMatchObject({
+        eligibility: 'VERIFIED_FREE',
+        enabled: true,
+        classifiedBy: 'auto',
+      });
+      probe.next = { status: 'healthy', models: ['gemini-fast', 'gemini-pro'] };
+    });
+
     it('only the platform superadmin can change the catalogue', async () => {
       const res = await as(customerCookie)('PATCH', `/models/${modelId}`, {
         capabilities: ['text'],

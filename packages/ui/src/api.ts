@@ -109,6 +109,17 @@ export interface Model {
   termsNote: string | null;
   enabled: boolean;
   source: string;
+  /** 'auto': ARC's suggestion, kept up to date; 'owner': changed by hand. */
+  classifiedBy: 'auto' | 'owner' | null;
+  /** ARC's latest automatic suggestion, from the provider's own listing. */
+  suggestion: {
+    eligibility: Eligibility;
+    evidenceUrl: string | null;
+    capabilities: string[];
+    enable: boolean;
+    reason: string;
+    pricingPage?: string | null;
+  } | null;
 }
 export interface Application {
   id: string;

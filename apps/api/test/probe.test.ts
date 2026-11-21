@@ -25,9 +25,29 @@ describe('HttpProviderProbe', () => {
     const seen: { url?: string; headers?: Headers } = {};
     const probe = new HttpProviderProbe(fakeFetch(200, { data: [{ id: 'a' }, { id: 'b' }] }, seen));
     const r = await probe.probe(input());
-    expect(r).toEqual({ status: 'healthy', models: ['a', 'b'] });
+    expect(r).toMatchObject({ status: 'healthy', models: ['a', 'b'] });
     expect(seen.url).toBe('https://api.example.test/v1/models');
     expect(seen.headers?.get('authorization')).toBe(`Bearer ${KEY}`);
+  });
+
+  it('keeps what the listing says about each model (OpenRouter prices and inputs)', async () => {
+    const listing = {
+      data: [
+        {
+          id: 'meta/llama:free',
+          pricing: { prompt: '0', completion: '0' },
+          architecture: { input_modalities: ['text', 'image'], output_modalities: ['text'] },
+          supported_parameters: ['tools', 'response_format'],
+        },
+      ],
+    };
+    const r = await new HttpProviderProbe(fakeFetch(200, listing)).probe(input());
+    expect(r.hints?.['meta/llama:free']).toEqual({
+      pricing: { prompt: '0', completion: '0' },
+      inputModalities: ['text', 'image'],
+      outputModalities: ['text'],
+      supportedParameters: ['tools', 'response_format'],
+    });
   });
 
   it.each([
