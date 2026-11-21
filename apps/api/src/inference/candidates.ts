@@ -1,4 +1,5 @@
 import type { Db } from '../db/pool.js';
+import { modelClass } from '../catalogue/classify.js';
 import { TtlCache } from '../util/ttl-cache.js';
 import type { SealedSecret } from '../vault/vault.js';
 import type { CooldownReason } from './cooldowns.js';
@@ -120,6 +121,18 @@ const ELIGIBILITY_RANK: Record<Eligibility, number> = {
   UNKNOWN: 9,
 };
 
+/** modelClass() per model id, remembered (model ids are few and never change meaning). */
+const classes = new Map<string, number>();
+function classOf(modelId: string): number {
+  let c = classes.get(modelId);
+  if (c === undefined) {
+    c = modelClass(modelId);
+    if (classes.size > 5000) classes.clear();
+    classes.set(modelId, c);
+  }
+  return c;
+}
+
 export interface RankInput {
   requested: string;
   need: ReadonlySet<Capability>;
@@ -130,7 +143,8 @@ export interface RankInput {
 /**
  * Deterministic gates first (model, eligibility, jurisdiction, health, cooldown, capability),
  * then rank by: health bucket → eligibility (free before paid, an admin-defined bound) →
- * precomputed expected latency → stable id. No I/O and no model calls: microseconds.
+ * model class (general, then small, then language-specific or narrow) → precomputed expected
+ * latency → stable id. No I/O and no model calls: microseconds.
  */
 /**
  * The keys a request may use. With an end user (X-ARC-User) who has registered their own keys
@@ -231,6 +245,7 @@ export function rankCandidates(
     (a, b) =>
       HEALTH_RANK[a.health] - HEALTH_RANK[b.health] ||
       ELIGIBILITY_RANK[a.eligibility] - ELIGIBILITY_RANK[b.eligibility] ||
+      classOf(a.modelId) - classOf(b.modelId) ||
       a.expectedMs - b.expectedMs ||
       a.accountId.localeCompare(b.accountId),
   );

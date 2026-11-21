@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { suggestClassification } from '../src/catalogue/classify.js';
+import { modelClass, suggestClassification } from '../src/catalogue/classify.js';
 
 describe('automatic model classification', () => {
   it('OpenRouter free models: verified free, from the listing, turned on', () => {
@@ -60,5 +60,25 @@ describe('automatic model classification', () => {
       suggestClassification('gemini', 'veo-3.0-generate-001', { methods: ['predictLongRunning'] })
         .capabilities,
     ).toEqual([]);
+  });
+
+  it('language-specific free models are classified but left off, with a note', () => {
+    const s = suggestClassification('openrouter', 'sdaia/allam-2-7b:free', {
+      pricing: { prompt: '0', completion: '0' },
+    });
+    expect(s).toMatchObject({ eligibility: 'VERIFIED_FREE', enable: false });
+    expect(s.reason).toMatch(/one language/);
+  });
+
+  it('model classes: general, small, then language-specific or narrow', () => {
+    expect(modelClass('llama-3.3-70b-versatile')).toBe(0);
+    expect(modelClass('llama-3.1-8b-instant')).toBe(0);
+    expect(modelClass('gemini-2.5-flash-lite')).toBe(0);
+    expect(modelClass('meta-llama/llama-4-scout-17b-16e-instruct')).toBe(0);
+    expect(modelClass('gemma-3-4b-it')).toBe(1);
+    expect(modelClass('qwen3-0.6b')).toBe(1);
+    expect(modelClass('gpt-4o-mini')).toBe(1);
+    expect(modelClass('allam-2-7b')).toBe(2);
+    expect(modelClass('meta-llama/llama-guard-4-12b')).toBe(2);
   });
 });
