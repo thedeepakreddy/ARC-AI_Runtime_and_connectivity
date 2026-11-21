@@ -65,13 +65,27 @@ function fromName(id: string): Capability[] | null {
   return caps;
 }
 
+/** Marker: a model that can't chat; its name decides the rest (see suggestClassification). */
+const NON_CHAT: Capability[] = [];
+const CHAT_CAPS = new Set<Capability>([
+  'text',
+  'streaming',
+  'tools',
+  'structured_output',
+  'vision',
+  'audio_input',
+  'documents',
+]);
+
 /** Capabilities from what the provider says the model accepts and produces. */
 function fromHints(h: ModelHints): Capability[] | null {
   if (h.methods?.length) {
     if (h.methods.includes('embedContent') && !h.methods.includes('generateContent')) {
       return ['embeddings'];
     }
-    if (!h.methods.includes('generateContent')) return null;
+    // Not a chat model (Imagen, Veo, TTS, Interactions-only…): only what its name says it
+    // makes, never text or tools.
+    if (!h.methods.includes('generateContent')) return NON_CHAT;
   }
   const input = h.inputModalities?.map((m) => m.toLowerCase());
   const output = h.outputModalities?.map((m) => m.toLowerCase());
@@ -111,7 +125,11 @@ export function suggestClassification(
   modelId: string,
   hints: ModelHints = {},
 ): Suggestion {
-  const capabilities = fromHints(hints) ?? fromName(modelId) ?? ['text', 'streaming'];
+  const hinted = fromHints(hints);
+  const capabilities =
+    hinted === NON_CHAT
+      ? (fromName(modelId) ?? []).filter((c) => !CHAT_CAPS.has(c))
+      : (hinted ?? fromName(modelId) ?? ['text', 'streaming']);
   const p = hints.pricing;
   const free = !!p && isZero(p.prompt) && isZero(p.completion);
   const paid = !!p && (isPositive(p.prompt) || isPositive(p.completion));

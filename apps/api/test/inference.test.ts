@@ -483,6 +483,16 @@ describe.skipIf(!TEST_DATABASE_URL)(
         expect(mock.seenAuth).toHaveLength(1);
       });
 
+      it('Gemini\'s "only supports Interactions API" moves past the model too', async () => {
+        mock.failFor = () => ({
+          status: 400,
+          message: 'This model only supports Interactions API.',
+        });
+        const res = await chat();
+        expect(res.json().error.code).toBe('model_unsupported');
+        expect(mock.seenAuth).toHaveLength(1);
+      });
+
       it('a key out of credits (402) rests and the other key answers', async () => {
         mock.failFor = ({ auth }) =>
           auth === `Bearer ${PROVIDER_KEY_A}`

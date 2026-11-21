@@ -41,4 +41,24 @@ describe('automatic model classification', () => {
     expect(flash.capabilities).toEqual(expect.arrayContaining(['text', 'vision', 'tools']));
     expect(flash.eligibility).toBe('UNKNOWN');
   });
+
+  it('Gemini models that cannot chat get no chat abilities', () => {
+    expect(
+      suggestClassification('gemini', 'antigravity-preview-09-2026', {
+        methods: ['createInteraction'],
+      }).capabilities,
+    ).toEqual([]);
+    expect(
+      suggestClassification('gemini', 'imagen-4.0-generate-001', { methods: ['predict'] })
+        .capabilities,
+    ).toEqual(['image_generation']);
+    expect(
+      suggestClassification('gemini', 'gemini-2.5-flash-preview-tts', { methods: ['countTokens'] })
+        .capabilities,
+    ).toEqual(['speech']);
+    expect(
+      suggestClassification('gemini', 'veo-3.0-generate-001', { methods: ['predictLongRunning'] })
+        .capabilities,
+    ).toEqual([]);
+  });
 });
