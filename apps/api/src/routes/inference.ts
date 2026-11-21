@@ -95,10 +95,11 @@ type FailureKind =
 /**
  * A 4xx that is about the model, not the request: another model can answer it. OpenRouter says
  * "No endpoints found that support tool use" (404) or "… is not a valid model ID" (400); other
- * providers say the model doesn't support a parameter, or was decommissioned.
+ * providers say the model doesn't support a parameter, only supports another API (Gemini's
+ * "This model only supports Interactions API"), or was decommissioned.
  */
 const MODEL_LEVEL_REJECTION =
-  /no endpoints? found|not (?:a )?(?:valid|supported) model|does(?:n't| not) support|not supported|unsupported (?:model|parameter|feature)|model[^.]{0,60}(?:not found|does not exist|not available|unavailable|deprecated|decommissioned)|decommissioned/i;
+  /no endpoints? found|not (?:a )?(?:valid|supported) model|does(?:n't| not) support|not supported|only supports|unsupported (?:model|parameter|feature)|model[^.]{0,60}(?:not found|does not exist|not available|unavailable|deprecated|decommissioned)|decommissioned/i;
 
 interface Attempt {
   candidate: Candidate;
