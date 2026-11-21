@@ -50,6 +50,43 @@ describe('HttpProviderProbe', () => {
     });
   });
 
+  it("checks a Cohere key with Cohere's model list and keeps what each model serves", async () => {
+    const seen: { url?: string; headers?: Headers } = {};
+    const listing = {
+      models: [
+        {
+          name: 'command-a-03-2025',
+          endpoints: ['generate', 'chat'],
+          features: ['tool_use', 'json_schema'],
+        },
+        { name: 'command-a-vision-07-2025', endpoints: ['chat'], features: ['vision'] },
+        { name: 'embed-v4.0', endpoints: ['embed'] },
+        { name: 'rerank-v3.5', endpoints: ['rerank'] },
+      ],
+    };
+    const r = await new HttpProviderProbe(fakeFetch(200, listing, seen)).probe(
+      input({ providerId: 'cohere', adapter: 'litellm_native', baseUrl: null }),
+    );
+    expect(seen.url).toBe('https://api.cohere.com/v1/models?page_size=1000');
+    expect(seen.headers?.get('authorization')).toBe(`Bearer ${KEY}`);
+    expect(r).toMatchObject({
+      status: 'healthy',
+      models: ['command-a-03-2025', 'command-a-vision-07-2025', 'embed-v4.0', 'rerank-v3.5'],
+    });
+    expect(r.hints?.['command-a-03-2025']).toMatchObject({
+      methods: ['generate', 'chat'],
+      supportedParameters: ['tools', 'response_format'],
+    });
+    expect(r.hints?.['command-a-vision-07-2025']?.inputModalities).toEqual(['text', 'image']);
+  });
+
+  it('a rejected Cohere key is reported as invalid', async () => {
+    const r = await new HttpProviderProbe(fakeFetch(401, {})).probe(
+      input({ providerId: 'cohere', adapter: 'litellm_native', baseUrl: null }),
+    );
+    expect(r.status).toBe('invalid_credentials');
+  });
+
   it.each([
     [401, 'invalid_credentials'],
     [403, 'invalid_credentials'],
@@ -87,7 +124,7 @@ describe('HttpProviderProbe', () => {
     const probe = new HttpProviderProbe(fakeFetch(200, {}));
     expect((await probe.probe(input({ baseUrl: null }))).status).toBe('unsupported');
     expect(
-      (await probe.probe(input({ providerId: 'cohere', adapter: 'litellm_native' }))).status,
+      (await probe.probe(input({ providerId: 'elevenlabs', adapter: 'litellm_native' }))).status,
     ).toBe('unsupported');
   });
 });

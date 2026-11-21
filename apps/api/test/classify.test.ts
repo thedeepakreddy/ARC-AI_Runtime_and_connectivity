@@ -81,4 +81,27 @@ describe('automatic model classification', () => {
     expect(modelClass('allam-2-7b')).toBe(2);
     expect(modelClass('meta-llama/llama-guard-4-12b')).toBe(2);
   });
+
+  it('Cohere: chat, vision, embeddings and rerank models from what Cohere lists', () => {
+    const chat = suggestClassification('cohere', 'command-a-03-2025', {
+      methods: ['generate', 'chat'],
+      supportedParameters: ['tools', 'response_format'],
+      inputModalities: ['text'],
+    });
+    expect(chat.capabilities.sort()).toEqual(['streaming', 'structured_output', 'text', 'tools']);
+    expect(chat).toMatchObject({ eligibility: 'UNKNOWN', enable: false });
+    expect(chat.pricingPage).toBe('https://docs.cohere.com/docs/rate-limits');
+    const vision = suggestClassification('cohere', 'command-a-vision-07-2025', {
+      methods: ['chat'],
+      supportedParameters: [],
+      inputModalities: ['text', 'image'],
+    });
+    expect(vision.capabilities).toContain('vision');
+    expect(
+      suggestClassification('cohere', 'embed-v4.0', { methods: ['embed'] }).capabilities,
+    ).toEqual(['embeddings']);
+    expect(
+      suggestClassification('cohere', 'rerank-v3.5', { methods: ['rerank'] }).capabilities,
+    ).toEqual([]);
+  });
 });

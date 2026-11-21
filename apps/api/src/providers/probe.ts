@@ -58,6 +58,7 @@ export class HttpProviderProbe implements ProviderProbe {
   async probe(input: ProbeInput): Promise<ProbeResult> {
     try {
       if (input.providerId === 'gemini') return await this.gemini(input);
+      if (input.providerId === 'cohere') return await this.cohere(input);
       if (input.adapter === 'openai_compatible') {
         if (!input.baseUrl) {
           return {
@@ -104,6 +105,55 @@ export class HttpProviderProbe implements ProviderProbe {
       };
     }
     return { status: 'healthy', models: entries.map((m) => m.id), hints };
+  }
+
+  /**
+   * Cohere's own model list: which endpoints each model serves (chat, embed, rerank) and its
+   * features (tool use, JSON output, vision). Paged.
+   */
+  private async cohere(input: ProbeInput): Promise<ProbeResult> {
+    const base = trimBase(input.baseUrl ?? 'https://api.cohere.com');
+    const hints: Record<string, ModelHints> = {};
+    const models: string[] = [];
+    let page: string | undefined;
+    for (let i = 0; i < 10 && models.length < MAX_MODELS; i++) {
+      const url = `${base}/v1/models?page_size=1000${page ? `&page_token=${encodeURIComponent(page)}` : ''}`;
+      const res = await this.fetchImpl(url, {
+        headers: { authorization: `Bearer ${input.apiKey}`, accept: 'application/json' },
+        signal: input.signal,
+      });
+      const failure = classifyHttp(res.status);
+      if (failure) {
+        await res.body?.cancel();
+        return failure;
+      }
+      const body = (await res.json()) as {
+        models?: Array<{
+          name?: unknown;
+          endpoints?: string[];
+          features?: string[];
+          supports_vision?: boolean;
+        }>;
+        next_page_token?: string;
+      };
+      for (const m of body.models ?? []) {
+        if (typeof m.name !== 'string' || models.length >= MAX_MODELS) continue;
+        const features = (m.features ?? []).map((f) => f.toLowerCase());
+        models.push(m.name);
+        hints[m.name] = {
+          methods: m.endpoints ?? null,
+          supportedParameters: [
+            ...(features.some((f) => f.includes('tool')) ? ['tools'] : []),
+            ...(features.some((f) => f.startsWith('json')) ? ['response_format'] : []),
+          ],
+          inputModalities:
+            m.supports_vision || features.includes('vision') ? ['text', 'image'] : ['text'],
+        };
+      }
+      page = body.next_page_token || undefined;
+      if (!page) break;
+    }
+    return { status: 'healthy', models, hints };
   }
 
   private async gemini(input: ProbeInput): Promise<ProbeResult> {
