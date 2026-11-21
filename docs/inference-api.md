@@ -143,6 +143,11 @@ compatible models. At most 3 attempts, never past your deadline, and only before
 been sent. A specific `<provider>/<model>` request never switches model. Errors about the request
 itself (e.g. context too long) come back immediately.
 
+- A provider saying a **model** can't serve the request (404, "No endpoints found that support
+  …", "not a valid model ID", "doesn't support …") moves on to a different model; the same model
+  isn't retried on another key. A key that is out of credits (402) rests and another key is
+  tried. A request the provider rejects for itself (other 4xx) still stops at once.
+
 ## Response headers
 
 `x-arc-route-provider`, `x-arc-route-model`, `x-arc-route-account`, `x-arc-route-alternatives`,

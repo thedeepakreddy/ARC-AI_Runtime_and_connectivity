@@ -84,7 +84,21 @@ function elapsed(req: FastifyRequest): number {
 const DEADLINE_HEADER = 'x-arc-deadline-ms';
 const EXPLAIN_HEADER = 'x-arc-explain';
 
-type FailureKind = 'auth_failed' | 'rate_limited' | 'provider_error' | 'timeout';
+type FailureKind =
+  | 'auth_failed'
+  | 'rate_limited'
+  | 'provider_error'
+  | 'timeout'
+  /** The provider says this model can't serve this request (feature unsupported, model gone). */
+  | 'model_unsupported';
+
+/**
+ * A 4xx that is about the model, not the request: another model can answer it. OpenRouter says
+ * "No endpoints found that support tool use" (404) or "… is not a valid model ID" (400); other
+ * providers say the model doesn't support a parameter, or was decommissioned.
+ */
+const MODEL_LEVEL_REJECTION =
+  /no endpoints? found|not (?:a )?(?:valid|supported) model|does(?:n't| not) support|not supported|unsupported (?:model|parameter|feature)|model[^.]{0,60}(?:not found|does not exist|not available|unavailable|deprecated|decommissioned)|decommissioned/i;
 
 interface Attempt {
   candidate: Candidate;
@@ -250,6 +264,26 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
         error: new ArcError(504, 'provider_timeout', 'The provider timed out'),
       };
     }
+    if (s === 402) {
+      // Out of credits on this key (OpenRouter and others): rest it, try another key.
+      markAccount(c, 'rate_limited', 'provider responded 402');
+      cooldowns.rateLimited(c.accountId, 600);
+      return {
+        kind: 'rate_limited',
+        error: new ArcError(429, 'provider_out_of_credits', 'The provider key is out of credits'),
+      };
+    }
+    if (s === 404 || (s >= 400 && s < 500 && MODEL_LEVEL_REJECTION.test(detail))) {
+      // About this model, not the request: another model can answer. The key stays usable.
+      return {
+        kind: 'model_unsupported',
+        error: new ArcError(
+          502,
+          'model_unsupported',
+          `${publicModelName(c)} can't serve this request: ${detail}`,
+        ),
+      };
+    }
     if (s >= 400 && s < 500) {
       // The request itself was rejected: another key would reject it too. No fallback.
       return {
@@ -297,6 +331,7 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
     rate_limited: 'rate_limited',
     provider_error: 'error',
     timeout: 'timeout',
+    model_unsupported: 'error',
   };
 
   async function execute(
@@ -367,11 +402,15 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
       overheadMs,
     };
 
-    for (const c of ranking.plan.slice(0, deps.maxAttempts)) {
+    // Models a provider said can't serve this request: skipped on every key.
+    const unsupportedModels = new Set<string>();
+    for (const c of ranking.plan) {
+      if (attempts.length >= deps.maxAttempts) break;
       const remaining = deadlineAt - performance.now();
       if (attempts.length > 0 && remaining < deps.minAttemptMs) break;
       // Policy is re-checked at every step: fallback can never widen what is allowed.
       if (!passesPolicy(c, policy) || cooldowns.get(c.accountId)) continue;
+      if (unsupportedModels.has(c.modelUuid)) continue;
 
       const apiKey = credentials.open(principal.tenantId, c.credentialId, c.sealed);
       const attemptTimeout = AbortSignal.timeout(Math.max(1, Math.floor(remaining)));
@@ -429,6 +468,7 @@ export async function inferenceRoutes(app: FastifyInstance, deps: InferenceDeps)
           throw error;
         }
         observations.record(c.accountId, c.modelUuid, OUTCOME[kind]);
+        if (kind === 'model_unsupported') unsupportedModels.add(c.modelUuid);
         attempts.push({ candidate: c, failure: kind, status: upstream.status });
         lastError = error;
         continue;

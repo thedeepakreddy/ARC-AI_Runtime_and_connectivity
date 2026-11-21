@@ -17,6 +17,9 @@ export interface MockProvider {
   streamAborted: boolean;
   /** Probability (0..1) that a request fails with 503 (to simulate a degraded provider). */
   failRate: number;
+  /** Fail selected requests: by key (Authorization header) or model, with a status and message. */
+  failFor:
+    ((r: { auth: string; model: unknown }) => { status: number; message: string } | null) | null;
   /** Delay before any response (to test deadlines). */
   responseDelayMs: number;
   /** Last JSON body (or multipart fields, plus `file` as {name, size}) received. */
@@ -44,6 +47,7 @@ export async function startMockProvider(
     responseDelayMs: 0,
     failRate: 0,
     lastBody: null,
+    failFor: null,
   };
 
   const server: Server = createServer((req, res) => {
@@ -84,6 +88,14 @@ export async function startMockProvider(
         return res.end(JSON.stringify({ text }));
       }
       const body = raw.length ? JSON.parse(raw.toString('utf8')) : {};
+      const chosen = state.failFor?.({
+        auth: String(req.headers.authorization ?? ''),
+        model: body.model,
+      });
+      if (chosen) {
+        res.writeHead(chosen.status, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ error: { message: chosen.message, code: chosen.status } }));
+      }
       state.lastBody = body;
       if (path === '/images/generations') {
         res.writeHead(200, { 'content-type': 'application/json' });

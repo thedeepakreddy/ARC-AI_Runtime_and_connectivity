@@ -217,6 +217,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       mock.chunks = 3;
       mock.chunkDelayMs = 5;
       mock.seenAuth = [];
+      mock.failFor = null;
     });
 
     describe('ARC API keys', () => {
@@ -466,6 +467,38 @@ describe.skipIf(!TEST_DATABASE_URL)(
           enabled: true,
         });
         expect((await chat()).statusCode).toBe(200);
+      });
+    });
+
+    describe('model-level rejections', () => {
+      it('moves past a model the provider says cannot serve the request, on every key', async () => {
+        mock.failFor = ({ model }) =>
+          String(model).includes('mock-chat')
+            ? { status: 404, message: 'No endpoints found that support tool use.' }
+            : null;
+        const res = await chat();
+        expect(res.statusCode).toBe(502);
+        expect(res.json().error.code).toBe('model_unsupported');
+        // The same model isn't retried on the second key: another key can't fix a model.
+        expect(mock.seenAuth).toHaveLength(1);
+      });
+
+      it('a key out of credits (402) rests and the other key answers', async () => {
+        mock.failFor = ({ auth }) =>
+          auth === `Bearer ${PROVIDER_KEY_A}`
+            ? { status: 402, message: 'Insufficient credits' }
+            : null;
+        const res = await chat();
+        expect(res.statusCode).toBe(200);
+        expect(mock.seenAuth.at(-1)).toBe(`Bearer ${PROVIDER_KEY_B}`);
+      });
+
+      it('a request the provider rejects for itself still stops at once', async () => {
+        mock.failFor = () => ({ status: 400, message: 'messages: field required' });
+        const res = await chat();
+        expect(res.statusCode).toBe(400);
+        expect(res.json().error.code).toBe('provider_rejected_request');
+        expect(mock.seenAuth).toHaveLength(1);
       });
     });
 
