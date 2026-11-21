@@ -1756,3 +1756,16 @@ table.fixed td.w {
   height: auto;
   border-radius: var(--r-sm);
 }
+
+/* A suggestion or note inside a sheet: a quiet tinted box. */
+.callout {
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--accent-weak);
+}
+.mr-auto {
+  margin-right: auto;
+}
+.mb-16 {
+  margin-bottom: 16px;
+}

@@ -100,7 +100,11 @@ be set by the platform owner.
 | DELETE | `/account/sessions/:id` | Sign out that session                                |
 | POST   | `/account/password`     | `{ currentPassword, newPassword }`; signs out others |
 
-Also: `PATCH /models/:id` accepts `termsNote` (≤ 500 chars, restricted-free terms);
+Also: `PATCH /models/:id` accepts `termsNote` (≤ 500 chars, restricted-free terms), and
+`{ useSuggestion: true }` to go back to ARC's automatic classification (any other change makes
+the model the owner's: `classifiedBy: "owner"`, never overwritten). Models carry `classifiedBy`
+(`auto` | `owner` | null) and `suggestion` (eligibility, evidence link, capabilities, reason)
+from the provider's own listing, refreshed whenever a key is validated;
 `POST /api-keys/:id/rotate` accepts `{ overlapMinutes: 0 | 60 | 1440 }` (the old key keeps working
 that long, then expires).
 

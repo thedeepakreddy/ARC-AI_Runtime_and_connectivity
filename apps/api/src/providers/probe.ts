@@ -3,6 +3,8 @@
  * Probes run on explicit validation (and later from the worker), never on the inference path.
  * Errors never include the key.
  */
+import type { ModelHints } from '../catalogue/classify.js';
+
 export type ProbeStatus =
   'healthy' | 'rate_limited' | 'invalid_credentials' | 'unreachable' | 'unsupported';
 
@@ -14,9 +16,18 @@ export interface ProbeInput {
   signal: AbortSignal;
 }
 
+interface OpenAiModelEntry {
+  id?: unknown;
+  pricing?: { prompt?: string | number | null; completion?: string | number | null };
+  architecture?: { input_modalities?: string[]; output_modalities?: string[] };
+  supported_parameters?: string[];
+}
+
 export interface ProbeResult {
   status: ProbeStatus;
   models: string[];
+  /** What the provider's listing says about each model (prices, inputs, parameters). */
+  hints?: Record<string, ModelHints>;
   error?: string;
 }
 
@@ -78,11 +89,21 @@ export class HttpProviderProbe implements ProviderProbe {
       await res.body?.cancel();
       return failure;
     }
-    const body = (await res.json()) as { data?: Array<{ id?: unknown }> };
-    const models = (body.data ?? [])
-      .map((m) => m.id)
-      .filter((id): id is string => typeof id === 'string');
-    return { status: 'healthy', models: models.slice(0, MAX_MODELS) };
+    const body = (await res.json()) as { data?: OpenAiModelEntry[] };
+    const entries = (body.data ?? [])
+      .filter((m): m is OpenAiModelEntry & { id: string } => typeof m?.id === 'string')
+      .slice(0, MAX_MODELS);
+    const hints: Record<string, ModelHints> = {};
+    for (const m of entries) {
+      // OpenRouter (and some others) publish prices and what each model accepts.
+      hints[m.id] = {
+        pricing: m.pricing ?? null,
+        inputModalities: m.architecture?.input_modalities ?? null,
+        outputModalities: m.architecture?.output_modalities ?? null,
+        supportedParameters: m.supported_parameters ?? null,
+      };
+    }
+    return { status: 'healthy', models: entries.map((m) => m.id), hints };
   }
 
   private async gemini(input: ProbeInput): Promise<ProbeResult> {
@@ -96,11 +117,21 @@ export class HttpProviderProbe implements ProviderProbe {
       await res.body?.cancel();
       return failure;
     }
-    const body = (await res.json()) as { models?: Array<{ name?: unknown }> };
-    const models = (body.models ?? [])
-      .map((m) => m.name)
-      .filter((n): n is string => typeof n === 'string')
-      .map((n) => n.replace(/^models\//, ''));
-    return { status: 'healthy', models: models.slice(0, MAX_MODELS) };
+    const body = (await res.json()) as {
+      models?: Array<{ name?: unknown; supportedGenerationMethods?: string[] }>;
+    };
+    const entries = (body.models ?? [])
+      .filter(
+        (m): m is { name: string; supportedGenerationMethods?: string[] } =>
+          typeof m.name === 'string',
+      )
+      .slice(0, MAX_MODELS);
+    const hints: Record<string, ModelHints> = {};
+    const models = entries.map((m) => {
+      const id = m.name.replace(/^models\//, '');
+      hints[id] = { methods: m.supportedGenerationMethods ?? null };
+      return id;
+    });
+    return { status: 'healthy', models, hints };
   }
 }

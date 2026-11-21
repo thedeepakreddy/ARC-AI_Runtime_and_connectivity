@@ -201,6 +201,11 @@ export function ModelsPage({ onChange }: { onChange: () => void }) {
                     <td className="muted">{names.get(m.providerId) ?? m.providerId}</td>
                     <td>
                       <Badge tone={e.tone}>{e.label}</Badge>
+                      {m.classifiedBy === 'auto' && m.eligibility !== 'UNKNOWN' && (
+                        <span className="faint text-sm ml-8" title={m.suggestion?.reason}>
+                          Auto
+                        </span>
+                      )}
                     </td>
                     <td className="hide-sm">
                       <span className="muted text-sm">
@@ -290,7 +295,17 @@ function ClassifySheet({
   const one = models.length === 1 ? models[0]! : null;
   const toast = useToast();
   const [eligibility, setEligibility] = useState<Eligibility>(one?.eligibility ?? 'VERIFIED_FREE');
-  const [evidence, setEvidence] = useState(one?.eligibilityEvidenceUrl ?? '');
+  // The evidence starts from what's known: this model's link, else the provider's pricing page.
+  const sameProvider = models.every((m) => m.providerId === models[0]?.providerId);
+  const [evidence, setEvidence] = useState(
+    one?.eligibilityEvidenceUrl ??
+      (sameProvider
+        ? (one?.suggestion?.pricingPage ?? models[0]?.suggestion?.pricingPage ?? '')
+        : ''),
+  );
+  const suggestions = models.filter((m) => m.suggestion);
+  const canUseAuto =
+    suggestions.length === models.length && models.some((m) => m.classifiedBy !== 'auto');
   const [caps, setCaps] = useState<Set<string>>(
     new Set(one?.capabilities ?? ['text', 'streaming']),
   );
@@ -306,6 +321,23 @@ function ClassifySheet({
   const evidenceChanged =
     !one || evidence !== (one.eligibilityEvidenceUrl ?? '') || eligibility !== one.eligibility;
   const valid = !needsEvidence || /^https?:\/\/\S+$/.test(evidence.trim());
+
+  async function useAuto() {
+    setBusy(true);
+    setError(null);
+    try {
+      for (const m of models) await api('PATCH', `/models/${m.id}`, { useSuggestion: true });
+      toast(
+        models.length === 1 ? 'Back to automatic' : `${models.length} models back to automatic`,
+      );
+      onDone();
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function save() {
     setBusy(true);
@@ -344,15 +376,47 @@ function ClassifySheet({
       onClose={onClose}
       footer={
         <>
+          {canUseAuto && (
+            <button className="btn mr-auto" disabled={busy} onClick={useAuto}>
+              Use automatic
+            </button>
+          )}
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" disabled={!valid || busy} onClick={save}>
+          <button
+            className="btn primary"
+            disabled={!valid || busy}
+            title={!valid ? 'Add a link to the provider’s pricing page first' : undefined}
+            onClick={save}
+          >
             {busy ? 'Saving…' : 'Save'}
           </button>
         </>
       }
     >
+      {one?.suggestion && (
+        <div className="callout mb-16">
+          <div className="fw-500">
+            ARC suggests: {ELIGIBILITY[one.suggestion.eligibility]!.label}
+            {one.suggestion.capabilities.length
+              ? ` · ${one.suggestion.capabilities.map(capLabel).join(', ')}`
+              : ''}
+          </div>
+          <div className="hint">
+            {one.suggestion.reason}{' '}
+            {one.classifiedBy === 'auto'
+              ? 'This model follows the suggestion; changing anything below makes it yours.'
+              : 'You classified this model by hand, so ARC leaves it as you set it.'}
+          </div>
+        </div>
+      )}
+      {!one && suggestions.length > 0 && (
+        <p className="hint mt-0">
+          ARC has an automatic suggestion for {suggestions.length} of these. Use automatic to apply
+          each model’s own, or set one classification for all below.
+        </p>
+      )}
       <div className="sub-head mt-0">Status</div>
       <div className="radio-list">
         {(['VERIFIED_FREE', 'RESTRICTED_FREE', 'PAID', 'UNKNOWN'] as Eligibility[]).map((e) => (
@@ -375,6 +439,11 @@ function ClassifySheet({
         <div className="mt-16">
           <Field
             label="Evidence"
+            error={
+              !valid
+                ? 'Add a link to the provider’s pricing or terms page (https://…) to save.'
+                : null
+            }
             hint={
               one?.eligibilityCheckedAt && !evidenceChanged
                 ? `Checked ${date(one.eligibilityCheckedAt)}. Change the link to record a new check.`

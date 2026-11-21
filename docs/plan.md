@@ -255,6 +255,13 @@ Frontend, with **each screen layout approved before coding**:
     (reading images). The Playground uses a pasted ARC key held in the tab only, so it goes
     through exactly the path apps use and needs no new server-side credential.
 
+15. **Automatic model classification:** when a key is validated, ARC classifies the models it
+    sees from the provider's own listing (OpenRouter's prices, inputs and parameters; Gemini's
+    methods) and the model name. A model the provider lists at no cost is Free and on; a priced
+    one is Paid and off; with no price, ARC assumes nothing (Unknown, off) but still fills in
+    what it can do. The owner can change any of it; a model changed by hand is never
+    overwritten, and "Use automatic" goes back.
+
 ## Open decisions
 
 1. Trademark/domain check for the name ARC.
