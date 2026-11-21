@@ -106,6 +106,29 @@ function fromHints(h: ModelHints): Capability[] | null {
   return [...caps];
 }
 
+/**
+ * Models made mainly for one language (ALLaM and Jais answer in Arabic, Swallow in Japanese, …)
+ * or for one narrow job (safety classifiers). Fine when chosen on purpose; not as a default.
+ */
+const LANGUAGE_SPECIFIC =
+  /allam|jais|acegpt|swallow|sea-?lion|typhoon|sabia|sarvam|krutrim|rakuten/i;
+const NARROW_JOB = /guard|moderation|safety|rerank|classifier|prompt-guard/i;
+
+/**
+ * How suitable a model is as an automatic default, best first: 0 general, 1 small (< 8B or
+ * "mini"/"nano"/"tiny"), 2 language-specific or narrow. Routing for `auto` prefers lower
+ * classes and uses speed within a class, so a tiny or specialised model never wins just by
+ * being fast. Name-based, so it is cheap enough for every request.
+ */
+export function modelClass(modelId: string): 0 | 1 | 2 {
+  const id = modelId.toLowerCase();
+  if (LANGUAGE_SPECIFIC.test(id) || NARROW_JOB.test(id)) return 2;
+  const size = /(?:^|[^a-z0-9.])(\d+(?:\.\d+)?)b(?![a-z])/i.exec(id);
+  if (size && Number(size[1]) < 8) return 1;
+  if (/\b(?:mini|nano|tiny|micro)\b|-(?:mini|nano|tiny|micro)(?:-|$)/.test(id)) return 1;
+  return 0;
+}
+
 /** Each provider's page that states its prices or free tier. */
 const PRICING_PAGES: Record<string, string> = {
   gemini: 'https://ai.google.dev/gemini-api/docs/pricing',
@@ -119,6 +142,11 @@ export const pricingPage = (providerId: string, modelId: string): string | null 
   providerId === 'openrouter'
     ? `https://openrouter.ai/${modelId}`
     : (PRICING_PAGES[providerId] ?? null);
+
+const specialisedNote = (modelId: string) =>
+  LANGUAGE_SPECIFIC.test(modelId)
+    ? ' It is made mainly for one language (e.g. ALLaM and Jais answer in Arabic), so ARC leaves it off; turn it on if you want it.'
+    : ' It is made for one narrow job (e.g. safety checks), so ARC leaves it off.';
 
 export function suggestClassification(
   providerId: string,
@@ -136,13 +164,15 @@ export function suggestClassification(
   const evidenceUrl = pricingPage(providerId, modelId);
   const page = evidenceUrl;
 
+  const specialised = LANGUAGE_SPECIFIC.test(modelId) || NARROW_JOB.test(modelId);
   if (free && evidenceUrl) {
     return {
       eligibility: 'VERIFIED_FREE',
       evidenceUrl,
       capabilities,
-      enable: capabilities.length > 0,
-      reason: `${providerId === 'openrouter' ? 'OpenRouter' : 'The provider'} lists it at no cost.`,
+      // A language-specific or narrow model stays off until the owner turns it on.
+      enable: capabilities.length > 0 && !specialised,
+      reason: `${providerId === 'openrouter' ? 'OpenRouter' : 'The provider'} lists it at no cost.${specialised ? specialisedNote(modelId) : ''}`,
       pricingPage: page,
     };
   }
@@ -152,7 +182,7 @@ export function suggestClassification(
       evidenceUrl,
       capabilities,
       enable: false,
-      reason: 'The provider lists a price per token.',
+      reason: `The provider lists a price per token.${specialised ? specialisedNote(modelId) : ''}`,
       pricingPage: page,
     };
   }
@@ -161,9 +191,11 @@ export function suggestClassification(
     evidenceUrl: null,
     capabilities,
     enable: false,
-    reason: evidenceUrl
-      ? 'Free or paid depends on your plan: check the pricing page and classify it.'
-      : 'The provider publishes no price here: check it and classify it.',
+    reason:
+      (evidenceUrl
+        ? 'Free or paid depends on your plan: check the pricing page and classify it.'
+        : 'The provider publishes no price here: check it and classify it.') +
+      (specialised ? specialisedNote(modelId) : ''),
     pricingPage: page,
   };
 }

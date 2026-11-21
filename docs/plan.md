@@ -262,6 +262,11 @@ Frontend, with **each screen layout approved before coding**:
     what it can do. The owner can change any of it; a model changed by hand is never
     overwritten, and "Use automatic" goes back.
 
+16. **What `auto` prefers:** after health and price, the model's class: general, then small
+    (< 8B, "mini"/"nano"), then language-specific (ALLaM, Jais…) or narrow (guard models); speed
+    decides within a class. Automatic classification leaves language-specific and narrow models
+    off, with a note; the owner or customer can turn them on.
+
 ## Open decisions
 
 1. Trademark/domain check for the name ARC.

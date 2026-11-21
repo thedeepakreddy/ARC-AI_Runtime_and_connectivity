@@ -89,7 +89,9 @@ the browser tab and is never saved; the requests count as that app's traffic.
 
 ## Model names
 
-- `auto` — ARC chooses an eligible model and key.
+- `auto` — ARC chooses an eligible model and key: healthy first, free before paid, then
+  general models before small ones (< 8B, "mini") and before language-specific or narrow ones
+  (e.g. ALLaM answers in Arabic; guard models only classify), then the fastest.
 - `arc/fast`, `arc/balanced`, `arc/deep` — execution modes. **All currently behave as FAST**;
   BALANCED/DEEP arrive later.
 - `<provider>/<model id>` — a specific model, e.g. `groq/llama-3.1-8b-instant`. `GET /v1/models`

@@ -370,3 +370,32 @@ describe('LiteLLMGateway', () => {
     expect(auth).toBe('Bearer sk-master');
   });
 });
+
+describe('auto prefers general models over fast specialised ones', () => {
+  it('a slower general model beats a faster Arabic or tiny one', () => {
+    const r = rankCandidates(
+      [
+        cand({ modelUuid: 'allam', modelId: 'allam-2-7b', accountId: 'a1', expectedMs: 80 }),
+        cand({ modelUuid: 'tiny', modelId: 'gemma-3-1b-it', accountId: 'a2', expectedMs: 90 }),
+        cand({
+          modelUuid: 'big',
+          modelId: 'llama-3.3-70b-versatile',
+          accountId: 'a3',
+          expectedMs: 400,
+        }),
+      ],
+      input(),
+    );
+    if (!('plan' in r)) throw new Error('expected a plan');
+    expect(r.plan.map((c) => c.modelId)).toEqual([
+      'llama-3.3-70b-versatile',
+      'gemma-3-1b-it',
+      'allam-2-7b',
+    ]);
+  });
+
+  it('a specialised model still answers when it is the only one', () => {
+    const r = rankCandidates([cand({ modelId: 'allam-2-7b' })], input());
+    expect('plan' in r && r.plan[0]!.modelId).toBe('allam-2-7b');
+  });
+});
