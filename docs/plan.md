@@ -267,6 +267,12 @@ Frontend, with **each screen layout approved before coding**:
     decides within a class. Automatic classification leaves language-specific and narrow models
     off, with a note; the owner or customer can turn them on.
 
+17. **Which keys ARC can check:** OpenAI-compatible providers (via `/models`), Gemini and
+    Cohere (each through its own model list, which also says what each model serves: Cohere's
+    chat, embed and rerank endpoints and its tool, JSON and vision features). Other native
+    providers (Deepgram, AssemblyAI, ElevenLabs, Jina, Voyage) still show "no validation
+    adapter" until each gets its own check.
+
 ## Open decisions
 
 1. Trademark/domain check for the name ARC.

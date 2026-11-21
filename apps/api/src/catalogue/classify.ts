@@ -80,12 +80,13 @@ const CHAT_CAPS = new Set<Capability>([
 /** Capabilities from what the provider says the model accepts and produces. */
 function fromHints(h: ModelHints): Capability[] | null {
   if (h.methods?.length) {
-    if (h.methods.includes('embedContent') && !h.methods.includes('generateContent')) {
-      return ['embeddings'];
-    }
-    // Not a chat model (Imagen, Veo, TTS, Interactions-only…): only what its name says it
-    // makes, never text or tools.
-    if (!h.methods.includes('generateContent')) return NON_CHAT;
+    // Gemini: generateContent / embedContent. Cohere: chat / embed (and rerank, generate…).
+    const chats = h.methods.some((m) => m === 'generateContent' || m === 'chat');
+    const embeds = h.methods.some((m) => m === 'embedContent' || m === 'embed');
+    if (embeds && !chats) return ['embeddings'];
+    // Not a chat model (Imagen, Veo, TTS, Interactions-only, rerank…): only what its name says
+    // it makes, never text or tools.
+    if (!chats) return NON_CHAT;
   }
   const input = h.inputModalities?.map((m) => m.toLowerCase());
   const output = h.outputModalities?.map((m) => m.toLowerCase());
@@ -133,6 +134,7 @@ export function modelClass(modelId: string): 0 | 1 | 2 {
 const PRICING_PAGES: Record<string, string> = {
   gemini: 'https://ai.google.dev/gemini-api/docs/pricing',
   groq: 'https://console.groq.com/docs/rate-limits',
+  cohere: 'https://docs.cohere.com/docs/rate-limits',
   mistral: 'https://mistral.ai/pricing',
   cerebras: 'https://inference-docs.cerebras.ai/support/rate-limits',
   cloudflare: 'https://developers.cloudflare.com/workers-ai/platform/pricing/',
