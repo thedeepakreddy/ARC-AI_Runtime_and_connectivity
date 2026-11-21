@@ -8,9 +8,13 @@ mkdir -p secrets
 
 # 1. Vault key file — lives outside Postgres. Back it up off-site separately from DB backups:
 #    a database backup alone cannot recover encrypted provider keys.
-docker compose run --rm --no-deps api node dist/cli/vault-keygen.js > secrets/vault-keys.json
-chmod 640 secrets/vault-keys.json   # readable by the container user (uid 1000) only
-sudo chown 1000:1000 secrets/vault-keys.json
+#    -T keeps build output out of the file (the first run also builds the image).
+docker compose run --rm --no-deps -T api node dist/cli/vault-keygen.js > secrets/vault-keys.json
+python3 -m json.tool secrets/vault-keys.json > /dev/null && echo "vault key OK"
+sudo chown 1000:1000 secrets/vault-keys.json   # readable by the container user (uid 1000) only
+sudo chmod 640 secrets/vault-keys.json
+# To make it again later, write through sudo (the file now belongs to uid 1000):
+#   docker compose run --rm --no-deps -T api node dist/cli/vault-keygen.js | sudo tee secrets/vault-keys.json > /dev/null
 
 # 2. Start the stack (the API applies migrations on start).
 docker compose up -d --build
@@ -126,7 +130,8 @@ With Gmail (free):
 
    ```bash
    read -s P && printf '%s\n' "$P" > secrets/smtp-password && unset P
-   sudo chown 65534 secrets/smtp-password && chmod 600 secrets/smtp-password  # Alertmanager runs as "nobody"
+   # Read by the API (uid 1000, account emails) and Alertmanager (group nogroup, 65534).
+   sudo chown 1000:65534 secrets/smtp-password && sudo chmod 640 secrets/smtp-password
    docker compose --profile monitoring up -d
    ```
 

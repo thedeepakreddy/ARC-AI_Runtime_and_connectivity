@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import nodemailer from 'nodemailer';
 
 /** Transactional email (password reset, email verification). Plain text; no tracking. */
@@ -10,7 +9,8 @@ export interface SmtpSettings {
   /** host:port, e.g. smtp.gmail.com:587 (465 = implicit TLS). */
   host: string;
   user: string;
-  passwordFile: string;
+  /** The SMTP password (read from its secret file by the caller). */
+  password: string;
   from: string;
   requireTls: boolean;
 }
@@ -24,7 +24,7 @@ export class SmtpMailer implements Mailer {
       port: Number(port),
       secure: port === '465',
       requireTLS: s.requireTls,
-      auth: { user: s.user, pass: readFileSync(s.passwordFile, 'utf8').trim() },
+      auth: { user: s.user, pass: s.password },
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 20_000,

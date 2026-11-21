@@ -56,23 +56,46 @@ bus.subscribe((event) => {
 cooldowns.onCooldown = (accountId, reason, seconds) =>
   bus.publish({ type: 'cooldown', accountId, reason, seconds });
 
+/**
+ * The secret file of an optional feature. Missing, unreadable or empty leaves that feature off
+ * with a warning (the file's path and error code only), instead of stopping ARC from starting.
+ */
+function optionalSecret(file: string, feature: string): string | undefined {
+  try {
+    const value = readFileSync(file, 'utf8').trim();
+    if (value) return value;
+    console.warn(JSON.stringify({ level: 'warn', msg: `${feature} is off: ${file} is empty` }));
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    console.warn(
+      JSON.stringify({ level: 'warn', msg: `${feature} is off: cannot read ${file}`, code }),
+    );
+  }
+  return undefined;
+}
+
 // Transactional email and Google sign-in: each off until fully configured.
-const mailer =
+const smtpPassword =
   config.MAIL_SMTP_HOST && config.MAIL_SMTP_USER && config.MAIL_FROM && config.PUBLIC_URL
+    ? optionalSecret(config.MAIL_SMTP_PASSWORD_FILE, 'Email (password reset, confirmation)')
+    : undefined;
+const mailer =
+  smtpPassword && config.MAIL_SMTP_HOST && config.MAIL_SMTP_USER && config.MAIL_FROM
     ? new SmtpMailer({
         host: config.MAIL_SMTP_HOST,
         user: config.MAIL_SMTP_USER,
-        passwordFile: config.MAIL_SMTP_PASSWORD_FILE,
+        password: smtpPassword,
         from: config.MAIL_FROM,
         requireTls: config.MAIL_REQUIRE_TLS,
       })
     : undefined;
-const google =
+const googleSecret =
   config.GOOGLE_CLIENT_ID && config.PUBLIC_URL
-    ? {
-        clientId: config.GOOGLE_CLIENT_ID,
-        clientSecret: readFileSync(config.GOOGLE_CLIENT_SECRET_FILE, 'utf8').trim(),
-      }
+    ? optionalSecret(config.GOOGLE_CLIENT_SECRET_FILE, 'Google sign-in')
+    : undefined;
+const google =
+  config.GOOGLE_CLIENT_ID && googleSecret
+    ? { clientId: config.GOOGLE_CLIENT_ID, clientSecret: googleSecret }
     : undefined;
 
 const ads =

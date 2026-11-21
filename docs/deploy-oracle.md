@@ -82,19 +82,37 @@ comes back on its own after a reboot.
    copy to Oracle Object Storage, create a Customer Secret Key (Profile → Customer secret keys)
    and use rclone's S3 type in `secrets/rclone.conf`:
 
-```ini
-[oci]
-type = s3
-provider = Other
-access_key_id = <customer secret key id>
-secret_access_key = <customer secret key>
-endpoint = https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
-region = <region>
-```
+   ```ini
+   [oci]
+   type = s3
+   provider = Other
+   access_key_id = <customer secret key id>
+   secret_access_key = <customer secret key>
+   endpoint = https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
+   region = <region>
+   ```
 
-with `BACKUP_RCLONE_REMOTE=oci:arc-backups` in `.env`. Copy `secrets/vault-keys.json` and
-`secrets/backup-passphrase` somewhere off the VM. 2. Run `scripts/ops/vps-verify.sh` and keep the report it writes (restore drill, RTO/RPO, load). 3. In the console, add your provider keys, classify models, and issue one ARC key per app. Set
-`ARC_BASE_URL=https://<ARC_DOMAIN>/v1` and `ARC_API_KEY` on Render for Echo and the Studio. 4. Invite customers from Console → Customers.
+   with `BACKUP_RCLONE_REMOTE=oci:arc-backups` in `.env`. Copy `secrets/vault-keys.json` and
+   `secrets/backup-passphrase` somewhere off the VM (a password manager).
+
+2. Run `scripts/ops/vps-verify.sh` and keep the report it writes (restore drill, RTO/RPO, load).
+3. In the console, add your provider keys, classify models, and issue one ARC key per app. Set
+   `ARC_BASE_URL=https://<ARC_DOMAIN>/v1` and `ARC_API_KEY` on Render for Echo and the Studio.
+4. Invite customers from Console → Customers.
+
+## If something goes wrong
+
+- **No public IP on the VM** (Public IP address "–"): VM → Networking → Attached VNICs → the
+  VNIC → IP administration → ⋮ → Edit → Reserved public IP.
+- **Caddy logs `Timeout during connect (likely firewall problem)`**: the subnet's Security List
+  has no ingress rule for TCP 80/443 (Subnet → Security → Default Security List → Add Ingress
+  Rules, source `0.0.0.0/0`). Then `docker compose restart caddy`.
+- **The API restarts with `vault key file is not valid JSON`**: the key was made without `-T`
+  and build output went into it. Make it again as in
+  [operations.md → First-time setup](operations.md#first-time-setup-pilot-server).
+- **No laptop?** Oracle's Cloud Shell (the `>_` icon in the console) works from a tablet:
+  upload the VM's private key there, then `ssh -i <key> ubuntu@<ip>`. Check the prompt says
+  `ubuntu@…` before running commands meant for the server.
 
 ## Updates
 

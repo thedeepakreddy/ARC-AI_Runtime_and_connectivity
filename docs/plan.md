@@ -177,7 +177,13 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       ([deploy-oracle.md](deploy-oracle.md); paid alternative [deploy-gcp.md](deploy-gcp.md))
 - [ ] Switch Echo and the Studio to `/v1/user-keys` for their users' own Gemini keys (in those
       repos)
-- [ ] Deploy on the Oracle Always Free VM following deploy-oracle.md (owner; needs the account and domain)
+- [x] Deploy on the Oracle Always Free VM following deploy-oracle.md: live at
+      `https://arc-ai.run.place` (Amsterdam, A1 4 OCPU / 24 GB). Fixes from the first deploy: the
+      vault-key command needs `-T`, an unreadable email or Google secret now turns that feature
+      off with a warning instead of stopping ARC, and the SMTP password file is shared with the
+      API (`1000:65534`, mode 640)
+- [ ] On the live server: nightly backups with an off-site copy, `scripts/ops/vps-verify.sh`
+      report, owner two-step sign-in, Pay-As-You-Go upgrade (stops idle reclamation)
 
 ## Phase 7 status (separately approved increments)
 
