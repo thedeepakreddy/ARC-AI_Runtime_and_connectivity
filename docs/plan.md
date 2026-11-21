@@ -234,7 +234,8 @@ Frontend, with **each screen layout approved before coding**:
    [deploy-oracle.md](deploy-oracle.md)). Google Cloud was considered: its free e2-micro (1 GB)
    can't hold the stack (~0.9–2.3 GB measured), so it stays the paid alternative
    ([deploy-gcp.md](deploy-gcp.md)).
-8. **Customer sign-up:** invitation-only by default, `SIGNUP_MODE=open` to allow anyone;
+8. **Customer sign-up:** invitation-only by default, `SIGNUP_MODE=open` to allow anyone (email
+   and password, or Google; a personal workspace when no team name is given);
    invitations are links you send yourself until ARC has transactional email.
 9. **Design system:** one package (`@arc/ui`) and one [DESIGN.md](../DESIGN.md) for the console
    and the dashboard.
