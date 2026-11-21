@@ -131,19 +131,22 @@ describe.skipIf(!TEST_DATABASE_URL)('customers: sign-up, invitations, team, usag
     expect(me.json().tenants).toMatchObject([
       { kind: 'organization', name: 'Open Co', role: 'owner' },
     ]);
-    // Weak passwords and missing organization names are refused.
+    // Weak passwords are refused.
     const weak = await openApp.inject({
       method: 'POST',
       url: '/admin/v1/auth/signup',
       payload: { email: 'weak@example.test', password: 'short', organization: 'W' },
     });
     expect(weak.statusCode).toBe(400);
+    // Without a name, the new person gets their own workspace, named after them.
     const noOrg = await openApp.inject({
       method: 'POST',
       url: '/admin/v1/auth/signup',
-      payload: { email: 'noorg@example.test', password: PASSWORD },
+      payload: { email: 'sam.lee+arc@example.test', password: PASSWORD },
     });
-    expect(noOrg.statusCode).toBe(400);
+    expect(noOrg.statusCode).toBe(201);
+    const sam = await as(cookieOf(noOrg), () => openApp)('GET', '/auth/me');
+    expect(sam.json().tenants).toMatchObject([{ name: "Sam's workspace", role: 'owner' }]);
   });
 
   it('owner invitations: preview, email must match, one use only, never stored in clear', async () => {

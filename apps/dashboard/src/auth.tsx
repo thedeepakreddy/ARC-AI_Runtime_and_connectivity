@@ -44,7 +44,7 @@ export function SignIn({
         <p className="foot">
           {mode === 'open' ? (
             <>
-              New to ARC? <Link to="/signup">Create an organization</Link>
+              New to ARC? <Link to="/signup">Create an account</Link>
             </>
           ) : (
             'New here? Ask your organization for an invitation link.'
@@ -56,14 +56,14 @@ export function SignIn({
 }
 
 export function SignUp({ onDone }: { onDone: () => void }) {
-  const mode = useSignupMode();
+  const config = useAuthConfig();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [organization, setOrganization] = useState('');
+  const [workspace, setWorkspace] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  if (mode === null) return null;
-  if (mode !== 'open') {
+  if (config === null) return null;
+  if (config.signup !== 'open') {
     return (
       <AuthScreen title="Sign-up is by invitation">
         <p className="lead">
@@ -81,7 +81,11 @@ export function SignUp({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api('POST', '/auth/signup', { email, password, organization: organization.trim() });
+      await api('POST', '/auth/signup', {
+        email,
+        password,
+        ...(workspace.trim() ? { organization: workspace.trim() } : {}),
+      });
       onDone();
     } catch (err) {
       setError(authMessage(err));
@@ -89,36 +93,49 @@ export function SignUp({ onDone }: { onDone: () => void }) {
     }
   }
   return (
-    <AuthScreen title="Create your organization" onSubmit={submit}>
-      <AuthInput
-        id="org"
-        label="Organization name"
-        autoComplete="organization"
-        value={organization}
-        onChange={(e) => setOrganization(e.target.value)}
-        required
-        maxLength={200}
-        autoFocus
-      />
+    <AuthScreen title="Create your account" onSubmit={submit}>
+      {config.google && (
+        <>
+          <GoogleButton
+            app="dashboard"
+            {...(workspace.trim() ? { extra: { organization: workspace.trim() } } : {})}
+          />
+          <div className="or" aria-hidden="true">
+            or
+          </div>
+        </>
+      )}
       <AuthInput
         id="email"
-        label="Work email"
+        label="Email"
         type="email"
         autoComplete="username"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
+        autoFocus
       />
       <PasswordInput value={password} onChange={setPassword} />
+      <AuthInput
+        id="workspace"
+        label="Team or project name (optional)"
+        autoComplete="organization"
+        value={workspace}
+        onChange={(e) => setWorkspace(e.target.value)}
+        maxLength={200}
+      />
       {error && (
         <p className="error-text m-0 mb-12" role="alert">
           {error}
         </p>
       )}
       <button className="btn primary" disabled={busy || password.length < PASSWORD_MIN}>
-        {busy ? 'Creating…' : 'Create organization'}
+        {busy ? 'Creating…' : 'Create account'}
       </button>
       <p className="foot">
+        Your apps and keys live in your own workspace. Invite teammates any time.
+      </p>
+      <p className="foot mt-8">
         Already have an account? <Link to="/">Sign in</Link>
       </p>
     </AuthScreen>

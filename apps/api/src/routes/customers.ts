@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { defaultWorkspaceName } from '../auth/workspace.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { recordAudit } from '../audit.js';
@@ -162,9 +163,8 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
       );
     }
     const joinsExisting = invitation?.tenant_id ?? null;
-    if (!joinsExisting && !body.organization) {
-      throw new ArcError(400, 'validation_error', 'Name your organization.');
-    }
+    // Without a name, a new person gets their own workspace named after them (renamable).
+    const newOrganization = body.organization || defaultWorkspaceName(body.email);
 
     const passwordHash = await hashPassword(body.password);
     let userId: string;
@@ -184,7 +184,7 @@ export async function customerRoutes(app: FastifyInstance, deps: AdminDeps): Pro
         if (!tenantId) {
           const t = await tx.query<{ id: string }>(
             "INSERT INTO tenants (kind, name) VALUES ('organization', $1) RETURNING id",
-            [body.organization],
+            [newOrganization],
           );
           tenantId = t.rows[0]!.id;
           memberRole = 'owner';

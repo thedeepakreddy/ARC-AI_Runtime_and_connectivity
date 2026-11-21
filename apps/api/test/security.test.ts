@@ -412,15 +412,12 @@ describe.skipIf(!TEST_DATABASE_URL)('account security (PostgreSQL)', () => {
         email: 'ada@example.test',
       });
       google.state.profile = { sub: 'g-ada', email: 'ada@example.test', email_verified: true };
-      const needsOrg = await callback(await start({ inviteToken: inv.json().token }));
-      expect(needsOrg.headers.location).toContain('google=needs-organization');
-      const r = await callback(
-        await start({ inviteToken: inv.json().token, organization: 'Ada Co' }),
-      );
+      // No name given: a workspace named after the person.
+      const r = await callback(await start({ inviteToken: inv.json().token }));
       expect(r.headers.location).toBe(`${PUBLIC}/dashboard/#google=ok`);
       const me = (await call(cookieOf(r))('GET', '/auth/me')).json();
       expect(me.user).toMatchObject({ email: 'ada@example.test', emailVerified: true });
-      expect(me.tenants).toMatchObject([{ name: 'Ada Co', role: 'owner' }]);
+      expect(me.tenants).toMatchObject([{ name: "Ada's workspace", role: 'owner' }]);
     });
 
     it('still asks for the second step when two-step sign-in is on', async () => {

@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { defaultWorkspaceName } from '../auth/workspace.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { recordAudit } from '../audit.js';
@@ -428,7 +429,7 @@ export async function securityRoutes(app: FastifyInstance, deps: AdminDeps): Pro
       }
 
       if (!userId) {
-        // New people need an invitation for this email (or open sign-up with an organization).
+        // New people need an invitation for this email, or open sign-up.
         const inviteHash =
           typeof st.data.inviteHash === 'string' ? Buffer.from(st.data.inviteHash, 'hex') : null;
         const inv = inviteHash
@@ -443,7 +444,6 @@ export async function securityRoutes(app: FastifyInstance, deps: AdminDeps): Pro
         const organization = typeof st.data.organization === 'string' ? st.data.organization : null;
         if (inv && inv.email.toLowerCase() !== email) return back('google=wrong-account');
         if (!inv && deps.signupMode !== 'open') return back('google=no-account');
-        if ((!inv || !inv.tenant_id) && !organization) return back('google=needs-organization');
         userId = await withTransaction(db, async (tx) => {
           // No usable password: they can set one later with "forgot password".
           const u = await tx.query<{ id: string }>(
@@ -457,7 +457,7 @@ export async function securityRoutes(app: FastifyInstance, deps: AdminDeps): Pro
           if (!tenantId) {
             const t = await tx.query<{ id: string }>(
               "INSERT INTO tenants (kind, name) VALUES ('organization', $1) RETURNING id",
-              [organization],
+              [organization ?? defaultWorkspaceName(email)],
             );
             tenantId = t.rows[0]!.id;
             role = 'owner';

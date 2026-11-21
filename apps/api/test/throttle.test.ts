@@ -38,9 +38,12 @@ describe.skipIf(!TEST_REDIS_URL)('sign-in throttles shared through Redis', () =>
   });
 
   it('two API instances share one count, and keys are hashed', async () => {
+    // Both connections ready first: a hit that times out falls back to the per-instance count
+    // by design, which would make the shared count look wrong on a busy CI runner.
+    await Promise.all([a.ping(), b.ping()]);
     const name = `test-${Date.now()}`;
-    const one = redisThrottle(a, 500)(name, 3, 60_000);
-    const two = redisThrottle(b, 500)(name, 3, 60_000);
+    const one = redisThrottle(a, 5000)(name, 3, 60_000);
+    const two = redisThrottle(b, 5000)(name, 3, 60_000);
     expect(await one.hit('person@example.test')).toBe(true);
     expect(await two.hit('person@example.test')).toBe(true);
     expect(await one.hit('person@example.test')).toBe(true);

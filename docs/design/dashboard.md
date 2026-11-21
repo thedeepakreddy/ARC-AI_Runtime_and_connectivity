@@ -14,7 +14,7 @@ keys · calm, precise, the same "mission control at night" as the console, with 
 | Screen        | Route             | Purpose                                                                                                    | Who can act                        |
 | ------------- | ----------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | Sign in       | `/` (signed out)  | Email + password over the space art                                                                        | Everyone                           |
-| Sign up       | `/signup`         | Only when `SIGNUP_MODE=open`; otherwise explains invitations                                               | —                                  |
+| Sign up       | `/signup`         | "Create your account": Google, or email + password; team name optional. Only when `SIGNUP_MODE=open`       | —                                  |
 | Invitation    | `/invite#<token>` | Sign up (new user), sign in then accept (existing user), or explain a wrong/expired link                   | Invitee                            |
 | Overview      | `/`               | Get started (4 steps, hidden when done), keys that need attention, usage                                   | Steps' actions: admins             |
 | Apps          | `/apps`           | Apps with 24 h requests and error rate; create an app                                                      | Admins create                      |
@@ -57,6 +57,13 @@ Verb-first actions ("Create link", "Issue key", "Revoke key"), errors that say w
 invitation has expired or was used. Ask whoever invited you for a new link."), confirmations
 named after the action ("Leave Northwind Analytics?"), and one term per thing: **ARC key** (what
 apps send to ARC), **provider key** (the organization's own Gemini/Groq/… key).
+
+## Sign-up without naming an organization
+
+Every customer's apps, keys and usage belong to an organization, so teams can share them. A
+person signing up alone shouldn't have to invent one: the team name is optional, and without it
+ARC creates "<Name>'s workspace" (from the email, renamable in Settings). Google sign-up works the
+same way.
 
 ## Since
 
