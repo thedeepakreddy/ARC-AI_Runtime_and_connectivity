@@ -26,7 +26,9 @@ export function parseKeyRing(json: string): KeyRing {
   try {
     raw = JSON.parse(json);
   } catch {
-    throw new VaultError('vault key file is not valid JSON');
+    throw new VaultError(
+      'vault key file is not valid JSON (make it with `docker compose run --rm --no-deps -T api node dist/cli/vault-keygen.js`: without -T, other output can end up in the file)',
+    );
   }
   const parsed = keyFileSchema.safeParse(raw);
   if (!parsed.success) throw new VaultError('vault key file has an invalid shape');

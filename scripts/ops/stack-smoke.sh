@@ -83,7 +83,7 @@ compose run --rm --no-deps -T api node dist/cli/vault-keygen.js > "$WORK/secrets
 printf 'smoke-smtp-password\n' > "$WORK/secrets/smtp-password"
 if [ "$(id -u)" = "0" ]; then
   chown 1000:1000 "$WORK/secrets/vault-keys.json" && chmod 640 "$WORK/secrets/vault-keys.json"
-  chown 65534 "$WORK/secrets/smtp-password" && chmod 600 "$WORK/secrets/smtp-password"
+  chown 1000:65534 "$WORK/secrets/smtp-password" && chmod 640 "$WORK/secrets/smtp-password"
 else
   chmod 644 "$WORK/secrets/vault-keys.json" "$WORK/secrets/smtp-password"
 fi
