@@ -41,6 +41,8 @@ export interface Sky {
   failStation(): void;
   /** Warp out (Try now). */
   warp(): void;
+  /** Undo the warp (the page came back, e.g. from the back/forward cache). */
+  unwarp(): void;
   skipIntro(): void;
   resize(): void;
   dispose(): void;
@@ -1276,6 +1278,22 @@ export function createSky(
     for (let k = 0; k < 90; k++) step(performance.now() + k * 16);
   } else raf = requestAnimationFrame(step);
 
+  // Warping out (Try now) and back (a page restored from the back/forward cache), from wherever
+  // the warp is now; a newer ramp replaces an older one.
+  let warpRun = 0;
+  function rampWarp(to: number, ms: number) {
+    const run = ++warpRun,
+      from = warpOut,
+      t0 = performance.now();
+    const tick = () => {
+      if (run !== warpRun) return;
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      warpOut = from + (to - from) * smooth(k);
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
   return {
     setShot(v) {
       shot = Math.max(0, Math.min(SHOTS.length - 1, v));
@@ -1298,12 +1316,10 @@ export function createSky(
       setFlow(stage);
     },
     warp() {
-      const t0 = performance.now();
-      const tick = () => {
-        warpOut = Math.min(1, (performance.now() - t0) / 700);
-        if (warpOut < 1) requestAnimationFrame(tick);
-      };
-      tick();
+      rampWarp(1, 700);
+    },
+    unwarp() {
+      rampWarp(0, 900);
     },
     skipIntro() {
       if (introOn) introClock = performance.now() - 4300;
