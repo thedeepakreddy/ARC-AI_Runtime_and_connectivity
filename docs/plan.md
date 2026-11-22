@@ -219,6 +219,11 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       Then speed and an explainer: 2K maps first (preloaded with the page), the opening holds until
       the Earth is ready, a fade-in instead of a black disc, 4K afterwards on desktops, the sky's
       files cached for a day; a "The sky, explained" section with the real numbers behind each effect.
+- [x] New type for the whole app (site, dashboard, console), at the owner's request for a richer,
+      rarer face: Instrument Serif for large titles, figures and the sign-in title (one weight,
+      never synthesised bold; italic as the accent), Geist for text and controls, Geist Mono for
+      keys. Replaces Mona Sans, Hubot Sans and Martian Mono; all OFL and self-hosted. DESIGN.md
+      updated. Also fixed: wrapped headline lines no longer start indented.
 
 ## Phase 6 scope: dashboards and users' own keys
 

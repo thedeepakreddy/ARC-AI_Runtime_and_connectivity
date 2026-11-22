@@ -1,5 +1,5 @@
 import { Wordmark } from '@arc/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Flow } from './Flow';
 import { markOpeningSeen } from './opening';
 import type { Sky } from './scene';
@@ -131,9 +131,13 @@ function Words({ text }: { text: string }) {
   return (
     <span aria-label={text}>
       {text.split(' ').map((w, i) => (
-        <span key={i} className="wmask" aria-hidden="true">
-          <span className="w">{w}</span>
-        </span>
+        // A real space between words (not a margin), so a wrapped line doesn't start indented.
+        <Fragment key={i}>
+          {i > 0 && ' '}
+          <span className="wmask" aria-hidden="true">
+            <span className="w">{w}</span>
+          </span>
+        </Fragment>
       ))}
     </span>
   );

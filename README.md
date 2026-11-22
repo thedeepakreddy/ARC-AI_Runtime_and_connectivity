@@ -187,6 +187,8 @@ pools free tiers like nothing else, and stays in your infrastructure.
   console's own style. The sky acts it out: routes reach out to every candidate station, the
   gates cut theirs in red, the ranked routes brighten, the request travels the best one, that
   station rests and the request falls back to the next, and the record ring pulses.
+- **Type:** Instrument Serif for headlines and figures, Geist for text and controls, Geist Mono
+  for keys (self-hosted, SIL OFL), shared by the site, the dashboard and the console.
 - **Try now** leads to the customer dashboard's sign-in: the page warps out while the sign-in
   loads. Coming back (Back, or a swipe) shows the page as it was, without the warp, and the
   opening plays once per visit, not again on return. Reduced motion shows a still frame.
