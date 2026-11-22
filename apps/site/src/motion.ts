@@ -27,6 +27,39 @@ export function initMotion(sky: Sky | null): () => void {
       },
     });
 
+    // How ARC works: pinned while the scroll walks the seven stages (wide screens). Created before
+    // every trigger below it on the page, so their positions include the pin's added scroll.
+    const mm = gsap.matchMedia();
+    mm.add('(min-width: 961px)', () => {
+      const sec = document.querySelector<HTMLElement>('[data-flow]');
+      if (!sec) return;
+      let last = -1;
+      ScrollTrigger.create({
+        trigger: sec,
+        start: 'top top',
+        end: '+=3600',
+        pin: true,
+        pinSpacing: true,
+        anticipatePin: 1,
+        // Leaving the walkthrough clears its beams from the sky.
+        onLeave: () => sky?.flowStage(-1),
+        onLeaveBack: () => sky?.flowStage(-1),
+        onEnter: () => {
+          last = -1;
+        },
+        onEnterBack: () => {
+          last = -1;
+        },
+        onUpdate: (s) => {
+          const stage = Math.min(6, Math.floor(s.progress * 7));
+          if (stage !== last) {
+            last = stage;
+            window.dispatchEvent(new CustomEvent(FLOW_EVENT, { detail: stage }));
+          }
+        },
+      });
+    });
+
     // The sky's camera flies one continuous path: as each section comes up the screen, the shot
     // moves from the previous section's to its own, scrubbed by the scroll.
     let prev = 0;
@@ -209,38 +242,6 @@ export function initMotion(sky: Sky | null): () => void {
       };
       gsap.ticker.add(tick);
       ticks.push(tick);
-    });
-
-    // How ARC works: pinned while the scroll walks the seven stages (wide screens).
-    const mm = gsap.matchMedia();
-    mm.add('(min-width: 961px)', () => {
-      const sec = document.querySelector<HTMLElement>('[data-flow]');
-      if (!sec) return;
-      let last = -1;
-      ScrollTrigger.create({
-        trigger: sec,
-        start: 'top top',
-        end: '+=3600',
-        pin: true,
-        pinSpacing: true,
-        anticipatePin: 1,
-        // Leaving the walkthrough clears its beams from the sky.
-        onLeave: () => sky?.flowStage(-1),
-        onLeaveBack: () => sky?.flowStage(-1),
-        onEnter: () => {
-          last = -1;
-        },
-        onEnterBack: () => {
-          last = -1;
-        },
-        onUpdate: (s) => {
-          const stage = Math.min(6, Math.floor(s.progress * 7));
-          if (stage !== last) {
-            last = stage;
-            window.dispatchEvent(new CustomEvent(FLOW_EVENT, { detail: stage }));
-          }
-        },
-      });
     });
   });
   const t = setTimeout(() => ScrollTrigger.refresh(), 500);

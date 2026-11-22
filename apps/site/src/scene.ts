@@ -508,7 +508,7 @@ export function createSky(
     mid.y += 3.2 + i * 0.12;
     const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
     // A thin glowing tube (its uv.x runs along the route), so the beam has real width and depth.
-    const g = new THREE.TubeGeometry(curve, BEAM_SEG * 2, 0.035, 6, false);
+    const g = new THREE.TubeGeometry(curve, BEAM_SEG * 2, 0.055, 8, false);
     const line = new THREE.Mesh(g, beamMat(i));
     line.frustumCulled = false;
     scene.add(line);
