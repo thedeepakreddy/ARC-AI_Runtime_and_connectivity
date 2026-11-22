@@ -12,6 +12,8 @@ secrets/
 
 # Local backups and ops reports (scripts/ops/vps-verify.sh)
 backups/
+# The version deploy.sh last rolled out (scripts/ops/deploy.sh)
+.deploy/
 ops-reports/
 *.whl
 *.rdb
