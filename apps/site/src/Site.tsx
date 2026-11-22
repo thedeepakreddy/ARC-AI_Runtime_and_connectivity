@@ -1,6 +1,7 @@
 import { Wordmark } from '@arc/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Flow } from './Flow';
+import { markOpeningSeen } from './opening';
 import type { Sky } from './scene';
 
 // The ARC website: the opening (a load page drawn in the sky), then one long page that
@@ -147,7 +148,8 @@ const Arrow = () => (
 export function Site() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const sky = useRef<Sky | null>(null);
-  const [intro, setIntro] = useState(!still());
+  // main.tsx decides (before the first render) whether the opening plays.
+  const [intro, setIntro] = useState(() => document.documentElement.classList.contains('intro-on'));
   const [tab, setTab] = useState<keyof typeof CODE>('curl');
 
   // The sky and the page's motion load on their own (three.js and GSAP).
@@ -161,11 +163,12 @@ export function Site() {
       .then(([{ createSky, skyTier }, { initMotion }]) => {
         if (cancelled) return;
         const calm = still();
+        const opening = document.documentElement.classList.contains('intro-on');
         let s: Sky | null = null;
         try {
           s = createSky(cv, {
             tier: skyTier(),
-            intro: !calm,
+            intro: !calm && opening,
             still: calm,
             onIntroDone: () => setIntro(false),
           });
@@ -215,7 +218,10 @@ export function Site() {
   useEffect(() => {
     document.documentElement.classList.toggle('intro-on', intro);
     document.body.style.overflow = intro ? 'hidden' : '';
-    if (!intro) return;
+    if (!intro) {
+      markOpeningSeen();
+      return;
+    }
     const skip = () => sky.current?.skipIntro();
     window.addEventListener('keydown', skip);
     window.addEventListener('wheel', skip, { passive: true });
@@ -227,14 +233,42 @@ export function Site() {
     };
   }, [intro]);
 
-  // Try now: a warp out of the page, then the sign-in.
-  const tryNow = useCallback((e: React.MouseEvent) => {
-    if (still() || e.metaKey || e.ctrlKey) return;
-    e.preventDefault();
-    sky.current?.warp();
-    document.documentElement.classList.add('warping');
-    setTimeout(() => window.location.assign('/dashboard/'), 650);
+  // Try now: a warp out of the page while the sign-in loads. The browser keeps showing the warp
+  // until the next page is ready, so the load starts early rather than after the animation.
+  const leaving = useRef(false);
+  const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const restore = useCallback(() => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    leaving.current = false;
+    document.documentElement.classList.remove('warping');
+    sky.current?.unwarp();
   }, []);
+  const tryNow = useCallback(
+    (e: React.MouseEvent) => {
+      if (still() || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      e.preventDefault();
+      if (leaving.current) return;
+      leaving.current = true;
+      sky.current?.warp();
+      document.documentElement.classList.add('warping');
+      timers.current = [
+        setTimeout(() => window.location.assign('/dashboard/'), 380),
+        // Still here long after (offline, or the load was stopped)? Bring the page back.
+        setTimeout(restore, 8000),
+      ];
+    },
+    [restore],
+  );
+  // Coming back (Back button or swipe) can restore this page exactly as it was left: mid-warp,
+  // zoomed in, faded out. Undo that.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted || leaving.current) restore();
+    };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
+  }, [restore]);
   const flowStage = useCallback((n: number) => sky.current?.flowStage(n), []);
   const go = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: still() ? 'auto' : 'smooth' });
@@ -831,7 +865,12 @@ export function Site() {
                 >
                   Solar System Scope
                 </a>{' '}
-                (CC BY 4.0), from NASA data.
+                (CC BY 4.0), from NASA data. Stars and Milky Way: Hipparcos (ESA) and the Milky Way
+                Outline Catalog, via{' '}
+                <a href="https://github.com/ofrohn/d3-celestial" target="_blank" rel="noreferrer">
+                  d3-celestial
+                </a>
+                .
               </p>
             </div>
             <div>

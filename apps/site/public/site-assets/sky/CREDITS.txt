@@ -1,0 +1,9 @@
+The night sky on the ARC website is built from real catalogues by apps/site/scripts/build-sky.py:
+
+- Star positions, magnitudes and colours (stars.bin): XHIP, an extended Hipparcos compilation
+  (Anderson & Francis 2012, VizieR V/137D), from ESA's Hipparcos mission.
+- The Milky Way's shape (milkyway_4096.jpg): the Milky Way Outline Catalog by Jose R. Vieira, in
+  five brightness steps. Its fine grain and dust lanes are generated; its outline is the catalogue's.
+
+Both datasets as packaged in d3-celestial by Olaf Frohn (BSD-3-Clause):
+https://github.com/ofrohn/d3-celestial

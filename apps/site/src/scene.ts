@@ -3,20 +3,27 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { buildStation, buildTrain } from './orbiters';
 
-// The website's sky: ARC's routing drawn as orbital mechanics.
+// The website's sky: ARC's routing drawn as orbital mechanics, over a real sky.
 //
-// · Earth's limb sits low in the frame and catches the sunrise in horizon blue, as on the icon.
+// · Earth from real 4K maps, lit by a sun far away: a sunlit crescent that reddens at the
+//   terminator, ocean glints, cloud shadows, city lights on the night side, and an atmosphere that
+//   blazes into an arc of light around the limb when you look towards the sun.
+// · Behind it, the real night sky at infinity: the catalogue's stars at their true positions,
+//   brightness and colour, and the Milky Way (its core rising behind the planet), both built from
+//   real catalogues by scripts/build-sky.py.
+// · In orbit, a space station (its solar wings turning to the sun) and a train of broadband
+//   satellites that glint in sunlight and go dark in Earth's shadow.
 // · Provider stations ride an orbit above it; your apps launch requests from the left.
 // · Each request is a comet: gravity bends it around the planet while it steers for the
 //   station ARC chose. When a station rate-limits (it turns amber and rests), the comets bound
 //   for it re-route mid-flight to the next healthy one: fallback, made visible.
-// · Stars are short streaks that stretch into a warp when you scroll fast; the pointer is a
-//   gravity well that bends every comet's path; a click is a solar flare that scatters them,
-//   and they find their routes again.
+// · Nearby motes stretch into a warp when you scroll fast; the pointer is a gravity well that
+//   bends every comet's path; a click is a solar flare that scatters them.
 // · The opening (the load page): out of a warp, the limb ignites from the centre outward, the
 //   sun crests, the stations light one by one and the first requests fly.
-// The camera moves between shots set by the page (setShot), easing with a little lag.
+// The camera flies between shots set by the page (setShot), easing with a little lag.
 
 export interface Sky {
   /**
@@ -34,6 +41,8 @@ export interface Sky {
   failStation(): void;
   /** Warp out (Try now). */
   warp(): void;
+  /** Undo the warp (the page came back, e.g. from the back/forward cache). */
+  unwarp(): void;
   skipIntro(): void;
   resize(): void;
   dispose(): void;
@@ -75,76 +84,155 @@ void main(){
   vW = (modelMatrix * vec4(position, 1.0)).xyz;
   gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0);
 }`;
-// Earth from orbit at sunrise, from real 4K maps (Solar System Scope, CC BY 4.0, from NASA
-// imagery): the day side lit by the sun just behind the planet, the night side with its city
-// lights, ocean glints from the roughness map, bump shading, and the atmosphere's blue fresnel.
-// The intro reveals the limb from the centre outward (uReveal) and lets the lights come up.
+// Earth from real 4K maps (Solar System Scope, CC BY 4.0, from NASA imagery), lit by a sun far
+// away: the day side in sunlight that reddens through the long air path near the terminator,
+// ocean glints, clouds that cast shadows, city lights on the night side under those clouds, and
+// the atmosphere thickening into a blue haze towards the limb. The intro reveals the limb from
+// the centre outward (uReveal) and lets the lights come up (uLights).
 const PLANET_FRAG = /* glsl */ `
 uniform sampler2D tDay, tNight, tBRC;
-uniform vec3 uBlue, uRim, uSunDir; uniform float uReveal, uSun, uLights, uDim;
+uniform vec3 uBlue, uSunDir, uAxis; uniform float uReveal, uLights, uCloudU;
 varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
   vec3 n = normalize(vNw);
   vec3 v = normalize(cameraPosition - vW);
+  vec3 L = uSunDir;
   vec3 brc = texture2D(tBRC, vUv).rgb;
-  // A little relief from the bump channel.
+  // Relief from the bump channel, along the planet's own east and north.
   vec2 px = vec2(1.0 / 4096.0, 1.0 / 2048.0);
   float bx = texture2D(tBRC, vUv + vec2(px.x, 0.0)).r - brc.r;
   float by = texture2D(tBRC, vUv + vec2(0.0, px.y)).r - brc.r;
-  vec3 t = normalize(cross(vec3(0.0, 1.0, 0.0), n) + 1e-4);
-  vec3 b = cross(n, t);
-  vec3 nb = normalize(n - (t * bx + b * by) * 2.5);
-  float ndl = dot(nb, uSunDir);
-  float day = smoothstep(-0.12, 0.32, ndl);
-  vec3 dayCol = texture2D(tDay, vUv).rgb;
-  vec3 night = texture2D(tNight, vUv).rgb;
-  // Ocean glint where the surface is smooth.
-  vec3 h = normalize(uSunDir + v);
-  float spec = pow(max(dot(n, h), 0.0), 48.0) * (1.0 - brc.g) * day;
-  float fres = pow(1.0 - max(dot(n, v), 0.0), 2.6);
+  vec3 east = normalize(cross(uAxis, n) + 1e-4);
+  vec3 north = cross(n, east);
+  vec3 nb = normalize(n - (east * bx + north * by) * 3.0);
+  float mu = dot(n, L);
+  float day = smoothstep(-0.05, 0.22, dot(nb, L));
+  vec3 sunCol = mix(vec3(1.0, 0.4, 0.14), vec3(1.0, 0.97, 0.93), smoothstep(-0.02, 0.14, mu));
+  float ocean = 1.0 - brc.g;
+  vec3 albedo = texture2D(tDay, vUv).rgb;
+  albedo = mix(albedo, albedo * vec3(0.7, 0.84, 1.0), ocean * 0.45);
+  vec2 cuv = vUv - vec2(uCloudU, 0.0);
+  float cloud = smoothstep(0.18, 0.9, texture2D(tBRC, cuv).b);
+  float shade = smoothstep(0.18, 0.9, texture2D(tBRC, cuv + vec2(dot(L, east), dot(L, north)) * 0.004).b);
+  vec3 col = albedo * sunCol * day * (1.0 - shade * 0.5) * 1.3;
+  // The sun's reflection on the sea: a sharp glint and a broad sheen.
+  float nh = max(dot(n, normalize(L + v)), 0.0);
+  col += sunCol * (pow(nh, 300.0) * 4.0 + pow(nh, 24.0) * 0.16) * ocean * day * (1.0 - cloud);
+  // City lights, only where it is night, dimmed under cloud.
+  float night = 1.0 - smoothstep(-0.16, 0.05, mu);
+  vec3 lights = pow(texture2D(tNight, vUv).rgb, vec3(1.3)) * vec3(1.0, 0.76, 0.46);
+  lights *= night * (1.0 - cloud * 0.75) * 1.9 * uLights;
+  // Looking through more air towards the limb: blue haze where the air is sunlit.
+  float path = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+  float air = smoothstep(-0.22, 0.35, mu);
+  vec3 sky = uBlue * 1.15 + vec3(0.04, 0.07, 0.11);
+  col = mix(col, sky * air, path * 0.7 * air) + sky * path * air * 0.3;
+  // Twilight: the band along the terminator glows orange.
+  float twi = exp(-pow((mu - 0.03) / 0.07, 2.0));
+  col += vec3(1.0, 0.42, 0.16) * twi * (0.015 + path * 0.35) * day;
   float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
   float reveal = smoothstep(uReveal, uReveal - 0.35, side);
-  float sunGlow = exp(-side * side * 8.0) * uSun;
-  vec3 col = dayCol * day * 1.15 * reveal;
-  col += night * vec3(1.0, 0.82, 0.55) * (1.0 - day) * 1.6 * uLights * (1.0 - brc.b * 0.85);
-  col += vec3(0.75, 0.85, 1.0) * spec * 0.9 * reveal;
-  // Atmosphere: blue at the limb, brightest towards the sun; a soft haze on the night side.
-  float lit = smoothstep(-0.35, 0.55, dot(n, uSunDir));
-  col = mix(col, uBlue * (0.35 + lit * 1.4), fres * (0.35 + lit * 0.5) * reveal);
-  col += mix(uBlue, uRim, sunGlow) * pow(fres, 2.2) * (0.2 + sunGlow * 1.4) * reveal;
-  gl_FragColor = vec4(col * uDim, 1.0);
+  col = col * reveal + lights;
+  gl_FragColor = vec4(col, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
-// The cloud shell, lit by the same sun, drifting a little faster than the ground.
+// The cloud shell, drifting a little faster than the ground: white in sunlight, orange at the
+// terminator, dark grey at night (where it hides the city lights below).
 const CLOUD_FRAG = /* glsl */ `
-uniform sampler2D tBRC; uniform vec3 uSunDir; uniform float uReveal, uLights, uDim;
+uniform sampler2D tBRC; uniform vec3 uSunDir; uniform float uReveal;
 varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
   vec3 n = normalize(vNw);
   float c = smoothstep(0.18, 0.9, texture2D(tBRC, vUv).b);
-  float day = smoothstep(-0.1, 0.4, dot(n, uSunDir));
+  float mu = dot(n, uSunDir);
+  float day = smoothstep(-0.06, 0.25, mu);
+  vec3 sunCol = mix(vec3(1.0, 0.42, 0.16), vec3(1.0, 0.98, 0.95), smoothstep(0.0, 0.15, mu));
+  vec3 col = sunCol * day * 1.08 + vec3(0.012, 0.016, 0.024);
+  col += vec3(1.0, 0.45, 0.18) * exp(-pow(mu / 0.1, 2.0)) * 0.35;
   float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
   float reveal = smoothstep(uReveal, uReveal - 0.35, side);
-  vec3 col = vec3(1.0) * (0.03 + day * 0.95);
-  gl_FragColor = vec4(col, c * (0.35 + day * 0.6) * reveal * uDim);
+  gl_FragColor = vec4(col, c * (0.55 + day * 0.4) * reveal);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
+// The atmosphere as seen against space: for each ray from the camera, how close it passes to the
+// ground sets how much air it crosses. Sunlit air scatters blue (Rayleigh); looking towards the sun
+// through the limb it blazes white-gold (forward scattering): the arc of sunrise around the planet.
 const ATMOS_FRAG = /* glsl */ `
-uniform vec3 uBlue, uRim, uSunDir; uniform float uReveal, uSun;
+uniform vec3 uBlue, uSunDir, uCenter; uniform float uReveal, uSun, uR;
 varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
-  vec3 n = normalize(vNw);
-  vec3 v = normalize(cameraPosition - vW);
-  float rim = pow(1.0 - abs(dot(n, v)), 4.5);
-  float lit = smoothstep(-0.45, 0.6, dot(n, uSunDir));
+  vec3 rd = normalize(vW - cameraPosition);
+  vec3 oc = uCenter - cameraPosition;
+  vec3 closest = cameraPosition + rd * dot(oc, rd);
+  vec3 up = closest - uCenter;
+  float h = (length(up) - uR) / (uR * 0.05);
+  if (h < 0.0) h = 0.0;
+  float dens = exp(-h * 4.5) * (1.0 - smoothstep(0.7, 1.0, h));
+  float mu = dot(normalize(up), uSunDir);
+  float lit = smoothstep(-0.3, 0.4, mu);
+  float toward = max(dot(rd, uSunDir), 0.0);
+  float mie = pow(toward, 8.0) * 0.9 + pow(toward, 60.0) * 2.4;
+  vec3 col = uBlue * (0.25 + 1.6 * lit) * lit * dens;
+  col += vec3(1.0, 0.86, 0.64) * mie * dens * smoothstep(-0.4, 0.1, mu) * uSun;
+  col += vec3(1.0, 0.45, 0.18) * exp(-pow(mu / 0.14, 2.0)) * dens * 0.9;
   float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
   float reveal = smoothstep(uReveal, uReveal - 0.4, side);
-  float sun = exp(-side * side * 7.0) * uSun;
-  vec3 col = mix(uBlue, uRim, sun) * rim * (0.25 + lit * 1.1 + sun * 1.8) * reveal;
-  gl_FragColor = vec4(col, rim * reveal);
+  gl_FragColor = vec4(col * reveal, 1.0);
 }`;
+
+// The real night sky, at infinity: the Milky Way drawn from the Milky Way Outline Catalog, in
+// galactic coordinates (built by scripts/build-sky.py), sampled per pixel so there is no seam.
+const MW_VERT = /* glsl */ `
+varying vec3 vD;
+void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const MW_FRAG = /* glsl */ `
+uniform sampler2D tMW; uniform float uFade, uExposure;
+varying vec3 vD;
+void main(){
+  vec3 d = normalize(vD);
+  float u = fract(atan(-d.z, d.x) / 6.2831853);
+  float v = 0.5 + asin(clamp(d.y, -1.0, 1.0)) / 3.14159265;
+  gl_FragColor = vec4(texture2D(tMW, vec2(u, v)).rgb * uExposure * uFade, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+// Catalogue stars (Hipparcos, to magnitude 7.5): size and brightness from magnitude, colour from B−V.
+const SKYSTAR_VERT = /* glsl */ `
+attribute float aSize; attribute vec3 aCol;
+uniform float uPR, uFade;
+varying vec3 vC;
+void main(){
+  vC = aCol * uFade;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = aSize * uPR;
+}`;
+const SKYSTAR_FRAG = /* glsl */ `
+varying vec3 vC;
+void main(){
+  vec2 q = gl_PointCoord - 0.5;
+  float a = exp(-dot(q, q) * 22.0);
+  gl_FragColor = vec4(vC * a, a);
+}`;
+
+/** A star's colour from its B−V index (via its temperature). */
+function bvColor(bv: number): [number, number, number] {
+  const T = 4600 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62));
+  const t = T / 100;
+  let r: number, g: number, b: number;
+  if (t <= 66) {
+    r = 255;
+    g = 99.47 * Math.log(t) - 161.12;
+    b = t <= 19 ? 0 : 138.52 * Math.log(t - 10) - 305.04;
+  } else {
+    r = 329.7 * Math.pow(t - 60, -0.1332);
+    g = 288.12 * Math.pow(t - 60, -0.0755);
+    b = 255;
+  }
+  const c = (x: number) => Math.min(1, Math.max(0, x / 255));
+  return [c(r), c(g), c(b)];
+}
 
 const STAR_VERT = /* glsl */ `
 attribute float aEnd; attribute float aBright;
@@ -221,7 +309,7 @@ export function createSky(
       z = -rand() * 180 + 10;
     starPos.set([x, y, z, x, y, z], i * 6);
     starEnd.set([0, 1], i * 2);
-    const b = Math.pow(rand(), 2.2) * 0.9 + 0.08;
+    const b = Math.pow(rand(), 2.2) * 0.5 + 0.04;
     starBright.set([b, b], i * 2);
   }
   const starGeo = new THREE.BufferGeometry();
@@ -255,22 +343,104 @@ export function createSky(
     [0.3, 'rgba(200,220,255,0.5)'],
     [1, 'rgba(0,0,0,0)'],
   ]);
+  // Nearby motes for depth: they drift past as the camera flies; the real stars sit behind them.
+  const DOTS = 0.32;
   const dotMat = new THREE.PointsMaterial({
     size: 0.38,
     map: dotTex,
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
-    opacity: opts.intro ? 0 : 0.85,
+    opacity: opts.intro ? 0 : DOTS,
     sizeAttenuation: true,
   });
   const dots = new THREE.Points(dotGeo, dotMat);
   dots.frustumCulled = false;
   scene.add(dots);
 
-  // ---- Earth: real 4K maps, its clouds, and the atmosphere. ----
-  const loader = new THREE.TextureLoader();
+  // ---- Loading: a still frame (reduced motion) draws again once the maps arrive. ----
+  const manager = new THREE.LoadingManager();
+  const loader = new THREE.TextureLoader(manager);
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+  // ---- The real sky, at infinity: the Milky Way and the catalogue's stars. ----
+  // Both are in galactic coordinates (x towards the galactic centre, y to its north pole); the
+  // frame is turned so the core rises behind the planet on the left and the band arcs across.
+  const celestial = new THREE.Group();
+  {
+    const gc = new THREE.Vector3(-0.42, 0.2, -0.885).normalize();
+    const up = new THREE.Vector3(0, 1, 0).addScaledVector(gc, -gc.y).normalize();
+    const right = new THREE.Vector3().crossVectors(gc, up).normalize();
+    const pole = up.multiplyScalar(Math.cos(0.62)).addScaledVector(right, Math.sin(0.62));
+    const third = new THREE.Vector3().crossVectors(gc, pole);
+    celestial.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(gc, pole, third));
+  }
+  scene.add(celestial);
+  const tMW = loader.load('/site-assets/sky/milkyway_4096.jpg');
+  tMW.colorSpace = THREE.SRGBColorSpace;
+  tMW.generateMipmaps = false; // sampled by direction: mipmaps would show the u seam
+  tMW.minFilter = THREE.LinearFilter;
+  const mwMat = new THREE.ShaderMaterial({
+    vertexShader: MW_VERT,
+    fragmentShader: MW_FRAG,
+    uniforms: {
+      tMW: { value: tMW },
+      uFade: { value: opts.intro ? 0 : 1 },
+      uExposure: { value: tier === 'high' ? 0.19 : 0.27 },
+    },
+    side: THREE.BackSide,
+    depthWrite: false,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+  });
+  const milkyWay = new THREE.Mesh(new THREE.SphereGeometry(300, 64, 32), mwMat);
+  milkyWay.renderOrder = -10;
+  milkyWay.frustumCulled = false;
+  celestial.add(milkyWay);
+  const skyStarMat = new THREE.ShaderMaterial({
+    vertexShader: SKYSTAR_VERT,
+    fragmentShader: SKYSTAR_FRAG,
+    uniforms: { uPR: { value: PR }, uFade: { value: opts.intro ? 0 : 1 } },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const SKY_STARS = tier === 'high' ? 26000 : tier === 'low' ? 12000 : 5000;
+  let skyStars: THREE.Points | null = null;
+  let disposed = false;
+  fetch('/site-assets/sky/stars.bin')
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+    .then((buf) => {
+      if (disposed) return;
+      const rec = new Int16Array(buf);
+      const n = Math.min(SKY_STARS, Math.floor(rec.length / 5));
+      const pos = new Float32Array(n * 3),
+        col = new Float32Array(n * 3),
+        size = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const o = i * 5,
+          k = 290 / 32767;
+        pos.set([rec[o]! * k, rec[o + 1]! * k, rec[o + 2]! * k], i * 3);
+        const mag = rec[o + 3]! / 1000;
+        const [r, g, b] = bvColor(rec[o + 4]! / 1000);
+        // Brightness from magnitude: faint stars just glimmer; the brightest overflow into the bloom.
+        const lum = Math.min(4, 0.95 * Math.pow(10, -0.2 * (mag - 3.2)));
+        col.set([r * lum, g * lum, b * lum], i * 3);
+        size[i] = Math.min(9, Math.max(2.2, 7.5 * Math.pow(10, -0.09 * (mag + 0.5))));
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setAttribute('aCol', new THREE.BufferAttribute(col, 3));
+      g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+      skyStars = new THREE.Points(g, skyStarMat);
+      skyStars.renderOrder = -9;
+      skyStars.frustumCulled = false;
+      celestial.add(skyStars);
+      if (still) render();
+    })
+    .catch(() => undefined);
+
+  // ---- Earth: real 4K maps, its clouds, and the atmosphere. ----
   const map = (name: string, srgb: boolean) => {
     const tex = loader.load(`/site-assets/earth/${name}`);
     if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
@@ -280,17 +450,21 @@ export function createSky(
   const tDay = map('earth_day_4096.jpg', true);
   const tNight = map('earth_night_4096.jpg', true);
   const tBRC = map('earth_bump_roughness_clouds_4096.jpg', false);
-  // The sun sits just behind the planet, over the limb: a thin sunlit crescent, the rest at night.
-  const sunDir = new THREE.Vector3(0, 0.42, -1).normalize();
+  // The sun, far away and just over the limb (from the opening shot): Earth is lit from behind
+  // and to the right, so its day side is a crescent and the sunlit air makes an arc of light.
+  const sunDir = new THREE.Vector3(0.34, 0.17, -0.925).normalize();
+  const center = new THREE.Vector3(0, PLANET_Y, 0);
   const pu = {
     uBlue: { value: BLUE },
-    uRim: { value: RIM },
     uSunDir: { value: sunDir },
+    uAxis: { value: new THREE.Vector3(0, 1, 0) },
+    uCenter: { value: center },
+    uR: { value: R_PLANET },
+    uCloudU: { value: 0 },
     uReveal: { value: opts.intro ? 0 : 3.2 },
     uTime: { value: 0 },
     uSun: { value: opts.intro ? 0 : 1 },
     uLights: { value: opts.intro ? 0 : 1 },
-    uDim: { value: 1 },
     tDay: { value: tDay },
     tNight: { value: tNight },
     tBRC: { value: tBRC },
@@ -308,6 +482,7 @@ export function createSky(
   planet.rotation.y = -Math.PI * 0.62;
   planet.rotation.x = 0.35;
   scene.add(planet);
+  pu.uAxis.value.set(0, 1, 0).applyQuaternion(planet.quaternion);
   const clouds = new THREE.Mesh(
     new THREE.SphereGeometry(R_PLANET * 1.006, 160, 112),
     new THREE.ShaderMaterial({
@@ -322,7 +497,7 @@ export function createSky(
   clouds.rotation.copy(planet.rotation);
   scene.add(clouds);
   const atmos = new THREE.Mesh(
-    new THREE.SphereGeometry(R_PLANET * 1.035, 128, 96),
+    new THREE.SphereGeometry(R_PLANET * 1.05, 128, 96),
     new THREE.ShaderMaterial({
       vertexShader: PLANET_VERT,
       fragmentShader: ATMOS_FRAG,
@@ -335,38 +510,166 @@ export function createSky(
   );
   atmos.position.y = PLANET_Y;
   scene.add(atmos);
-  // The sun, cresting the limb.
-  const sunTex = glowTexture([
+
+  // ---- In orbit: a space station and a train of broadband satellites. ----
+  // Lit by the sun (and a little blue earthshine from below), dark in Earth's shadow.
+  const sunLight = new THREE.DirectionalLight(0xfff6ea, 3.2);
+  sunLight.position.copy(sunDir).multiplyScalar(50);
+  scene.add(sunLight, sunLight.target);
+  const earthLight = new THREE.DirectionalLight(0x6f9fd8, 0.5);
+  scene.add(earthLight, earthLight.target);
+  scene.add(new THREE.AmbientLight(0x1a2230, 1.4));
+  const orbitBasis = (n: THREE.Vector3) => {
+    const nn = n.clone().normalize();
+    const e1 = new THREE.Vector3(0, 1, 0).addScaledVector(nn, -nn.y).normalize();
+    return { e1, e2: new THREE.Vector3().crossVectors(nn, e1) };
+  };
+  /** 1 in sunlight, 0 in Earth's shadow (a cylinder behind the planet, away from the sun). */
+  const sunlit = (p: THREE.Vector3) => {
+    const sx = p.x - center.x,
+      sy = p.y - center.y,
+      sz = p.z - center.z;
+    const along = sx * sunDir.x + sy * sunDir.y + sz * sunDir.z;
+    if (along > 0) return 1;
+    const perp = Math.sqrt(Math.max(0, sx * sx + sy * sy + sz * sz - along * along));
+    return smooth(Math.min(1, Math.max(0, (perp - R_PLANET * 0.98) / (R_PLANET * 0.06))));
+  };
+  const station = buildStation();
+  station.group.scale.setScalar(1.45);
+  scene.add(station.group);
+  const ST = {
+    r: R_PLANET + 1.05,
+    w: (Math.PI * 2) / 260,
+    a: -0.5,
+    ...orbitBasis(new THREE.Vector3(0.18, 0.3, 1)),
+  };
+  const TRAIN_N = tier === 'software' ? 16 : 26;
+  const train = buildTrain(TRAIN_N);
+  scene.add(train.mesh, train.glints);
+  const TR = {
+    r: R_PLANET + 0.85,
+    w: (Math.PI * 2) / 240,
+    a: 0.18,
+    gap: 0.021,
+    ...orbitBasis(new THREE.Vector3(-0.35, 0.22, 1)),
+  };
+  const oP = new THREE.Vector3(),
+    oT = new THREE.Vector3(),
+    oR = new THREE.Vector3(),
+    oX = new THREE.Vector3(),
+    oM = new THREE.Matrix4(),
+    oQ = new THREE.Quaternion(),
+    oS = new THREE.Vector3(1, 1, 1),
+    oC = new THREE.Color();
+  /** Position and flight direction on an orbit at angle a. */
+  const orbitAt = (o: typeof ST, a: number, pos: THREE.Vector3, dir: THREE.Vector3) => {
+    pos
+      .copy(center)
+      .addScaledVector(o.e1, Math.cos(a) * o.r)
+      .addScaledVector(o.e2, Math.sin(a) * o.r);
+    dir.copy(o.e1).multiplyScalar(-Math.sin(a)).addScaledVector(o.e2, Math.cos(a));
+  };
+  const placeOrbiters = (dt: number) => {
+    ST.a += ST.w * dt;
+    orbitAt(ST, ST.a, oP, oT);
+    oR.subVectors(oP, center).normalize();
+    oX.crossVectors(oR, oT).normalize();
+    station.group.position.copy(oP);
+    station.group.quaternion.setFromRotationMatrix(
+      oM.makeBasis(oX, oR.clone().crossVectors(oT, oX), oT),
+    );
+    station.track(sunDir);
+    const lit = sunlit(oP);
+    sunLight.intensity = 3.2 * lit;
+    earthLight.position.copy(center);
+    earthLight.target.position.copy(oP);
+    earthLight.intensity = 0.9 + 0.6 * lit;
+    TR.a -= TR.w * dt;
+    const gp = train.glints.geometry.attributes.position as THREE.BufferAttribute,
+      gc = train.glints.geometry.attributes.color as THREE.BufferAttribute;
+    for (let i = 0; i < TRAIN_N; i++) {
+      orbitAt(TR, TR.a + i * TR.gap, oP, oT);
+      oT.negate();
+      oR.subVectors(oP, center).normalize();
+      oX.crossVectors(oR, oT).normalize();
+      oQ.setFromRotationMatrix(oM.makeBasis(oT, oR, oX));
+      train.mesh.setMatrixAt(i, oM.compose(oP, oQ, oS));
+      const l = sunlit(oP);
+      train.mesh.setColorAt(i, oC.setScalar(0.08 + 0.92 * l));
+      // Each catches the sun now and then as it turns: a soft glow, and brief flashes.
+      const flash = Math.pow(Math.max(0, Math.sin(t * 0.9 + i * 0.73)), 24);
+      const k = l * (0.85 + 1.8 * flash);
+      gp.setXYZ(i, oP.x, oP.y, oP.z);
+      gc.setXYZ(i, k, k, k * 1.05);
+    }
+    train.mesh.instanceMatrix.needsUpdate = true;
+    if (train.mesh.instanceColor) train.mesh.instanceColor.needsUpdate = true;
+    gp.needsUpdate = true;
+    gc.needsUpdate = true;
+  };
+
+  // ---- The sun, at infinity: a small white-hot disc, its glare, and the lens's ghosts. ----
+  const sunCoreTex = glowTexture([
     [0, 'rgba(255,255,255,1)'],
-    [0.08, 'rgba(220,236,255,0.95)'],
-    [0.25, 'rgba(120,180,240,0.35)'],
+    [0.1, 'rgba(255,253,246,1)'],
+    [0.16, 'rgba(255,240,214,0.55)'],
+    [0.45, 'rgba(255,220,180,0.08)'],
     [1, 'rgba(0,0,0,0)'],
   ]);
-  const sun = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: sunTex,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      opacity: opts.intro ? 0 : 0.9,
-    }),
-  );
-  sun.position.set(0, PLANET_Y + R_PLANET + 0.02, -0.4);
-  sun.scale.set(5, 5, 1);
-  scene.add(sun);
-  const streak = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: sunTex,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      opacity: opts.intro ? 0 : 0.5,
-      color: RIM,
-    }),
-  );
-  streak.position.copy(sun.position);
-  streak.scale.set(22, 0.55, 1);
-  scene.add(streak);
+  const glareTex = glowTexture([
+    [0, 'rgba(255,248,236,0.55)'],
+    [0.2, 'rgba(200,222,250,0.16)'],
+    [0.55, 'rgba(85,154,222,0.04)'],
+    [1, 'rgba(0,0,0,0)'],
+  ]);
+  const sprite = (tex: THREE.Texture, color: THREE.Color, depth: boolean) => {
+    const m = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: tex,
+        color,
+        transparent: true,
+        depthWrite: false,
+        depthTest: depth,
+        blending: THREE.AdditiveBlending,
+        opacity: 0,
+      }),
+    );
+    m.frustumCulled = false;
+    scene.add(m);
+    return m;
+  };
+  const SUN_D = 250;
+  const sun = sprite(sunCoreTex, new THREE.Color(2.2, 2.1, 1.95), true);
+  sun.scale.setScalar(14);
+  const glare = sprite(glareTex, new THREE.Color(1, 1, 1), false);
+  glare.scale.setScalar(70);
+  const streak = sprite(glareTex, RIM, false);
+  streak.scale.set(240, 3.2, 1);
+  const ringTexG = glowTexture([
+    [0, 'rgba(0,0,0,0)'],
+    [0.7, 'rgba(0,0,0,0)'],
+    [0.86, 'rgba(150,196,245,0.5)'],
+    [1, 'rgba(0,0,0,0)'],
+  ]);
+  const discTex = glowTexture([
+    [0, 'rgba(150,196,245,0.5)'],
+    [0.6, 'rgba(85,154,222,0.2)'],
+    [1, 'rgba(0,0,0,0)'],
+  ]);
+  // Ghosts sit along the line from the sun through the centre of the frame.
+  const GHOSTS: Array<[number, number, THREE.Texture, number]> = [
+    [0.35, 0.5, discTex, 0.1],
+    [0.62, 0.22, ringTexG, 0.16],
+    [1.18, 0.8, ringTexG, 0.08],
+    [1.45, 0.3, discTex, 0.12],
+    [1.9, 1.3, ringTexG, 0.05],
+  ];
+  const ghosts =
+    tier === 'software'
+      ? []
+      : GHOSTS.map(([f, sc, tex, op]) => ({ f, sc, op, s: sprite(tex, RIM, false) }));
+  let sunVis = 0,
+    sunFlash = 0;
 
   // ---- Provider stations on an orbit, and the apps that launch requests. ----
   const ORBIT_R = R_PLANET + 1.7;
@@ -610,7 +913,7 @@ export function createSky(
     renderer.toneMappingExposure = 1.1;
     composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.7, 0.6, 0.18);
+    bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.38, 0.3);
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
   }
@@ -676,8 +979,7 @@ export function createSky(
 
   const smooth = (x: number) => x * x * (3 - 2 * x);
   const tmp = new THREE.Vector3(),
-    tmp2 = new THREE.Vector3(),
-    center = new THREE.Vector3(0, PLANET_Y, 0);
+    tmp2 = new THREE.Vector3();
 
   const step = (now: number) => {
     const real = Math.min(0.1, (now - last) / 1000);
@@ -694,14 +996,13 @@ export function createSky(
       // (2.2–3.2 s), the stations light (2.8–4.0 s), the first requests fly (from 3.4 s).
       warp = Math.max(0, 3 * (1 - smooth(Math.min(1, it / 1.6))));
       starMat.uniforms.uFade!.value = Math.min(1, it / 0.6);
-      dotMat.opacity = Math.min(0.85, it / 1.2);
+      dotMat.opacity = Math.min(DOTS, it / 1.2);
+      mwMat.uniforms.uFade!.value = smooth(Math.min(1, Math.max(0, (it - 0.6) / 1.6)));
+      skyStarMat.uniforms.uFade!.value = smooth(Math.min(1, Math.max(0, (it - 0.3) / 1.2)));
       pu.uReveal.value = 3.2 * smooth(Math.min(1, Math.max(0, (it - 1.4) / 1.4)));
       pu.uSun.value = smooth(Math.min(1, Math.max(0, (it - 2.2) / 1.0)));
       pu.uLights.value = smooth(Math.min(1, Math.max(0, (it - 1.8) / 1.6)));
-      (sun.material as THREE.SpriteMaterial).opacity =
-        0.9 * pu.uSun.value + 0.6 * Math.max(0, 1 - Math.abs(it - 2.6) * 1.5);
-      (streak.material as THREE.SpriteMaterial).opacity = 0.5 * pu.uSun.value;
-      sun.scale.setScalar(5 + Math.max(0, 1 - Math.abs(it - 2.6)) * 6);
+      sunFlash = Math.max(0, 1 - Math.abs(it - 2.6) * 1.5);
       stations.forEach((s, i) => {
         s.lit = it > 2.8 + i * 0.03 ? 1 : 0;
       });
@@ -753,7 +1054,7 @@ export function createSky(
     }
     (starGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     (dotGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-    dotMat.opacity = introOn ? dotMat.opacity : Math.max(0.15, 0.85 - w * 0.25);
+    dotMat.opacity = introOn ? dotMat.opacity : Math.max(0.12, DOTS - w * 0.1);
 
     // ---- Stations: resting after a rate limit, pulses on arrival. ----
     nextFail -= dt;
@@ -868,9 +1169,9 @@ export function createSky(
     (headGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
 
     pu.uTime.value = t;
-    planet.rotation.y += dt * 0.004;
-    clouds.rotation.y += dt * 0.0055;
-    if (bloom) bloom.strength = 0.7 + Math.max(0, 0.6 - flareAge) * 1.5 + warpOut * 1.5;
+    planet.rotation.y += dt * 0.005;
+    clouds.rotation.y += dt * 0.0068;
+    if (bloom) bloom.strength = 0.55 + Math.max(0, 0.6 - flareAge) * 1.5 + warpOut * 1.5;
     // The walkthrough's beams: fade to their targets; during "execute", a packet runs the best
     // route, the station refuses (it rests, amber), and a second packet takes the next route.
     const since = t - flowAt;
@@ -910,9 +1211,59 @@ export function createSky(
     rm.opacity = ringAge < 2.4 ? Math.max(0, 1 - ringAge / 2.4) * 0.9 : 0;
     ring.scale.setScalar(R_PLANET * 2.05 * (1 + Math.min(1, ringAge / 2.4) * 0.35));
 
+    placeOrbiters(dt);
+    // ---- The sky at infinity, and the sun: they move with the camera, never closer. ----
+    celestial.position.copy(camera.position);
+    pu.uCloudU.value = (clouds.rotation.y - planet.rotation.y) / (Math.PI * 2);
+    // Is the sun behind the planet? Compare its direction with the planet's disc as seen from here.
+    tmp.subVectors(center, camera.position);
+    const dist = tmp.length();
+    const sep = Math.acos(Math.min(1, Math.max(-1, tmp.dot(sunDir) / dist)));
+    const disc = Math.asin(Math.min(1, (R_PLANET * 1.012) / dist));
+    sunVis = smooth(Math.min(1, Math.max(0, (sep - disc + 0.004) / 0.02)));
+    const sunK = pu.uSun.value;
+    tmp.copy(camera.position).addScaledVector(sunDir, SUN_D);
+    sun.position.copy(tmp);
+    glare.position.copy(tmp);
+    streak.position.copy(tmp);
+    (sun.material as THREE.SpriteMaterial).opacity = sunK + sunFlash * 0.6;
+    sun.scale.setScalar(14 + sunFlash * 22);
+    // Just after the sun slips behind the limb, a little glare still spills round it.
+    const near = Math.max(
+      sunVis,
+      0.35 * smooth(Math.min(1, Math.max(0, (sep - disc + 0.05) / 0.05))),
+    );
+    (glare.material as THREE.SpriteMaterial).opacity = (0.4 * near + sunFlash * 0.5) * sunK;
+    (streak.material as THREE.SpriteMaterial).opacity = (0.45 * near + sunFlash * 0.4) * sunK;
+    tmp2.copy(tmp).project(camera);
+    const onScreen = tmp2.z < 1 && Math.abs(tmp2.x) < 1.4 && Math.abs(tmp2.y) < 1.4;
+    ghosts.forEach((gh) => {
+      const m = gh.s.material as THREE.SpriteMaterial;
+      if (!onScreen) {
+        m.opacity = 0;
+        return;
+      }
+      const k = 1 - 2 * gh.f;
+      tmp
+        .set(tmp2.x * k, tmp2.y * k, 0.5)
+        .unproject(camera)
+        .sub(camera.position)
+        .normalize();
+      gh.s.position.copy(camera.position).addScaledVector(tmp, 10);
+      gh.s.scale.setScalar(gh.sc);
+      m.opacity = gh.op * sunVis * sunK * (1 - Math.min(1, Math.hypot(tmp2.x, tmp2.y) * 0.35));
+    });
+
+    render();
+    if (!still) raf = requestAnimationFrame(step);
+  };
+  function render() {
     if (composer) composer.render();
     else renderer.render(scene, camera);
-    if (!still) raf = requestAnimationFrame(step);
+  }
+  // A still frame draws once more when the maps have arrived.
+  manager.onLoad = () => {
+    if (still && !disposed) render();
   };
 
   function failOne() {
@@ -921,10 +1272,27 @@ export function createSky(
     if (pick) pick[0].resting = 4 + rand() * 3;
   }
 
+  placeOrbiters(0);
   if (still) {
     // A finished, still frame: the limb lit, stations on, no motion.
     for (let k = 0; k < 90; k++) step(performance.now() + k * 16);
   } else raf = requestAnimationFrame(step);
+
+  // Warping out (Try now) and back (a page restored from the back/forward cache), from wherever
+  // the warp is now; a newer ramp replaces an older one.
+  let warpRun = 0;
+  function rampWarp(to: number, ms: number) {
+    const run = ++warpRun,
+      from = warpOut,
+      t0 = performance.now();
+    const tick = () => {
+      if (run !== warpRun) return;
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      warpOut = from + (to - from) * smooth(k);
+      if (k < 1) requestAnimationFrame(tick);
+    };
+    tick();
+  }
 
   return {
     setShot(v) {
@@ -948,12 +1316,10 @@ export function createSky(
       setFlow(stage);
     },
     warp() {
-      const t0 = performance.now();
-      const tick = () => {
-        warpOut = Math.min(1, (performance.now() - t0) / 700);
-        if (warpOut < 1) requestAnimationFrame(tick);
-      };
-      tick();
+      rampWarp(1, 700);
+    },
+    unwarp() {
+      rampWarp(0, 900);
     },
     skipIntro() {
       if (introOn) introClock = performance.now() - 4300;
@@ -961,6 +1327,7 @@ export function createSky(
     resize,
     dispose() {
       cancelAnimationFrame(raf);
+      disposed = true;
       scene.traverse((o) => {
         const m = o as THREE.Mesh;
         m.geometry?.dispose();
@@ -968,7 +1335,21 @@ export function createSky(
         if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
         else mat?.dispose();
       });
-      [dotTex, sunTex, nodeTex, tDay, tNight, tBRC, ringTex].forEach((x) => x.dispose());
+      [
+        dotTex,
+        sunCoreTex,
+        glareTex,
+        ringTexG,
+        discTex,
+        nodeTex,
+        tDay,
+        tNight,
+        tBRC,
+        tMW,
+        ringTex,
+      ].forEach((x) => x.dispose());
+      station.dispose();
+      train.dispose();
       composer?.dispose();
       renderer.dispose();
     },

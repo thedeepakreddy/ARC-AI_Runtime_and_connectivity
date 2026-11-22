@@ -163,6 +163,14 @@ pools free tiers like nothing else, and stays in your infrastructure.
   comets under gravity, steering for the station ARC chose and re-routing when one rests after
   a rate limit. Scroll speed stretches the stars into a warp; the pointer bends the comets'
   paths and a click scatters them.
+- **A real sky:** the sun sits far away, so Earth is lit from behind: a sunlit crescent that
+  reddens at the terminator, ocean glints, cloud shadows, city lights under the clouds, and an
+  arc of sunlit air around the limb. Behind it are the real stars (Hipparcos positions,
+  magnitudes and colours) and the Milky Way, its core rising behind the planet, built from the
+  Milky Way Outline Catalog by `apps/site/scripts/build-sky.py` (credits in
+  `apps/site/public/site-assets/sky/CREDITS.txt`). A space station orbits with its solar wings
+  turned to the sun, and a train of broadband satellites glints across the sky and goes dark in
+  Earth's shadow.
 - **One continuous flight:** the camera flies a single path around the planet as you scroll,
   each section taking it to its own shot. Headlines rise word by word from behind a mask and
   lean with scroll speed, cards drift at different depths, and an orbit along the top shows how
@@ -171,7 +179,9 @@ pools free tiers like nothing else, and stays in your infrastructure.
   console's own style. The sky acts it out: routes reach out to every candidate station, the
   gates cut theirs in red, the ranked routes brighten, the request travels the best one, that
   station rests and the request falls back to the next, and the record ring pulses.
-- **Try now** leads to the customer dashboard's sign-in. Reduced motion shows a still frame.
+- **Try now** leads to the customer dashboard's sign-in: the page warps out while the sign-in
+  loads. Coming back (Back, or a swipe) shows the page as it was, without the warp, and the
+  opening plays once per visit, not again on return. Reduced motion shows a still frame.
 
 ### Multi-tenant platform
 
