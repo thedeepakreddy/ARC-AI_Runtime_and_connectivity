@@ -799,6 +799,17 @@ export function Site() {
               <p className="muted" style={{ fontSize: 14, marginTop: 14 }}>
                 AI Runtime &amp; Connectivity. Apache 2.0.
               </p>
+              <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
+                Earth imagery:{' '}
+                <a
+                  href="https://www.solarsystemscope.com/textures/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Solar System Scope
+                </a>{' '}
+                (CC BY 4.0), from NASA data.
+              </p>
             </div>
             <div>
               <h4>Product</h4>

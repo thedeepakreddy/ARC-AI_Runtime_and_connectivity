@@ -156,7 +156,9 @@ pools free tiers like nothing else, and stays in your infrastructure.
 
 ### Website
 
-- **The front door at `/`** (`apps/site`): the opening is drawn in a three.js sky. Earth's limb
+- **The front door at `/`** (`apps/site`): the opening is drawn in a three.js sky over a real
+  Earth (4K day, night-lights and cloud maps from Solar System Scope, CC BY 4.0, from NASA
+  imagery): the night side with its city lights, a sunlit crescent at the limb. Earth's limb
   ignites in horizon blue, the sun crests, the provider stations light, and requests fly as
   comets under gravity, steering for the station ARC chose and re-routing when one rests after
   a rate limit. Scroll speed stretches the stars into a warp; the pointer bends the comets'

@@ -1,0 +1,4 @@
+Earth textures (day, night lights, bump/roughness/clouds), 4096 x 2048:
+Solar System Scope, https://www.solarsystemscope.com/textures/ — licensed CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/), based on NASA imagery. Resized and merged as
+distributed with the three.js examples (examples/textures/planets).

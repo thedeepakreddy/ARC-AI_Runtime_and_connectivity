@@ -62,41 +62,81 @@ function glowTexture(stops: Array<[number, string]>) {
 }
 
 const PLANET_VERT = /* glsl */ `
-varying vec3 vN; varying vec3 vP; varying vec3 vW;
+varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
-  vN = normalize(normalMatrix * normal);
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  vP = -mv.xyz; vW = (modelMatrix * vec4(position, 1.0)).xyz;
-  gl_Position = projectionMatrix * mv;
+  vUv = uv;
+  vNw = normalize(mat3(modelMatrix) * normal);
+  vW = (modelMatrix * vec4(position, 1.0)).xyz;
+  gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0);
 }`;
-// The night side: almost black, a faint grid of latitude and longitude like an instrument, and
-// the thin bright limb where the sunrise catches the atmosphere, revealed from the centre out.
+// Earth from orbit at sunrise, from real 4K maps (Solar System Scope, CC BY 4.0, from NASA
+// imagery): the day side lit by the sun just behind the planet, the night side with its city
+// lights, ocean glints from the roughness map, bump shading, and the atmosphere's blue fresnel.
+// The intro reveals the limb from the centre outward (uReveal) and lets the lights come up.
 const PLANET_FRAG = /* glsl */ `
-uniform vec3 uBlue, uRim; uniform float uReveal, uTime, uSun;
-varying vec3 vN; varying vec3 vP; varying vec3 vW;
+uniform sampler2D tDay, tNight, tBRC;
+uniform vec3 uBlue, uRim, uSunDir; uniform float uReveal, uSun, uLights, uDim;
+varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
-  vec3 n = normalize(vN), v = normalize(vP);
-  float fres = pow(1.0 - max(dot(n, v), 0.0), 3.2);
-  vec3 p = normalize(vW - vec3(0.0, ${PLANET_Y.toFixed(2)}, 0.0));
-  float lat = asin(p.y), lon = atan(p.z, p.x) + uTime * 0.01;
-  float grid = smoothstep(0.985, 1.0, cos(lat * 18.0)) + smoothstep(0.985, 1.0, cos(lon * 24.0));
+  vec3 n = normalize(vNw);
+  vec3 v = normalize(cameraPosition - vW);
+  vec3 brc = texture2D(tBRC, vUv).rgb;
+  // A little relief from the bump channel.
+  vec2 px = vec2(1.0 / 4096.0, 1.0 / 2048.0);
+  float bx = texture2D(tBRC, vUv + vec2(px.x, 0.0)).r - brc.r;
+  float by = texture2D(tBRC, vUv + vec2(0.0, px.y)).r - brc.r;
+  vec3 t = normalize(cross(vec3(0.0, 1.0, 0.0), n) + 1e-4);
+  vec3 b = cross(n, t);
+  vec3 nb = normalize(n - (t * bx + b * by) * 2.5);
+  float ndl = dot(nb, uSunDir);
+  float day = smoothstep(-0.12, 0.32, ndl);
+  vec3 dayCol = texture2D(tDay, vUv).rgb;
+  vec3 night = texture2D(tNight, vUv).rgb;
+  // Ocean glint where the surface is smooth.
+  vec3 h = normalize(uSunDir + v);
+  float spec = pow(max(dot(n, h), 0.0), 48.0) * (1.0 - brc.g) * day;
+  float fres = pow(1.0 - max(dot(n, v), 0.0), 2.6);
   float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
-  float reveal = smoothstep(uReveal, uReveal - 0.25, side);
-  float sun = exp(-side * side * 9.0) * uSun;
-  vec3 col = vec3(0.006, 0.01, 0.018) + uBlue * grid * 0.05 * (1.0 - fres);
-  col += mix(uBlue, uRim, fres) * fres * (0.55 + sun * 1.6) * reveal;
-  gl_FragColor = vec4(col, 1.0);
+  float reveal = smoothstep(uReveal, uReveal - 0.35, side);
+  float sunGlow = exp(-side * side * 8.0) * uSun;
+  vec3 col = dayCol * day * 1.15 * reveal;
+  col += night * vec3(1.0, 0.82, 0.55) * (1.0 - day) * 1.6 * uLights * (1.0 - brc.b * 0.85);
+  col += vec3(0.75, 0.85, 1.0) * spec * 0.9 * reveal;
+  // Atmosphere: blue at the limb, brightest towards the sun; a soft haze on the night side.
+  float lit = smoothstep(-0.35, 0.55, dot(n, uSunDir));
+  col = mix(col, uBlue * (0.35 + lit * 1.4), fres * (0.35 + lit * 0.5) * reveal);
+  col += mix(uBlue, uRim, sunGlow) * pow(fres, 2.2) * (0.2 + sunGlow * 1.4) * reveal;
+  gl_FragColor = vec4(col * uDim, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+// The cloud shell, lit by the same sun, drifting a little faster than the ground.
+const CLOUD_FRAG = /* glsl */ `
+uniform sampler2D tBRC; uniform vec3 uSunDir; uniform float uReveal, uLights, uDim;
+varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
+void main(){
+  vec3 n = normalize(vNw);
+  float c = smoothstep(0.18, 0.9, texture2D(tBRC, vUv).b);
+  float day = smoothstep(-0.1, 0.4, dot(n, uSunDir));
+  float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
+  float reveal = smoothstep(uReveal, uReveal - 0.35, side);
+  vec3 col = vec3(1.0) * (0.03 + day * 0.95);
+  gl_FragColor = vec4(col, c * (0.35 + day * 0.6) * reveal * uDim);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 const ATMOS_FRAG = /* glsl */ `
-uniform vec3 uBlue, uRim; uniform float uReveal, uSun;
-varying vec3 vN; varying vec3 vP; varying vec3 vW;
+uniform vec3 uBlue, uRim, uSunDir; uniform float uReveal, uSun;
+varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
-  vec3 n = normalize(vN), v = normalize(vP);
-  float rim = pow(1.0 - abs(dot(n, v)), 5.0);
+  vec3 n = normalize(vNw);
+  vec3 v = normalize(cameraPosition - vW);
+  float rim = pow(1.0 - abs(dot(n, v)), 4.5);
+  float lit = smoothstep(-0.45, 0.6, dot(n, uSunDir));
   float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
-  float reveal = smoothstep(uReveal, uReveal - 0.3, side);
+  float reveal = smoothstep(uReveal, uReveal - 0.4, side);
   float sun = exp(-side * side * 7.0) * uSun;
-  vec3 col = mix(uBlue, uRim, sun) * rim * (0.9 + sun * 2.2) * reveal;
+  vec3 col = mix(uBlue, uRim, sun) * rim * (0.25 + lit * 1.1 + sun * 1.8) * reveal;
   gl_FragColor = vec4(col, rim * reveal);
 }`;
 
@@ -222,16 +262,35 @@ export function createSky(
   dots.frustumCulled = false;
   scene.add(dots);
 
-  // ---- The planet and its atmosphere. ----
+  // ---- Earth: real 4K maps, its clouds, and the atmosphere. ----
+  const loader = new THREE.TextureLoader();
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  const map = (name: string, srgb: boolean) => {
+    const tex = loader.load(`/site-assets/earth/${name}`);
+    if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = Math.min(8, maxAniso);
+    return tex;
+  };
+  const tDay = map('earth_day_4096.jpg', true);
+  const tNight = map('earth_night_4096.jpg', true);
+  const tBRC = map('earth_bump_roughness_clouds_4096.jpg', false);
+  // The sun sits just behind the planet, over the limb: a thin sunlit crescent, the rest at night.
+  const sunDir = new THREE.Vector3(0, 0.42, -1).normalize();
   const pu = {
     uBlue: { value: BLUE },
     uRim: { value: RIM },
+    uSunDir: { value: sunDir },
     uReveal: { value: opts.intro ? 0 : 3.2 },
     uTime: { value: 0 },
     uSun: { value: opts.intro ? 0 : 1 },
+    uLights: { value: opts.intro ? 0 : 1 },
+    uDim: { value: 1 },
+    tDay: { value: tDay },
+    tNight: { value: tNight },
+    tBRC: { value: tBRC },
   };
   const planet = new THREE.Mesh(
-    new THREE.SphereGeometry(R_PLANET, 128, 96),
+    new THREE.SphereGeometry(R_PLANET, 192, 128),
     new THREE.ShaderMaterial({
       vertexShader: PLANET_VERT,
       fragmentShader: PLANET_FRAG,
@@ -239,7 +298,23 @@ export function createSky(
     }),
   );
   planet.position.y = PLANET_Y;
+  // Turn Europe and Africa towards the camera, their lights on the night side.
+  planet.rotation.y = -Math.PI * 0.62;
+  planet.rotation.x = 0.35;
   scene.add(planet);
+  const clouds = new THREE.Mesh(
+    new THREE.SphereGeometry(R_PLANET * 1.006, 160, 112),
+    new THREE.ShaderMaterial({
+      vertexShader: PLANET_VERT,
+      fragmentShader: CLOUD_FRAG,
+      uniforms: pu,
+      transparent: true,
+      depthWrite: false,
+    }),
+  );
+  clouds.position.y = PLANET_Y;
+  clouds.rotation.copy(planet.rotation);
+  scene.add(clouds);
   const atmos = new THREE.Mesh(
     new THREE.SphereGeometry(R_PLANET * 1.035, 128, 96),
     new THREE.ShaderMaterial({
@@ -518,6 +593,7 @@ export function createSky(
       dotMat.opacity = Math.min(0.85, it / 1.2);
       pu.uReveal.value = 3.2 * smooth(Math.min(1, Math.max(0, (it - 1.4) / 1.4)));
       pu.uSun.value = smooth(Math.min(1, Math.max(0, (it - 2.2) / 1.0)));
+      pu.uLights.value = smooth(Math.min(1, Math.max(0, (it - 1.8) / 1.6)));
       (sun.material as THREE.SpriteMaterial).opacity =
         0.9 * pu.uSun.value + 0.6 * Math.max(0, 1 - Math.abs(it - 2.6) * 1.5);
       (streak.material as THREE.SpriteMaterial).opacity = 0.5 * pu.uSun.value;
@@ -688,7 +764,8 @@ export function createSky(
     (headGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
 
     pu.uTime.value = t;
-    planet.rotation.y += dt * 0.01;
+    planet.rotation.y += dt * 0.004;
+    clouds.rotation.y += dt * 0.0055;
     if (bloom) bloom.strength = 0.7 + Math.max(0, 0.6 - flareAge) * 1.5 + warpOut * 1.5;
     if (composer) composer.render();
     else renderer.render(scene, camera);
@@ -745,7 +822,7 @@ export function createSky(
         if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
         else mat?.dispose();
       });
-      [dotTex, sunTex, nodeTex].forEach((x) => x.dispose());
+      [dotTex, sunTex, nodeTex, tDay, tNight, tBRC].forEach((x) => x.dispose());
       composer?.dispose();
       renderer.dispose();
     },

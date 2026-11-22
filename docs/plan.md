@@ -203,7 +203,9 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       sign-in. Served by the API (`SITE_DIR`, assets under `/site-assets/`); Caddy no longer
       redirects `/` to `/dashboard/`. Decided: requests drawn as comets under gravity and
       steering, re-routing when a station rests (fallback made visible); same tokens and rules as
-      DESIGN.md; reduced motion shows a still frame.
+      DESIGN.md; reduced motion shows a still frame. The Earth uses real 4K maps (day, night
+      lights, bump/roughness/clouds) from Solar System Scope, CC BY 4.0, credited in the footer and
+      `apps/site/public/site-assets/earth/CREDITS.txt`.
 
 ## Phase 6 scope: dashboards and users' own keys
 

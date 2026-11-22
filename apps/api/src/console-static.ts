@@ -15,6 +15,9 @@ const TYPES: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.webp': 'image/webp',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 // Same origin as /admin/v1, so the SameSite=Strict session cookie just works. Nothing third-party.
