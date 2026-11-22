@@ -45,6 +45,8 @@ export const apiEnvSchema = baseEnvSchema.extend({
   CONSOLE_DIR: z.string().optional(),
   /** Built customer dashboard (apps/dashboard/dist), served at /dashboard. */
   DASHBOARD_DIR: z.string().optional(),
+  /** Built public website (apps/site/dist), served at / with its assets under /site-assets. */
+  SITE_DIR: z.string().optional(),
   /**
    * Customer sign-up: 'invite' (default) needs an invitation link from the owner or a tenant
    * admin; 'open' lets anyone create an organization. Customers only ever use their own keys.

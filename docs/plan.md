@@ -195,6 +195,21 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       capability (migration 0010), and the dashboard **Playground** (chat, speech, transcription,
       images with one of the organization's ARC keys; the key is never stored)
 - [ ] Provider packs, BALANCED/DEEP, evaluation, billing, multi-server HA
+- [x] Public website at `/` (`apps/site`): an opening drawn in a three.js sky (Earth's limb
+      ignites, the sun crests, provider stations light, the first requests fly), then a landing
+      page from the README: one API, a pinned seven-step "How ARC works" walkthrough (request,
+      needs, candidates, gates, rank, execute with fallback, record), fallback, code, providers,
+      the comparison, platform, security, operations and $0 hosting. Try now → the dashboard's
+      sign-in. Served by the API (`SITE_DIR`, assets under `/site-assets/`); Caddy no longer
+      redirects `/` to `/dashboard/`. Decided: requests drawn as comets under gravity and
+      steering, re-routing when a station rests (fallback made visible); same tokens and rules as
+      DESIGN.md; reduced motion shows a still frame. The Earth uses real 4K maps (day, night
+      lights, bump/roughness/clouds) from Solar System Scope, CC BY 4.0, credited in the footer and
+      `apps/site/public/site-assets/earth/CREDITS.txt`. Added: a continuous scrubbed camera flight
+      (one shot per section), word-mask headline reveals with velocity skew, card parallax, a
+      progress orbit, and the walkthrough acted out in the sky (route beams to candidates, gated
+      routes cut in red, the best route fails over to the next, the record ring pulses). The
+      numbers strip adds the 24 ms average ARC overhead.
 
 ## Phase 6 scope: dashboards and users' own keys
 

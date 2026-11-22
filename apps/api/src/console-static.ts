@@ -15,6 +15,9 @@ const TYPES: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.webp': 'image/webp',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 // Same origin as /admin/v1, so the SameSite=Strict session cookie just works. Nothing third-party.
@@ -98,5 +101,37 @@ export function serveApp(
         'x-frame-options': 'DENY',
       })
       .send(body);
+  });
+}
+
+/**
+ * Serves the public website: its page at / and its files under /site-assets/ (hashed bundles,
+ * fonts, icons). Only those paths, so an unknown /v1 or /admin path still gets its own 404.
+ */
+export function serveSite(app: FastifyInstance, dir: string): void {
+  const root = path.resolve(dir);
+  const headers = (ext: string, immutable: boolean) => ({
+    'content-type': TYPES[ext] ?? 'application/octet-stream',
+    'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
+    'content-security-policy': CSP,
+    'x-content-type-options': 'nosniff',
+    'referrer-policy': 'no-referrer',
+    'x-frame-options': 'DENY',
+  });
+  app.get('/', async (_req, reply) => {
+    const body = await readFile(path.join(root, 'index.html')).catch(() => null);
+    if (!body) return reply.code(404).send();
+    return reply.headers(headers('.html', false)).send(body);
+  });
+  app.get('/site-assets/*', async (req, reply) => {
+    const rel = decodeURIComponent((req.params as { '*': string })['*'] ?? '');
+    const base = path.join(root, 'site-assets');
+    const file = path.resolve(base, rel);
+    if (!file.startsWith(base + path.sep)) return reply.code(404).send();
+    const body = await readFile(file).catch(() => null);
+    if (!body) return reply.code(404).send();
+    // Hashed bundles are immutable; the few unhashed files (icons, manifest) are revalidated.
+    const hashed = /-[A-Za-z0-9_-]{8,}\.(js|css|woff2?)$/.test(file);
+    return reply.headers(headers(path.extname(file), hashed)).send(body);
   });
 }

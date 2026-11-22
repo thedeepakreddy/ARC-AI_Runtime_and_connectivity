@@ -49,3 +49,39 @@ describe('serving the apps', () => {
     expect(txt.body).toBe('google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0\n');
   });
 });
+
+describe('serving the website', () => {
+  const site = mkdtempSync(path.join(tmpdir(), 'arc-site-'));
+  mkdirSync(path.join(site, 'site-assets'));
+  writeFileSync(path.join(site, 'index.html'), '<!doctype html><title>ARC</title>');
+  writeFileSync(path.join(site, 'site-assets', 'index-AbCdEf12.js'), 'console.log(2)');
+  writeFileSync(path.join(site, 'site-assets', 'favicon-32.png'), 'png');
+  const app = buildApp({ checks: [], readinessTimeoutMs: 100, siteDir: site });
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('serves the page at / with the strict policy', async () => {
+    const r = await app.inject({ method: 'GET', url: '/' });
+    expect(r.statusCode).toBe(200);
+    expect(r.body).toContain('<title>ARC</title>');
+    expect(r.headers['content-security-policy']).toContain("script-src 'self'");
+    expect(r.headers['cache-control']).toBe('no-cache');
+  });
+
+  it('serves its assets, hashed ones for a year, and nothing outside them', async () => {
+    const js = await app.inject({ method: 'GET', url: '/site-assets/index-AbCdEf12.js' });
+    expect(js.body).toBe('console.log(2)');
+    expect(js.headers['cache-control']).toContain('immutable');
+    const png = await app.inject({ method: 'GET', url: '/site-assets/favicon-32.png' });
+    expect(png.headers['cache-control']).toBe('no-cache');
+    expect(
+      (await app.inject({ method: 'GET', url: '/site-assets/../index.html' })).statusCode,
+    ).toBe(404);
+    expect((await app.inject({ method: 'GET', url: '/site-assets/missing.js' })).statusCode).toBe(
+      404,
+    );
+    // Unknown paths elsewhere are not swallowed by the site.
+    expect((await app.inject({ method: 'GET', url: '/nope' })).statusCode).toBe(404);
+  });
+});

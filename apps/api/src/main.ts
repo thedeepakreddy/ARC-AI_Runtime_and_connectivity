@@ -146,6 +146,7 @@ const app = buildApp({
   },
   consoleDir: config.CONSOLE_DIR,
   dashboardDir: config.DASHBOARD_DIR,
+  siteDir: config.SITE_DIR,
   ads,
   inference: {
     db,
