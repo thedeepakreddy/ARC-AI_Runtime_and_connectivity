@@ -156,6 +156,8 @@ pools free tiers like nothing else, and stays in your infrastructure.
 
 ### Website
 
+- **The load page:** the opening plays in the sky with the ARC name above Earth's limb and waits
+  there until the visitor clicks **Get started** (no timeout; scrolling and keys don't end it).
 - **The front door at `/`** (`apps/site`): the opening is drawn in a three.js sky over a real
   Earth (4K day, night-lights and cloud maps from Solar System Scope, CC BY 4.0, from NASA
   imagery): the night side with its city lights, a sunlit crescent at the limb. Earth's limb
@@ -195,8 +197,9 @@ pools free tiers like nothing else, and stays in your infrastructure.
   console's own style. The sky acts it out: routes reach out to every candidate station, the
   gates cut theirs in red, the ranked routes brighten, the request travels the best one, that
   station rests and the request falls back to the next, and the record ring pulses.
-- **Type:** Instrument Serif for headlines and figures, Geist for text and controls, Geist Mono
-  for keys (self-hosted, SIL OFL), shared by the site, the dashboard and the console.
+- **Type:** the landing page has its own: Instrument Serif for headlines and figures, Geist for
+  text and controls, Geist Mono for keys (`apps/site/src/fonts.ts`). The console and dashboard
+  keep ARC's Mona Sans, Hubot Sans and Martian Mono (`@arc/ui`). All self-hosted, SIL OFL.
 - **Try now** leads to the customer dashboard's sign-in: the page warps out while the sign-in
   loads. Coming back (Back, or a swipe) shows the page as it was, without the warp, and the
   opening plays once per visit, not again on return. Reduced motion shows a still frame.

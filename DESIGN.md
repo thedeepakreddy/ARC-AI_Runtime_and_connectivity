@@ -32,21 +32,24 @@ colors:
   bad: '#ff5f57'
 typography:
   large-title:
-    fontFamily: 'Instrument Serif'
-    fontSize: '40px'
-    fontWeight: 400
-    letterSpacing: '-0.012em'
-    lineHeight: 1.05
+    fontFamily: 'Mona Sans Variable'
+    fontSize: '34px'
+    fontWeight: 700
+    fontStretch: '112%'
+    letterSpacing: '-0.02em'
+    lineHeight: 1.1
   figure:
-    fontFamily: 'Instrument Serif'
-    fontSize: '40px'
-    fontWeight: 400
-    letterSpacing: '-0.01em'
-  section-title: { fontFamily: 'Geist Variable', fontSize: '19px', fontWeight: 650 }
-  body: { fontFamily: 'Geist Variable', fontSize: '15px', fontWeight: 400, lineHeight: 1.47 }
-  control: { fontFamily: 'Geist Variable', fontSize: '14px', fontWeight: 600 }
-  label: { fontFamily: 'Geist Variable', fontSize: '13px', fontWeight: 600 }
-  mono: { fontFamily: 'Geist Mono Variable', fontSize: '12px' }
+    fontFamily: 'Mona Sans Variable'
+    fontSize: '34px'
+    fontWeight: 560
+    fontStretch: '125%'
+    letterSpacing: '-0.02em'
+  section-title:
+    { fontFamily: 'Mona Sans Variable', fontSize: '19px', fontWeight: 650, fontStretch: '106%' }
+  body: { fontFamily: 'Mona Sans Variable', fontSize: '15px', fontWeight: 400, lineHeight: 1.47 }
+  control: { fontFamily: 'Hubot Sans Variable', fontSize: '14px', fontWeight: 600 }
+  label: { fontFamily: 'Hubot Sans Variable', fontSize: '13px', fontWeight: 600 }
+  mono: { fontFamily: 'Martian Mono Variable', fontSize: '12px', fontStretch: '87.5%' }
 radius:
   sm: '8px'
   field: '10px'
@@ -139,8 +142,8 @@ controls.
 
 - Space backdrop on every page: stars and the Milky Way, fixed, faded towards the bottom.
 - Opaque grouped panels with inset hairline separators; glass only for what floats.
-- Instrument Serif large titles and figures (high-contrast, editorial); Geist for reading text and
-  controls; Geist Mono only for keys, IDs and timestamps.
+- Wide, bold Mona Sans large titles and figures; Hubot Sans for controls; Martian Mono only for
+  keys, IDs and timestamps.
 - Horizon primary actions: deep orbit blue with a luminous rim; blue also for links, selection
   and data.
 - Status in words with a dot, never colour alone.
@@ -178,22 +181,20 @@ A near-monochrome system on true black: greys carry structure, one blue carries 
 
 ## Typography
 
-**Display:** Instrument Serif (regular and italic) · **Text and controls:** Geist Variable ·
-**Mono:** Geist Mono Variable. All self-hosted, SIL OFL.
+**Display:** Mona Sans Variable (wide) · **Controls:** Hubot Sans Variable · **Mono:** Martian
+Mono Variable. All self-hosted, SIL OFL.
 
-**Character:** a rare, high-contrast serif at the top, like a premium editorial cover over the
-space scene; precise and technical in the controls. The display serif has one weight: never bold
-it (`font-synthesis: none`); its italic is the one accent.
+**Character:** wide and confident at the top, compact and technical in the controls.
 
 ### Hierarchy
 
-- **Large title** (Instrument Serif 400, 40px): one per page; the sign-in title too.
-- **Figure** (Instrument Serif 400, 40px): stat tiles. In tables, figures stay in Geist (tabular).
-- **Section title** (Geist 650, 19px).
+- **Large title** (700, 34px, stretch 112%): one per page.
+- **Figure** (560, 34px, stretch 125%, tabular in tables): stat tiles.
+- **Section title** (650, 19px, stretch 106%).
 - **Body** (400, 15px/1.47): reading text, table cells; tabular numerals for figures.
-- **Control / label** (Geist 600, 13–14px): buttons, column heads, field labels; sentence
+- **Control / label** (Hubot Sans 600, 13–14px): buttons, column heads, field labels; sentence
   case, never all caps.
-- **Mono** (Geist Mono 12px): key hints, slugs, IDs, timestamps. Never for
+- **Mono** (Martian Mono 12px, stretch 87.5%): key hints, slugs, IDs, timestamps. Never for
   figures.
 
 ## Elevation
@@ -257,11 +258,15 @@ The implementation in `packages/ui` is the source of truth.
   horizon button's soft rim glow is the one exception).
 - **Don't** put space art behind text inside a panel; panels are opaque.
 - **Don't** put two series with different scales on one axis.
-- **Don't** use Geist Mono for numbers in tables or tiles, or bold the display serif.
+- **Don't** use Martian Mono for numbers in tables or tiles.
 - **Don't** show secrets after creation; show the hint (`****d87d`) only.
 
 ## Known Deviations
 
+- **The public landing page's type** (rule: Mona Sans, Hubot Sans, Martian Mono / actual: the site
+  at `/` uses Instrument Serif for headlines and figures, Geist for text and controls and Geist
+  Mono for keys, loaded by `apps/site/src/fonts.ts` / status: intended, the owner's choice for the
+  marketing page only; the console and dashboard follow this document).
 - **Inline styles** (rule: component classes, tokens and the spacing utilities in
   `packages/ui/src/styles.css` / actual: ~40 `style={{…}}` left, nearly all dynamic values
   such as bar widths and chart positions / status: acceptable where the value is computed).
