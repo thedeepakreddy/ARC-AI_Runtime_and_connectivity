@@ -19,8 +19,14 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 // The camera moves between shots set by the page (setShot), easing with a little lag.
 
 export interface Sky {
-  /** Camera shot: 0 sunrise (hero) · 1 the orbit from above (routing) · 2 close on a station (fallback) · 3 wide (platform) · 4 receding (the end). */
+  /**
+   * Where the camera is on its flight (0–9, fractional between shots): 0 sunrise · 1 skimming the
+   * limb · 2 the orbit from above · 3 close on a station · 4 low over the clouds · 5 wide, rising ·
+   * 6 high orbit · 7 over the night side's city lights · 8 the whole globe · 9 far away.
+   */
   setShot(s: number): void;
+  /** How ARC works, acted out in the sky: beams to candidates, gates, ranking, the failed attempt and its fallback, the record (−1 clears). */
+  flowStage(stage: number): void;
   setVelocity(v: number): void;
   setPointer(x: number | null, y: number | null): void;
   flare(x: number, y: number): void;
@@ -473,6 +479,97 @@ export function createSky(
   heads.frustumCulled = false;
   scene.add(heads);
 
+  // ---- How ARC works, acted out: beams from your app to candidate stations. ----
+  const BEAM_SEG = 64;
+  const beamStations = [4, 9, 14, 18, 22, 26, 30, 33];
+  const gated = new Set([9, 22, 26, 33]);
+  const ranked = [14, 4, 18, 30];
+  const beamMat = (i: number) =>
+    new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uColor: { value: new THREE.Color(BLUE) },
+        uAlpha: { value: 0 },
+        uTime: { value: 0 },
+        uSpeed: { value: 0.6 + i * 0.05 },
+        uHead: { value: -1 },
+      },
+      vertexShader:
+        'varying float vT; void main(){ vT = uv.x; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader:
+        'uniform vec3 uColor; uniform float uAlpha, uTime, uSpeed, uHead; varying float vT; void main(){ float dash = 0.45 + 0.55 * smoothstep(0.55, 1.0, fract(vT * 7.0 - uTime * uSpeed)); float head = uHead < 0.0 ? 0.0 : exp(-pow((vT - uHead) * 22.0, 2.0)) * 3.0; float a = uAlpha * (dash * (0.25 + 0.75 * vT) + head); gl_FragColor = vec4(uColor * a, a); }',
+    });
+  const beams = beamStations.map((si, i) => {
+    const from = apps[0]!,
+      to = stations[si]!.pos;
+    const mid = from.clone().add(to).multiplyScalar(0.5);
+    mid.y += 3.2 + i * 0.12;
+    const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
+    // A thin glowing tube (its uv.x runs along the route), so the beam has real width and depth.
+    const g = new THREE.TubeGeometry(curve, BEAM_SEG * 2, 0.035, 6, false);
+    const line = new THREE.Mesh(g, beamMat(i));
+    line.frustumCulled = false;
+    scene.add(line);
+    return {
+      line,
+      station: si,
+      alpha: 0,
+      target: 0,
+      color: new THREE.Color(BLUE),
+      toColor: new THREE.Color(BLUE),
+      head: -1,
+    };
+  });
+  // The record: a ring of light that runs once round the planet.
+  const ringTex = glowTexture([
+    [0, 'rgba(0,0,0,0)'],
+    [0.82, 'rgba(0,0,0,0)'],
+    [0.9, 'rgba(150,196,245,0.9)'],
+    [0.95, 'rgba(85,154,222,0.4)'],
+    [1, 'rgba(0,0,0,0)'],
+  ]);
+  const ring = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: ringTex,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      opacity: 0,
+    }),
+  );
+  ring.position.set(0, PLANET_Y, 0);
+  scene.add(ring);
+  let flow = -1,
+    flowAt = 0,
+    ringAt = -99;
+  const setFlow = (stage: number) => {
+    flow = stage;
+    flowAt = t;
+    beams.forEach((b) => {
+      b.head = -1;
+      if (stage < 2 || stage === 6) b.target = 0;
+      else if (stage === 2) {
+        b.target = 0.55;
+        b.toColor.copy(BLUE);
+      } else if (stage === 3) {
+        b.target = gated.has(b.station) ? 0 : 0.55;
+        b.toColor.copy(gated.has(b.station) ? new THREE.Color('#ff5f57') : BLUE);
+        b.color.copy(gated.has(b.station) ? new THREE.Color('#ff5f57') : b.color);
+      } else if (stage === 4) {
+        const r = ranked.indexOf(b.station);
+        b.target = r < 0 ? 0 : 1 - r * 0.2;
+        b.toColor.copy(r === 0 ? RIM : BLUE);
+      } else if (stage === 5) {
+        const r = ranked.indexOf(b.station);
+        b.target = r === 0 || r === 1 ? 0.9 : 0;
+        b.toColor.copy(BLUE);
+      }
+    });
+    if (stage === 6) ringAt = t;
+  };
+
   // The best healthy station for a request (free, healthy, fast: here, simply the nearest healthy).
   const pickStation = (from: THREE.Vector3, avoid = -1) => {
     let best = -1,
@@ -519,13 +616,20 @@ export function createSky(
   }
 
   // ---- Camera shots. ----
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
   const SHOTS: Array<{ pos: THREE.Vector3; look: THREE.Vector3; fov: number }> = [
-    { pos: new THREE.Vector3(0, 0.6, 13), look: new THREE.Vector3(0, -0.6, 0), fov: 38 },
-    { pos: new THREE.Vector3(0, 9, 7.5), look: new THREE.Vector3(0, -1.2, -0.5), fov: 44 },
-    { pos: new THREE.Vector3(3.2, 1.6, 6.2), look: new THREE.Vector3(1.4, -0.2, -0.4), fov: 36 },
-    { pos: new THREE.Vector3(-6, 2.4, 14), look: new THREE.Vector3(0, -1, 0), fov: 42 },
-    { pos: new THREE.Vector3(0, -1.5, 24), look: new THREE.Vector3(0, -2.5, 0), fov: 40 },
+    { pos: V(0, 0.6, 13), look: V(0, -0.6, 0), fov: 38 }, // sunrise
+    { pos: V(1.5, -1.5, 5.4), look: V(-2.2, -1.1, -3.2), fov: 56 }, // skimming the limb
+    { pos: V(0, 9, 7.5), look: V(0, -1.2, -0.5), fov: 44 }, // the orbit from above
+    { pos: V(3.2, 1.6, 6.2), look: V(1.4, -0.2, -0.4), fov: 36 }, // close on a station
+    { pos: V(-4.5, -0.3, 6.2), look: V(2, -2.6, -2), fov: 50 }, // low over the clouds
+    { pos: V(-6, 2.4, 14), look: V(0, -1, 0), fov: 42 }, // wide, rising
+    { pos: V(5, 7, 11), look: V(0, -3, 0), fov: 40 }, // high orbit
+    { pos: V(0.5, -4.2, 10.4), look: V(0, -6.6, 0), fov: 44 }, // the night side's city lights
+    { pos: V(0, -3, 22), look: V(0, -6.2, 0), fov: 40 }, // the whole globe
+    { pos: V(0, -1.5, 31), look: V(0, -4.4, 0), fov: 36 }, // far away
   ];
+
   let shot = 0,
     shown = 0,
     scrollV = 0,
@@ -767,6 +871,45 @@ export function createSky(
     planet.rotation.y += dt * 0.004;
     clouds.rotation.y += dt * 0.0055;
     if (bloom) bloom.strength = 0.7 + Math.max(0, 0.6 - flareAge) * 1.5 + warpOut * 1.5;
+    // The walkthrough's beams: fade to their targets; during "execute", a packet runs the best
+    // route, the station refuses (it rests, amber), and a second packet takes the next route.
+    const since = t - flowAt;
+    beams.forEach((b) => {
+      let target = b.target;
+      if (flow === 5) {
+        const r = ranked.indexOf(b.station);
+        if (r === 0) {
+          b.head = Math.min(1, since / 0.9);
+          if (since > 0.9 && stations[b.station]!.resting <= 0 && since < 1.2) {
+            stations[b.station]!.resting = 5;
+            flareAt = t;
+            flarePos.copy(stations[b.station]!.pos);
+          }
+          if (since > 0.9) {
+            b.toColor.set('#ffb340');
+            target = Math.max(0, 0.9 - (since - 0.9) * 0.6);
+          }
+        } else if (r === 1) {
+          b.head = since > 1.1 ? Math.min(1, (since - 1.1) / 0.9) : -1;
+          if (since > 2.0)
+            stations[b.station]!.pulse = Math.min(1.4, stations[b.station]!.pulse + dt * 2);
+          b.toColor.copy(since > 1.1 ? RIM : BLUE);
+        }
+      }
+      b.alpha += (target - b.alpha) * Math.min(1, real * 3);
+      b.color.lerp(b.toColor, Math.min(1, real * 3));
+      const u = (b.line.material as THREE.ShaderMaterial).uniforms;
+      u.uAlpha!.value = b.alpha;
+      u.uTime!.value = t;
+      u.uHead!.value = b.head;
+      (u.uColor!.value as THREE.Color).copy(b.color);
+      b.line.visible = b.alpha > 0.005;
+    });
+    const ringAge = t - ringAt;
+    const rm = ring.material as THREE.SpriteMaterial;
+    rm.opacity = ringAge < 2.4 ? Math.max(0, 1 - ringAge / 2.4) * 0.9 : 0;
+    ring.scale.setScalar(R_PLANET * 2.05 * (1 + Math.min(1, ringAge / 2.4) * 0.35));
+
     if (composer) composer.render();
     else renderer.render(scene, camera);
     if (!still) raf = requestAnimationFrame(step);
@@ -801,6 +944,9 @@ export function createSky(
     failStation() {
       failOne();
     },
+    flowStage(stage) {
+      setFlow(stage);
+    },
     warp() {
       const t0 = performance.now();
       const tick = () => {
@@ -822,7 +968,7 @@ export function createSky(
         if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
         else mat?.dispose();
       });
-      [dotTex, sunTex, nodeTex, tDay, tNight, tBRC].forEach((x) => x.dispose());
+      [dotTex, sunTex, nodeTex, tDay, tNight, tBRC, ringTex].forEach((x) => x.dispose());
       composer?.dispose();
       renderer.dispose();
     },

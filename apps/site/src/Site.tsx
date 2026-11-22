@@ -125,6 +125,19 @@ function Split({ text }: { text: string }) {
   );
 }
 
+/** A heading whose words rise one by one from behind a mask. */
+function Words({ text }: { text: string }) {
+  return (
+    <span aria-label={text}>
+      {text.split(' ').map((w, i) => (
+        <span key={i} className="wmask" aria-hidden="true">
+          <span className="w">{w}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 const Arrow = () => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
     <path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -222,7 +235,7 @@ export function Site() {
     document.documentElement.classList.add('warping');
     setTimeout(() => window.location.assign('/dashboard/'), 650);
   }, []);
-  const failStation = useCallback(() => sky.current?.failStation(), []);
+  const flowStage = useCallback((n: number) => sky.current?.flowStage(n), []);
   const go = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: still() ? 'auto' : 'smooth' });
 
@@ -250,6 +263,10 @@ export function Site() {
       )}
 
       <div className="page">
+        <div className="orbit-progress" aria-hidden="true">
+          <i data-progress />
+          <b data-progress-dot />
+        </div>
         <header className="top">
           <div className="wrap">
             <a className="brand" href="/" aria-label="ARC home">
@@ -283,7 +300,7 @@ export function Site() {
         </header>
 
         <main>
-          <section className="wrap hero" data-shot="0">
+          <section data-shot="0" className="wrap hero">
             <span className="eyebrow" data-rise>
               AI Runtime &amp; Connectivity
             </span>
@@ -325,7 +342,7 @@ export function Site() {
             </div>
           </section>
 
-          <section className="wrap" aria-label="ARC in numbers">
+          <section data-shot="1" className="wrap" aria-label="ARC in numbers">
             <div className="facts">
               <div className="fact" data-fact>
                 <b>
@@ -345,6 +362,12 @@ export function Site() {
               </div>
               <div className="fact" data-fact>
                 <b>
+                  <span data-count="24">24</span> ms
+                </b>
+                <span>average ARC overhead per request</span>
+              </div>
+              <div className="fact" data-fact>
+                <b>
                   $<span data-count="0">0</span>
                 </b>
                 <span>to run, on Oracle’s Always Free Arm VM</span>
@@ -358,13 +381,13 @@ export function Site() {
             </div>
           </section>
 
-          <section id="how" className="block" data-shot="1" data-flow>
+          <section data-shot="2" id="how" className="block" data-flow>
             <div className="wrap">
               <div className="block-head">
                 <div>
                   <span className="eyebrow">How ARC works</span>
-                  <h2 className="h2" data-reveal>
-                    Every request finds a way through.
+                  <h2 className="h2" data-words>
+                    <Words text="Every request finds a way through." />
                   </h2>
                 </div>
                 <p className="lead" data-reveal>
@@ -373,17 +396,17 @@ export function Site() {
                   ranked, and what happens when the first choice fails.
                 </p>
               </div>
-              <Flow onFail={failStation} />
+              <Flow onStage={flowStage} />
             </div>
           </section>
 
-          <section className="block" data-shot="2">
+          <section data-shot="3" className="block">
             <div className="wrap">
               <div className="block-head">
                 <div>
                   <span className="eyebrow">Fallback</span>
-                  <h2 className="h2" data-reveal>
-                    One rate-limited key never takes your app down.
+                  <h2 className="h2" data-words>
+                    <Words text="One rate-limited key never takes your app down." />
                   </h2>
                 </div>
                 <p className="lead" data-reveal>
@@ -420,12 +443,12 @@ export function Site() {
             </div>
           </section>
 
-          <section className="block" data-shot="1">
+          <section data-shot="4" className="block">
             <div className="wrap code">
               <div>
                 <span className="eyebrow">For developers</span>
-                <h2 className="h2" data-reveal style={{ marginTop: 18 }}>
-                  Change the base URL. Keep your code.
+                <h2 className="h2" data-words style={{ marginTop: 18 }}>
+                  <Words text="Change the base URL. Keep your code." />
                 </h2>
                 <p className="lead" data-reveal style={{ marginTop: 20 }}>
                   Any OpenAI SDK works. Chat with streaming, tools and JSON schema output,
@@ -475,13 +498,13 @@ export function Site() {
             </div>
           </section>
 
-          <section id="providers" className="block" data-shot="3">
+          <section data-shot="5" id="providers" className="block">
             <div className="wrap">
               <div className="block-head">
                 <div>
                   <span className="eyebrow">Providers and models</span>
-                  <h2 className="h2" data-reveal>
-                    36 providers. Free tiers first, honestly.
+                  <h2 className="h2" data-words>
+                    <Words text="36 providers. Free tiers first, honestly." />
                   </h2>
                 </div>
                 <p className="lead" data-reveal>
@@ -531,13 +554,13 @@ export function Site() {
             </div>
           </section>
 
-          <section className="block" data-shot="3">
+          <section data-shot="6" className="block">
             <div className="wrap">
               <div className="block-head">
                 <div>
                   <span className="eyebrow">What makes ARC different</span>
-                  <h2 className="h2" data-reveal>
-                    An operator-grade runtime you own.
+                  <h2 className="h2" data-words>
+                    <Words text="An operator-grade runtime you own." />
                   </h2>
                 </div>
                 <p className="lead" data-reveal>
@@ -638,13 +661,13 @@ export function Site() {
             </div>
           </section>
 
-          <section id="platform" className="block" data-shot="3">
+          <section data-shot="6.5" id="platform" className="block">
             <div className="wrap">
               <div className="block-head">
                 <div>
                   <span className="eyebrow">The platform</span>
-                  <h2 className="h2" data-reveal>
-                    A console for the owner. A dashboard for everyone else.
+                  <h2 className="h2" data-words>
+                    <Words text="A console for the owner. A dashboard for everyone else." />
                   </h2>
                 </div>
                 <p className="lead" data-reveal>
@@ -691,13 +714,13 @@ export function Site() {
             </div>
           </section>
 
-          <section id="security" className="block" data-shot="2">
+          <section data-shot="7" id="security" className="block">
             <div className="wrap">
               <div className="block-head">
                 <div>
                   <span className="eyebrow">Security</span>
-                  <h2 className="h2" data-reveal>
-                    Your keys stay yours. Your prompts stay unread.
+                  <h2 className="h2" data-words>
+                    <Words text="Your keys stay yours. Your prompts stay unread." />
                   </h2>
                 </div>
                 <p className="lead" data-reveal>
@@ -733,7 +756,7 @@ export function Site() {
             </div>
           </section>
 
-          <section className="block" data-shot="3">
+          <section data-shot="8" className="block">
             <div className="wrap">
               <div className="cards two">
                 <div className="card" data-reveal>
@@ -776,9 +799,9 @@ export function Site() {
             </div>
           </section>
 
-          <section className="wrap closing" data-shot="4">
-            <h2 className="display" data-reveal>
-              Your apps. Every provider. One runtime.
+          <section data-shot="9" className="wrap closing">
+            <h2 className="display" data-words>
+              <Words text="Your apps. Every provider. One runtime." />
             </h2>
             <p className="lead" data-reveal style={{ marginTop: 22 }}>
               Create an app, issue a key, and send your first request in minutes.

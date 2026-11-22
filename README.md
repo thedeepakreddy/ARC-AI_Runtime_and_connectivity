@@ -163,8 +163,14 @@ pools free tiers like nothing else, and stays in your infrastructure.
   comets under gravity, steering for the station ARC chose and re-routing when one rests after
   a rate limit. Scroll speed stretches the stars into a warp; the pointer bends the comets'
   paths and a click scatters them.
+- **One continuous flight:** the camera flies a single path around the planet as you scroll,
+  each section taking it to its own shot. Headlines rise word by word from behind a mask and
+  lean with scroll speed, cards drift at different depths, and an orbit along the top shows how
+  far down the page you are.
 - **How ARC works:** a pinned walkthrough of one request through the seven steps below, in the
-  console's own style.
+  console's own style. The sky acts it out: routes reach out to every candidate station, the
+  gates cut theirs in red, the ranked routes brighten, the request travels the best one, that
+  station rests and the request falls back to the next, and the record ring pulses.
 - **Try now** leads to the customer dashboard's sign-in. Reduced motion shows a still frame.
 
 ### Multi-tenant platform

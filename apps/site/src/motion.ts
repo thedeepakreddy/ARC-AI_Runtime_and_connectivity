@@ -27,16 +27,73 @@ export function initMotion(sky: Sky | null): () => void {
       },
     });
 
-    // The sky's camera follows the sections.
+    // The sky's camera flies one continuous path: as each section comes up the screen, the shot
+    // moves from the previous section's to its own, scrubbed by the scroll.
+    let prev = 0;
     gsap.utils.toArray<HTMLElement>('[data-shot]').forEach((el) => {
-      const n = Number(el.dataset.shot);
+      const n = Number(el.dataset.shot),
+        from = prev;
+      prev = n;
+      if (n === from) return;
       ScrollTrigger.create({
         trigger: el,
-        start: 'top 55%',
-        end: 'bottom 45%',
-        onToggle: (s) => {
-          if (s.isActive) sky?.setShot(n);
+        start: 'top bottom',
+        end: 'top 25%',
+        onUpdate: (s) => sky?.setShot(from + (n - from) * s.progress),
+      });
+    });
+
+    // A thin orbit along the top shows how far down the page you are.
+    const bar = document.querySelector<HTMLElement>('[data-progress]');
+    const dotEl = document.querySelector<HTMLElement>('[data-progress-dot]');
+    ScrollTrigger.create({
+      start: 0,
+      end: 'max',
+      onUpdate: (s) => {
+        if (bar) gsap.set(bar, { scaleX: s.progress });
+        if (dotEl) gsap.set(dotEl, { left: `${s.progress * 100}%` });
+      },
+    });
+
+    // Headings: words rise from behind a mask, one after another; they lean with scroll speed.
+    gsap.utils.toArray<HTMLElement>('[data-words]').forEach((h) => {
+      gsap.fromTo(
+        h.querySelectorAll('.w'),
+        { yPercent: 115, rotate: 7 },
+        {
+          yPercent: 0,
+          rotate: 0,
+          duration: 1.1,
+          ease: 'power4.out',
+          stagger: 0.06,
+          scrollTrigger: { trigger: h, start: 'top 88%' },
         },
+      );
+    });
+    const skews = gsap.utils
+      .toArray<HTMLElement>('[data-words]')
+      .map((h) => gsap.quickTo(h, 'skewY', { duration: 0.5, ease: 'power3.out' }));
+    ScrollTrigger.create({
+      start: 0,
+      end: 'max',
+      onUpdate: (s) => {
+        const k = gsap.utils.clamp(-3, 3, s.getVelocity() / -700);
+        skews.forEach((fn) => fn(k));
+      },
+    });
+
+    // Cards drift at different depths as they pass (parallax), without touching their arrival.
+    gsap.utils.toArray<HTMLElement>('.cards').forEach((grid) => {
+      Array.from(grid.children).forEach((card, i) => {
+        gsap.fromTo(
+          card,
+          { yPercent: 8 + (i % 3) * 7 },
+          {
+            yPercent: -(4 + (i % 3) * 5),
+            ease: 'none',
+            scrollTrigger: { trigger: grid, start: 'top bottom', end: 'bottom top', scrub: true },
+          },
+        );
       });
     });
 
@@ -167,6 +224,15 @@ export function initMotion(sky: Sky | null): () => void {
         pin: true,
         pinSpacing: true,
         anticipatePin: 1,
+        // Leaving the walkthrough clears its beams from the sky.
+        onLeave: () => sky?.flowStage(-1),
+        onLeaveBack: () => sky?.flowStage(-1),
+        onEnter: () => {
+          last = -1;
+        },
+        onEnterBack: () => {
+          last = -1;
+        },
         onUpdate: (s) => {
           const stage = Math.min(6, Math.floor(s.progress * 7));
           if (stage !== last) {

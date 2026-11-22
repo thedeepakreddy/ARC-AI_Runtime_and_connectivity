@@ -94,7 +94,7 @@ const still = () =>
   typeof window !== 'undefined' &&
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-export function Flow({ onFail }: { onFail?: () => void }) {
+export function Flow({ onStage }: { onStage?: (stage: number) => void }) {
   const [stage, setStage] = useState(still() ? 6 : 0);
   const [sub, setSub] = useState(still() ? 99 : 0);
   const root = useRef<HTMLDivElement>(null);
@@ -146,9 +146,9 @@ export function Flow({ onFail }: { onFail?: () => void }) {
       setSub(k);
       if (k >= (stage === 5 ? 60 : beats + 1)) clearInterval(id);
     }, pace);
-    if (stage === 5) setTimeout(() => onFail?.(), 700);
+    onStage?.(stage);
     return () => clearInterval(id);
-  }, [stage, onFail]);
+  }, [stage, onStage]);
 
   const progress = (stage + 1) / STEPS.length;
   return (
