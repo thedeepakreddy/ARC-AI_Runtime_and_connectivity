@@ -1182,3 +1182,21 @@ footer a:hover {
 .intro-on .orbit-progress {
   opacity: 0;
 }
+
+/* ?debug=1 diagnostics. */
+.debug-panel {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 100000;
+  max-width: min(92vw, 720px);
+  margin: 0;
+  padding: 10px 12px;
+  background: #111214;
+  color: #d8dce4;
+  border-radius: 10px;
+  font: 11px/1.45 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-all;
+  pointer-events: none;
+}

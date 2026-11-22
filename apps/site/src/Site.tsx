@@ -1,6 +1,8 @@
 import { Wordmark } from '@arc/ui';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Flow } from './Flow';
+import { DebugPanel } from './DebugPanel';
+import { noteError } from './debug';
 import { markOpeningSeen } from './opening';
 import type { Sky } from './scene';
 
@@ -211,8 +213,8 @@ export function Site() {
     if (!cv) return;
     let cancelled = false,
       cleanup = () => {};
-    // The opening can hold up to 5 s for the Earth's maps, then plays for about 4.5 s.
-    const safety = setTimeout(() => setIntro(false), 12000);
+    // The opening can hold up to 9 s for the Earth's maps (4K on an iPad), then plays about 4.5 s.
+    const safety = setTimeout(() => setIntro(false), 16000);
     Promise.all([import('./scene'), import('./motion')])
       .then(([{ createSky, skyTier }, { initMotion }]) => {
         if (cancelled) return;
@@ -226,7 +228,8 @@ export function Site() {
             still: calm,
             onIntroDone: () => setIntro(false),
           });
-        } catch {
+        } catch (e) {
+          noteError('createSky', e);
           setIntro(false);
         }
         sky.current = s;
@@ -260,7 +263,10 @@ export function Site() {
           s?.dispose();
         };
       })
-      .catch(() => setIntro(false));
+      .catch((e) => {
+        noteError('load', e);
+        setIntro(false);
+      });
     return () => {
       cancelled = true;
       clearTimeout(safety);
@@ -336,6 +342,7 @@ export function Site() {
   return (
     <>
       <canvas ref={canvas} className="sky" aria-hidden="true" />
+      <DebugPanel />
       <div className="veil" aria-hidden="true" />
 
       {intro && (

@@ -175,10 +175,13 @@ pools free tiers like nothing else, and stays in your infrastructure.
   scene with the real numbers: parallel sunlight, Rayleigh blue, the twilight band, the forward-
   scattering arc, ocean glint, orbits and Earth's shadow, the catalogue stars and the Milky Way,
   and what is enlarged (objects in orbit) or a metaphor (requests as comets).
-- **Loads quickly:** the maps load at 2K first, with download starting as the page opens; the
-  opening holds in its warp until the Earth is ready (5 s at most), the planet fades in rather
-  than showing a black disc, desktops swap in 4K afterwards, and the sky's files are cached for a
-  day.
+- **Loads quickly, within the device's memory:** desktops show the 2K maps first and swap in 4K;
+  iPads load the 4K maps once, directly, at a slightly lower pixel density (Safari drops the whole
+  canvas if a page runs over its graphics memory, so the two sets are never held at once); phones
+  use 2K. The opening holds in its warp until the Earth is ready (5 s at most, 9 s for 4K on an
+  iPad), the planet fades in rather than showing a black disc, and the sky's files are cached for
+  a day. Add `?debug=1` to the address for an on-page diagnostics panel (GPU, tier, maps loaded or
+  failed, frames, lost context, errors).
 - **One continuous flight:** the camera flies a single path around the planet as you scroll,
   each section taking it to its own shot. Headlines rise word by word from behind a mask and
   lean with scroll speed, cards drift at different depths, and an orbit along the top shows how

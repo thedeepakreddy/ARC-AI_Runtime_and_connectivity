@@ -224,6 +224,10 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       never synthesised bold; italic as the accent), Geist for text and controls, Geist Mono for
       keys. Replaces Mona Sans, Hubot Sans and Martian Mono; all OFL and self-hosted. DESIGN.md
       updated. Also fixed: wrapped headline lines no longer start indented.
+- [x] iPad fix: the 2K-then-4K swap held both sets of maps in graphics memory and Safari dropped
+      the canvas (black sky). iOS now loads 4K once (iPad) or 2K (iPhone), at a lower pixel
+      density; failed maps no longer hold the opening; the CORS-mode preloads are gone; `?debug=1`
+      shows an on-page diagnostics panel for devices we can't test here.
 
 ## Phase 6 scope: dashboards and users' own keys
 
