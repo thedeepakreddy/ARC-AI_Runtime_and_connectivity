@@ -37,6 +37,18 @@ rollout() {
   ARC_VERSION="$1" docker compose up -d --no-build api worker
 }
 
+# Record the live version in .env, so later plain `docker compose` commands (recreating Caddy,
+# `up -d` after a compose change) keep these images instead of falling back to arc-*:local.
+pin_version() {
+  local env_file="${ENV_FILE:-.env}"
+  [[ -f "$env_file" ]] || return 0
+  if grep -q '^ARC_VERSION=' "$env_file"; then
+    sed -i "s/^ARC_VERSION=.*/ARC_VERSION=$1/" "$env_file"
+  else
+    printf '\nARC_VERSION=%s\n' "$1" >> "$env_file"
+  fi
+}
+
 # 1. Validate
 [[ -z "$(git status --porcelain)" ]] || die "working tree has uncommitted changes"
 git fetch --quiet --tags origin || log "warning: fetch failed; using local refs"
@@ -70,6 +82,7 @@ rollout "$short"
 if wait_healthy; then
   mkdir -p "$(dirname "$STATE_FILE")"
   echo "$short" > "$STATE_FILE"
+  pin_version "$short"
   log "healthy: $short is live"
   exit 0
 fi
@@ -80,6 +93,7 @@ log "health check failed within ${HEALTH_TIMEOUT_S}s"
 log "rolling back to $previous"
 rollout "$previous"
 if wait_healthy; then
+  pin_version "$previous"
   die "rolled back to $previous (healthy). Deployment of $short FAILED."
 fi
 die "rollback to $previous is NOT healthy either: manual intervention required"

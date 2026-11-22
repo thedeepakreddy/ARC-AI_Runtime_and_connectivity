@@ -33,7 +33,8 @@ exit 0
 STUB
   chmod +x "$work/bin/"* "$work/ops/"*.sh
   touch "$work/calls" "$work/unhealthy"
-  export PATH="$work/bin:$PATH" DEPLOY_STATE_FILE="$work/state" HEALTH_TIMEOUT_S=3
+  printf 'POSTGRES_PASSWORD=x\n' > "$work/env"
+  export PATH="$work/bin:$PATH" DEPLOY_STATE_FILE="$work/state" HEALTH_TIMEOUT_S=3 ENV_FILE="$work/env"
 }
 
 # Dry run builds but never rolls out or backs up
@@ -51,6 +52,10 @@ echo "oldversion01" > "$work/state"
 grep -q backup "$work/calls" || fail "should back up"
 [[ "$(grep -n backup "$work/calls" | cut -d: -f1)" -lt "$(grep -n 'compose up' "$work/calls" | cut -d: -f1)" ]] || fail "backup must precede rollout"
 [[ "$(cat "$work/state")" == "aaaaaaaaaaaa" ]] || fail "state should record new version"
+grep -qx 'ARC_VERSION=aaaaaaaaaaaa' "$work/env" || fail ".env should pin the new version"
+grep -qx 'POSTGRES_PASSWORD=x' "$work/env" || fail ".env must keep its other settings"
+"$work/ops/deploy.sh" main --approve >/dev/null
+[[ "$(grep -c '^ARC_VERSION=' "$work/env")" == 1 ]] || fail ".env should hold one ARC_VERSION line"
 echo "ok - approved healthy deploy backs up first and records the new version"
 
 # Approved + unhealthy: automatic rollback to previous version, non-zero exit
@@ -60,5 +65,6 @@ echo "aaaaaaaaaaaa" > "$work/unhealthy"
 if "$work/ops/deploy.sh" main --approve >/dev/null 2>&1; then fail "unhealthy deploy must fail"; fi
 grep 'compose up' "$work/calls" | tail -1 | grep -q 'ARC_VERSION=oldversion01' || fail "should roll back to previous"
 [[ "$(cat "$work/state")" == "oldversion01" ]] || fail "state must keep the previous version"
+grep -qx 'ARC_VERSION=oldversion01' "$work/env" || fail ".env should pin the version rolled back to"
 echo "ok - unhealthy deploy rolls back automatically and exits non-zero"
 echo "all deploy tests passed"

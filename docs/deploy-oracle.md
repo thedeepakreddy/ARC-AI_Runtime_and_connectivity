@@ -127,7 +127,9 @@ scripts/ops/deploy.sh origin/main --approve   # backup, roll out, health-check, 
 - The pre-deploy backup needs `DATABASE_URL` and `BACKUP_PASSPHRASE_FILE`
   ([operations.md](operations.md)). Without them the rollout stops before changing anything;
   `SKIP_BACKUP=1` skips the backup.
-- `deploy.sh` replaces only `api` and `worker`. When a release changes `infra/caddy/Caddyfile`,
+- `deploy.sh` replaces only `api` and `worker`, and records the live version as `ARC_VERSION` in
+  `.env` so later `docker compose` commands keep those images (without it they fall back to
+  `arc-api:local`, the image from the first install). When a release changes `infra/caddy/Caddyfile`,
   recreate Caddy as well: `docker compose --profile https up -d --force-recreate caddy`. A
   plain `restart` is not enough: the Caddyfile is mounted as a single file, and after `git pull`
   replaces it the running container keeps reading the old copy.
