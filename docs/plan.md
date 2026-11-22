@@ -241,6 +241,9 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       after their contents (bytes unchanged) and the API caches them for a year. The canvas is
       re-measured every frame: on iOS (a home-screen app, a hiding address bar) it can change size
       without a resize event, which stretched the Earth into an oval.
+- [x] Type, decided by the owner: the serif type stays on the landing page only (its own
+      `src/fonts.ts`); the console and dashboard return to Mona Sans, Hubot Sans and Martian Mono
+      (`@arc/ui` and DESIGN.md as before the change; the landing page is listed as a deviation).
 
 ## Phase 6 scope: dashboards and users' own keys
 
