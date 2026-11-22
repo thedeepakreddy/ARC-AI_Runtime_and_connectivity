@@ -5,6 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { noteError, skyDebug } from './debug';
 import { buildStation, buildTrain } from './orbiters';
+import { type Res, SKY_ASSETS } from './skyAssets';
 
 // The website's sky: ARC's routing drawn as orbital mechanics, over a real sky.
 //
@@ -410,14 +411,14 @@ export function createSky(
   // the 4K versions in the background.
   // Map sizes: every screen with a real GPU gets the 4K maps, loaded once (never a 2K set and a
   // 4K set in memory together); software renderers get 2K.
-  const RES = tier === 'software' ? 2048 : 4096;
+  const RES: Res = tier === 'software' ? 2048 : 4096;
   const prepMW = (t: THREE.Texture) => {
     t.colorSpace = THREE.SRGBColorSpace;
     t.generateMipmaps = false; // sampled by direction: mipmaps would show the u seam
     t.minFilter = THREE.LinearFilter;
     return t;
   };
-  const tMW = prepMW(loader.load(`/site-assets/sky/milkyway_${RES}.jpg`));
+  const tMW = prepMW(loader.load(SKY_ASSETS.milkyway[RES]));
   const mwMat = new THREE.ShaderMaterial({
     vertexShader: MW_VERT,
     fragmentShader: MW_FRAG,
@@ -446,7 +447,7 @@ export function createSky(
   const SKY_STARS = tier === 'high' ? 26000 : tier === 'low' ? 12000 : 5000;
   let skyStars: THREE.Points | null = null;
   let disposed = false;
-  fetch('/site-assets/sky/stars.bin')
+  fetch(SKY_ASSETS.stars)
     .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
     .then((buf) => {
       if (disposed) return;
@@ -483,8 +484,10 @@ export function createSky(
     earthReady = false,
     readyAt = 0;
   // A map that fails still counts, so the opening never waits on it (the planet shows what it has).
+  // The planet shows once its day and night maps are in; the bump/roughness/clouds map (the
+  // largest) fills in when it lands, with a neutral stand-in until then.
   const arrived = () => {
-    if (++earthLoaded === 3) {
+    if (++earthLoaded === 2) {
       earthReady = true;
       readyAt = performance.now();
     }
@@ -494,14 +497,22 @@ export function createSky(
     tex.anisotropy = Math.min(8, maxAniso);
     return tex;
   };
-  const map = (name: string, srgb: boolean) =>
-    prepMap(
-      loader.load(`/site-assets/earth/${name}_${RES}.jpg`, arrived, undefined, arrived),
-      srgb,
-    );
+  const map = (name: 'earth_day' | 'earth_night', srgb: boolean) =>
+    prepMap(loader.load(SKY_ASSETS[name][RES], arrived, undefined, arrived), srgb);
   const tDay = map('earth_day', true);
   const tNight = map('earth_night', true);
-  const tBRC = map('earth_bump_roughness_clouds', false);
+  // Stand-in for the bump/roughness/clouds map: flat (bump 0.5), rough land (no glint), no cloud.
+  const brcStandIn = new THREE.DataTexture(new Uint8Array([128, 255, 0, 255]), 1, 1);
+  brcStandIn.needsUpdate = true;
+  const brcLoaded = prepMap(
+    loader.load(SKY_ASSETS.earth_bump_roughness_clouds[RES], (t) => {
+      if (disposed) return;
+      pu.tBRC.value = t;
+      if (still) render();
+    }),
+    false,
+  );
+  const tBRC: THREE.Texture = brcStandIn;
   // The sun, far away and just over the limb (from the opening shot): Earth is lit from behind
   // and to the right, so its day side is a crescent and the sunlit air makes an arc of light.
   const sunDir = new THREE.Vector3(0.34, 0.17, -0.925).normalize();
@@ -1010,9 +1021,13 @@ export function createSky(
     introDoneSent = false,
     spawnAcc = 0;
 
+  let sizedW = 0,
+    sizedH = 0;
   const resize = () => {
     const w = canvas.clientWidth || window.innerWidth,
       h = canvas.clientHeight || window.innerHeight;
+    sizedW = w;
+    sizedH = h;
     renderer.setSize(w, h, false);
     composer?.setSize(w, h);
     bloom?.setSize(Math.floor(w / 2), Math.floor(h / 2));
@@ -1039,6 +1054,13 @@ export function createSky(
   const HOLD_MS = RES === 4096 ? 9000 : 5000;
   const frame = (now: number) => {
     skyDebug.frames++;
+    // The canvas can change size without a resize event (on a phone the address bar hides as you
+    // scroll): match it every frame, or the picture stretches and the Earth turns oval.
+    if (
+      (canvas.clientWidth && canvas.clientWidth !== sizedW) ||
+      (canvas.clientHeight && canvas.clientHeight !== sizedH)
+    )
+      resize();
     const real = Math.min(0.1, (now - last) / 1000);
     last = now;
     const dt = Math.min(0.033, real);
@@ -1427,7 +1449,8 @@ export function createSky(
         nodeTex,
         tDay,
         tNight,
-        tBRC,
+        brcStandIn,
+        brcLoaded,
         tMW,
         ringTex,
       ].forEach((x) => x.dispose());

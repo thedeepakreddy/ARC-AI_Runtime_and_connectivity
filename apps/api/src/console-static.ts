@@ -135,10 +135,10 @@ export function serveSite(app: FastifyInstance, dir: string): void {
     if (!file.startsWith(base + path.sep)) return reply.code(404).send();
     const body = await readFile(file).catch(() => null);
     if (!body) return reply.code(404).send();
-    // Hashed bundles are immutable. The sky's maps and star data are large and rarely change:
-    // cached for a day (served stale while revalidating for a week), so repeat visits draw at
-    // once. The few other unhashed files (icons, manifest) are revalidated.
-    const hashed = /-[A-Za-z0-9_-]{8,}\.(js|css|woff2?)$/.test(file);
+    // Hashed files (bundles, fonts, and the sky's maps and star data, named after their contents)
+    // are immutable: cached for a year. Unhashed files under earth/ and sky/ (their credits) are
+    // cached for a day; the few others (icons, manifest) are revalidated.
+    const hashed = /-[A-Za-z0-9_-]{8,}\.(js|css|woff2?|jpg|bin)$/.test(file);
     const sky = rel.startsWith('earth/') || rel.startsWith('sky/');
     return reply
       .headers(headers(path.extname(file), hashed ? 'immutable' : sky ? 'day' : 'revalidate'))

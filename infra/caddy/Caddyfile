@@ -3,6 +3,12 @@
 # ARC must trust the proxy for client addresses: set TRUST_PROXY=true in .env.
 {
 	email {$ACME_EMAIL}
+	# HTTP/1.1 and HTTP/2 over TCP only. HTTP/3 needs UDP 443 open end to end; where a firewall
+	# (Oracle's security list, the VM's iptables) drops it, browsers that switch to HTTP/3 after the
+	# first response (Safari does) stall for minutes on the page's later files before falling back.
+	servers {
+		protocols h1 h2
+	}
 }
 
 {$ARC_DOMAIN} {
