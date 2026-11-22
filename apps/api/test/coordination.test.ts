@@ -20,6 +20,16 @@ import { DirectGateway } from './helpers/direct-gateway.js';
 import { type MockProvider, startMockProvider } from './helpers/mock-provider.js';
 
 const TEST_REDIS_URL = process.env.TEST_REDIS_URL;
+// This suite empties its Redis database before every test. Test files run in parallel, so it
+// gets a database of its own (the next index after TEST_REDIS_URL's), and its flush can't wipe
+// keys another file (the sign-in throttle test, for one) is in the middle of checking.
+const COORD_REDIS_URL = (() => {
+  if (!TEST_REDIS_URL) return undefined;
+  const u = new URL(TEST_REDIS_URL);
+  const index = Number(u.pathname.slice(1)) || 0;
+  u.pathname = `/${(index + 1) % 16}`;
+  return u.toString();
+})();
 const OWNER = { email: 'owner@arc.test', password: 'owner-password-123' };
 
 interface Instance {
@@ -51,8 +61,8 @@ describe.skipIf(!TEST_DATABASE_URL || !TEST_REDIS_URL)(
       const verifier = new ApiKeyVerifier(db);
       const candidates = new CandidateStore(db);
       const cooldowns = new Cooldowns();
-      const bus = new RedisBus(TEST_REDIS_URL!);
-      const redis = new Redis(TEST_REDIS_URL!, { maxRetriesPerRequest: 1 });
+      const bus = new RedisBus(COORD_REDIS_URL!);
+      const redis = new Redis(COORD_REDIS_URL!, { maxRetriesPerRequest: 1 });
       const metrics = new ArcMetrics();
       bus.subscribe((e) => {
         if (e.type === 'api_key_revoked') verifier.invalidate(e.keyId);
