@@ -116,10 +116,22 @@ comes back on its own after a reboot.
 
 ## Updates
 
+On the VM (`ssh -i <key> ubuntu@<public-ip>`; the prompt must say `ubuntu@…`, not `cloudshell`):
+
 ```bash
-cd /opt/arc && git fetch && scripts/ops/deploy.sh origin/main            # dry run
-scripts/ops/deploy.sh origin/main --approve                             # roll out, auto-rollback
+cd /opt/arc && git pull origin main
+scripts/ops/deploy.sh origin/main             # dry run: builds the images, changes nothing
+scripts/ops/deploy.sh origin/main --approve   # backup, roll out, health-check, auto-rollback
 ```
+
+- The pre-deploy backup needs `DATABASE_URL` and `BACKUP_PASSPHRASE_FILE`
+  ([operations.md](operations.md)). Without them the rollout stops before changing anything;
+  `SKIP_BACKUP=1` skips the backup.
+- `deploy.sh` replaces only `api` and `worker`. When a release changes `infra/caddy/Caddyfile`,
+  recreate Caddy as well: `docker compose --profile https up -d --force-recreate caddy`. A
+  plain `restart` is not enough: the Caddyfile is mounted as a single file, and after `git pull`
+  replaces it the running container keeps reading the old copy.
+- After a change to `docker-compose.yml` itself, run the `up -d` command from step 2 again.
 
 ## Keeping it 24/7 and free
 
