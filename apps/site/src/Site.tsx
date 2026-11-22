@@ -213,8 +213,7 @@ export function Site() {
     if (!cv) return;
     let cancelled = false,
       cleanup = () => {};
-    // The opening can hold up to 9 s for the Earth's maps (4K on an iPad), then plays about 4.5 s.
-    const safety = setTimeout(() => setIntro(false), 16000);
+
     Promise.all([import('./scene'), import('./motion')])
       .then(([{ createSky, skyTier }, { initMotion }]) => {
         if (cancelled) return;
@@ -226,11 +225,10 @@ export function Site() {
             tier: skyTier(),
             intro: !calm && opening,
             still: calm,
-            onIntroDone: () => setIntro(false),
           });
         } catch (e) {
+          // The opening stays up with its Get started button even without the sky.
           noteError('createSky', e);
-          setIntro(false);
         }
         sky.current = s;
         const stop = calm ? () => {} : initMotion(s);
@@ -263,35 +261,24 @@ export function Site() {
           s?.dispose();
         };
       })
-      .catch((e) => {
-        noteError('load', e);
-        setIntro(false);
-      });
+      .catch((e) => noteError('load', e));
     return () => {
       cancelled = true;
-      clearTimeout(safety);
       cleanup();
     };
   }, []);
 
-  // While the opening plays: any key, scroll or the button ends it.
+  // The opening stays until the visitor clicks Get started (no timeout; scrolling and keys don't
+  // end it). The click finishes the sky's opening at once if it's still playing, then shows the page.
   useEffect(() => {
     document.documentElement.classList.toggle('intro-on', intro);
     document.body.style.overflow = intro ? 'hidden' : '';
-    if (!intro) {
-      markOpeningSeen();
-      return;
-    }
-    const skip = () => sky.current?.skipIntro();
-    window.addEventListener('keydown', skip);
-    window.addEventListener('wheel', skip, { passive: true });
-    window.addEventListener('touchmove', skip, { passive: true });
-    return () => {
-      window.removeEventListener('keydown', skip);
-      window.removeEventListener('wheel', skip);
-      window.removeEventListener('touchmove', skip);
-    };
+    if (!intro) markOpeningSeen();
   }, [intro]);
+  const getStarted = useCallback(() => {
+    sky.current?.skipIntro();
+    setIntro(false);
+  }, []);
 
   // Try now: a warp out of the page while the sign-in loads. The browser keeps showing the warp
   // until the next page is ready, so the load starts early rather than after the animation.
@@ -351,8 +338,8 @@ export function Site() {
             <Wordmark height={64} />
             <p>AI Runtime &amp; Connectivity</p>
           </div>
-          <button type="button" className="btn skip" onClick={() => sky.current?.skipIntro()}>
-            Skip intro
+          <button type="button" className="btn primary lg start" onClick={getStarted}>
+            Get started <Arrow />
           </button>
         </div>
       )}

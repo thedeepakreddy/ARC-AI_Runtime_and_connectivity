@@ -244,6 +244,9 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
 - [x] Type, decided by the owner: the serif type stays on the landing page only (its own
       `src/fonts.ts`); the console and dashboard return to Mona Sans, Hubot Sans and Martian Mono
       (`@arc/ui` and DESIGN.md as before the change; the landing page is listed as a deviation).
+- [x] The load page waits for the visitor: **Get started** replaces Skip intro, and the opening
+      stays until it's clicked (no safety timeout, no ending on scroll or keys); the click
+      finishes the sky's opening at once if it's still playing.
 
 ## Phase 6 scope: dashboards and users' own keys
 

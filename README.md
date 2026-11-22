@@ -156,6 +156,8 @@ pools free tiers like nothing else, and stays in your infrastructure.
 
 ### Website
 
+- **The load page:** the opening plays in the sky with the ARC name above Earth's limb and waits
+  there until the visitor clicks **Get started** (no timeout; scrolling and keys don't end it).
 - **The front door at `/`** (`apps/site`): the opening is drawn in a three.js sky over a real
   Earth (4K day, night-lights and cloud maps from Solar System Scope, CC BY 4.0, from NASA
   imagery): the night side with its city lights, a sunlit crescent at the limb. Earth's limb

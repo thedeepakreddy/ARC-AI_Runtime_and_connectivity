@@ -1109,12 +1109,24 @@ footer a:hover {
 .intro .mark svg {
   filter: drop-shadow(0 0 18px rgba(0, 0, 0, 0.6));
 }
-.intro .skip {
+.intro .start {
   position: fixed;
-  bottom: 28px;
+  bottom: clamp(40px, 9vh, 96px);
   left: 50%;
-  transform: translateX(-50%);
+  translate: -50% 0;
   pointer-events: auto;
+  /* Fades in just after the name, and stays until it's clicked. */
+  animation: start-in 0.9s var(--ease) 1.3s both;
+}
+@keyframes start-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .warping .page {
   opacity: 0;
