@@ -408,11 +408,9 @@ export function createSky(
   scene.add(celestial);
   // Maps load at 2K first (quick, and all a phone or tablet needs); capable desktops then swap in
   // the 4K versions in the background.
-  // Map sizes: an iPad loads the 4K maps once, directly (the 2K-then-4K swap would hold both sets
-  // in memory at once); a phone loads 2K; a desktop shows 2K first and swaps in 4K.
-  const direct4k = ios && window.innerWidth >= 768 && tier !== 'software';
-  const sharp = tier === 'high' && !ios;
-  const RES = direct4k ? 4096 : 2048;
+  // Map sizes: every screen with a real GPU gets the 4K maps, loaded once (never a 2K set and a
+  // 4K set in memory together); software renderers get 2K.
+  const RES = tier === 'software' ? 2048 : 4096;
   const prepMW = (t: THREE.Texture) => {
     t.colorSpace = THREE.SRGBColorSpace;
     t.generateMipmaps = false; // sampled by direction: mipmaps would show the u seam
@@ -1038,8 +1036,8 @@ export function createSky(
 
   const bornAt = performance.now();
   // How long the opening may wait for the Earth's maps (the 4K set takes longer on a first visit).
-  const HOLD_MS = direct4k ? 9000 : 5000;
-  const step = (now: number) => {
+  const HOLD_MS = RES === 4096 ? 9000 : 5000;
+  const frame = (now: number) => {
     skyDebug.frames++;
     const real = Math.min(0.1, (now - last) / 1000);
     last = now;
@@ -1322,6 +1320,21 @@ export function createSky(
     });
 
     render();
+  };
+  // One bad frame (an error on some device) must never stop the loop: the error is recorded for
+  // ?debug=1 and the next frame still runs, so the sky can't freeze black.
+  let frameErrors = 0;
+  const step = (now: number) => {
+    try {
+      frame(now);
+    } catch (e) {
+      if (frameErrors++ < 3) noteError('frame', e);
+      try {
+        render();
+      } catch {
+        // Nothing more to do for this frame.
+      }
+    }
     if (!still) raf = requestAnimationFrame(step);
   };
   function render() {
@@ -1330,37 +1343,12 @@ export function createSky(
   }
   // A still frame draws once more when the maps have arrived.
   manager.onLoad = () => {
-    if (still && !disposed) render();
-    if (sharp && !disposed) upgrade();
+    if (still && !disposed) {
+      // A still frame has no fade: show the planet at once.
+      pu.uReady.value = 1;
+      render();
+    }
   };
-  // Swap in the 4K maps once everything else has arrived (desktops only).
-  function upgrade() {
-    const hi = new THREE.TextureLoader();
-    const swap = (
-      url: string,
-      apply: (t: THREE.Texture) => THREE.Texture,
-      slot: { value: THREE.Texture },
-    ) =>
-      hi.load(url, (t) => {
-        if (disposed) return t.dispose();
-        const old = slot.value;
-        slot.value = apply(t);
-        old.dispose();
-      });
-    swap('/site-assets/earth/earth_day_4096.jpg', (t) => prepMap(t, true), pu.tDay);
-    swap('/site-assets/earth/earth_night_4096.jpg', (t) => prepMap(t, true), pu.tNight);
-    swap(
-      '/site-assets/earth/earth_bump_roughness_clouds_4096.jpg',
-      (t) => prepMap(t, false),
-      pu.tBRC,
-    );
-    swap(
-      '/site-assets/sky/milkyway_4096.jpg',
-      prepMW,
-      mwMat.uniforms.tMW as { value: THREE.Texture },
-    );
-  }
-
   function failOne() {
     const healthy = stations.map((s, i) => [s, i] as const).filter(([s]) => s.resting <= 0);
     const pick = healthy[Math.floor(rand() * healthy.length)];

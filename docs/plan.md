@@ -228,6 +228,10 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       the canvas (black sky). iOS now loads 4K once (iPad) or 2K (iPhone), at a lower pixel
       density; failed maps no longer hold the opening; the CORS-mode preloads are gone; `?debug=1`
       shows an on-page diagnostics panel for devices we can't test here.
+      Then 4K on every screen (loaded once), a guarded frame loop (an error on some device is
+      recorded, the sky keeps drawing), a build target for Safari/iOS 15+, Chrome, Edge and
+      Firefox, the intro's name moved above the limb so it stays readable, and a still frame
+      (reduced motion) that shows the planet once its maps arrive. Tested on 12 emulated devices.
 
 ## Phase 6 scope: dashboards and users' own keys
 
