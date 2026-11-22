@@ -831,7 +831,12 @@ export function Site() {
                 >
                   Solar System Scope
                 </a>{' '}
-                (CC BY 4.0), from NASA data.
+                (CC BY 4.0), from NASA data. Stars and Milky Way: Hipparcos (ESA) and the Milky Way
+                Outline Catalog, via{' '}
+                <a href="https://github.com/ofrohn/d3-celestial" target="_blank" rel="noreferrer">
+                  d3-celestial
+                </a>
+                .
               </p>
             </div>
             <div>

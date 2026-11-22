@@ -210,6 +210,12 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       progress orbit, and the walkthrough acted out in the sky (route beams to candidates, gated
       routes cut in red, the best route fails over to the next, the record ring pulses). The
       numbers strip adds the 24 ms average ARC overhead.
+      Then a real sky: the sun at infinity (Earth lit from behind, a crescent with a twilight band,
+      forward-scattering arc round the limb, ocean glint, cloud shadows); catalogue stars and a
+      Milky Way built from the Milky Way Outline Catalog and Hipparcos (`scripts/build-sky.py`,
+      outputs committed; ESO/NASA/Wikimedia imagery wasn't reachable, and data beats a photo of
+      unclear licence); a space station and a satellite train in orbit, built from geometry,
+      lit by the sun and dark in Earth's shadow. Sizes in orbit are exaggerated to be visible.
 
 ## Phase 6 scope: dashboards and users' own keys
 
