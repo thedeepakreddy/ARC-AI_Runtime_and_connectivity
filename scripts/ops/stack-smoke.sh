@@ -154,7 +154,11 @@ for app in echo-phone data-science-studio; do
   echo "$hdr" | grep -qi '^x-arc-route-provider: llama-cpp' || die "$app: route headers"
   echo "  ok: models, chat, stream, tools, JSON mode, embeddings, route headers"
 done
-code=$(curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer ${ECHO_KEY%?}0" "$ARC_URL/v1/models")
+# A wrong key: the real one with its last character changed (to 1 if it already ends in 0, so the
+# "wrong" key can never equal the real one).
+last=${ECHO_KEY: -1}
+[ "$last" = "0" ] && swap=1 || swap=0
+code=$(curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer ${ECHO_KEY%?}$swap" "$ARC_URL/v1/models")
 [ "$code" = "401" ] || die "a wrong key must get 401 (got $code)"
 
 step "monitoring: Prometheus targets"

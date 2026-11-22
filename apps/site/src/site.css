@@ -1075,7 +1075,10 @@ footer a:hover {
   inset: 0;
   z-index: 30;
   display: grid;
-  place-items: center;
+  /* In the dark sky above the planet's limb, never across it, so the name stays readable. */
+  justify-items: center;
+  align-items: start;
+  padding-top: clamp(96px, 24vh, 260px);
   pointer-events: none;
 }
 .intro .mark {
@@ -1094,11 +1097,17 @@ footer a:hover {
 .intro .mark p {
   margin: 18px 0 0;
   font-family: var(--mono);
-  font-stretch: 87.5%;
   font-size: 13px;
   letter-spacing: 0.32em;
-  color: var(--text-2);
+  color: var(--text);
   text-transform: uppercase;
+  /* A soft dark halo, so the line reads over the Milky Way or a bright limb. */
+  text-shadow:
+    0 0 10px rgba(0, 0, 0, 0.9),
+    0 0 22px rgba(0, 0, 0, 0.7);
+}
+.intro .mark svg {
+  filter: drop-shadow(0 0 18px rgba(0, 0, 0, 0.6));
 }
 .intro .skip {
   position: fixed;
@@ -1181,4 +1190,22 @@ footer a:hover {
 }
 .intro-on .orbit-progress {
   opacity: 0;
+}
+
+/* ?debug=1 diagnostics. */
+.debug-panel {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 100000;
+  max-width: min(92vw, 720px);
+  margin: 0;
+  padding: 10px 12px;
+  background: #111214;
+  color: #d8dce4;
+  border-radius: 10px;
+  font: 11px/1.45 var(--mono);
+  white-space: pre-wrap;
+  word-break: break-all;
+  pointer-events: none;
 }

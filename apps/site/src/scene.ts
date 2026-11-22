@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { noteError, skyDebug } from './debug';
 import { buildStation, buildTrain } from './orbiters';
 
 // The website's sky: ARC's routing drawn as orbital mechanics, over a real sky.
@@ -291,9 +292,36 @@ export function createSky(
     alpha: false,
     powerPreference: 'high-performance',
   });
-  const PR = Math.min(window.devicePixelRatio || 1, tier === 'high' ? 1.75 : 1.25);
+  // iPads and iPhones: Safari caps a page's graphics memory, and running over it drops the whole
+  // canvas (black). On iOS, render at a lower density and never hold two sets of maps at once.
+  const ios =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const PR = Math.min(
+    window.devicePixelRatio || 1,
+    ios ? (tier === 'high' ? 1.5 : 1.25) : tier === 'high' ? 1.75 : 1.25,
+  );
   renderer.setPixelRatio(PR);
   renderer.setClearColor(0x000000, 1);
+  // Diagnostics (?debug=1): the GPU, its limits, a lost context, shader errors.
+  skyDebug.tier = ios ? `${tier} (iOS)` : tier;
+  try {
+    const gl = renderer.getContext();
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    skyDebug.gpu = String(
+      info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+    );
+  } catch (e) {
+    noteError('gpu', e);
+  }
+  skyDebug.maxTexture = renderer.capabilities.maxTextureSize;
+  canvas.addEventListener('webglcontextlost', () => skyDebug.contextLost++);
+  renderer.debug.onShaderError = (gl, program, vs, fs) => {
+    noteError(
+      'shader',
+      gl.getProgramInfoLog(program) || gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs),
+    );
+  };
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
   const rand = rng(7);
@@ -360,6 +388,8 @@ export function createSky(
 
   // ---- Loading: a still frame (reduced motion) draws again once the maps arrive. ----
   const manager = new THREE.LoadingManager();
+  manager.onProgress = (url) => skyDebug.loaded.push(url.split('/').pop() ?? url);
+  manager.onError = (url) => skyDebug.failed.push(url.split('/').pop() ?? url);
   const loader = new THREE.TextureLoader(manager);
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -378,14 +408,16 @@ export function createSky(
   scene.add(celestial);
   // Maps load at 2K first (quick, and all a phone or tablet needs); capable desktops then swap in
   // the 4K versions in the background.
-  const sharp = tier === 'high';
+  // Map sizes: every screen with a real GPU gets the 4K maps, loaded once (never a 2K set and a
+  // 4K set in memory together); software renderers get 2K.
+  const RES = tier === 'software' ? 2048 : 4096;
   const prepMW = (t: THREE.Texture) => {
     t.colorSpace = THREE.SRGBColorSpace;
     t.generateMipmaps = false; // sampled by direction: mipmaps would show the u seam
     t.minFilter = THREE.LinearFilter;
     return t;
   };
-  const tMW = prepMW(loader.load('/site-assets/sky/milkyway_2048.jpg'));
+  const tMW = prepMW(loader.load(`/site-assets/sky/milkyway_${RES}.jpg`));
   const mwMat = new THREE.ShaderMaterial({
     vertexShader: MW_VERT,
     fragmentShader: MW_FRAG,
@@ -450,6 +482,13 @@ export function createSky(
   let earthLoaded = 0,
     earthReady = false,
     readyAt = 0;
+  // A map that fails still counts, so the opening never waits on it (the planet shows what it has).
+  const arrived = () => {
+    if (++earthLoaded === 3) {
+      earthReady = true;
+      readyAt = performance.now();
+    }
+  };
   const prepMap = (tex: THREE.Texture, srgb: boolean) => {
     if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = Math.min(8, maxAniso);
@@ -457,12 +496,7 @@ export function createSky(
   };
   const map = (name: string, srgb: boolean) =>
     prepMap(
-      loader.load(`/site-assets/earth/${name}_2048.jpg`, () => {
-        if (++earthLoaded === 3) {
-          earthReady = true;
-          readyAt = performance.now();
-        }
-      }),
+      loader.load(`/site-assets/earth/${name}_${RES}.jpg`, arrived, undefined, arrived),
       srgb,
     );
   const tDay = map('earth_day', true);
@@ -1001,7 +1035,10 @@ export function createSky(
     tmp2 = new THREE.Vector3();
 
   const bornAt = performance.now();
-  const step = (now: number) => {
+  // How long the opening may wait for the Earth's maps (the 4K set takes longer on a first visit).
+  const HOLD_MS = RES === 4096 ? 9000 : 5000;
+  const frame = (now: number) => {
+    skyDebug.frames++;
     const real = Math.min(0.1, (now - last) / 1000);
     last = now;
     const dt = Math.min(0.033, real);
@@ -1013,7 +1050,7 @@ export function createSky(
       if (!introClock) introClock = now;
       // The opening is the load page: it holds in the warp until the Earth's maps are in (5 s at
       // most), so the limb never ignites over a planet that isn't there yet.
-      if (!earthReady && now - bornAt < 5000 && (now - introClock) / 1000 > 1.25)
+      if (!earthReady && now - bornAt < HOLD_MS && (now - introClock) / 1000 > 1.25)
         introClock = now - 1250;
       const it = (now - introClock) / 1000;
       // Out of a warp (0–1.6 s), the limb ignites from the centre (1.4–2.8 s), the sun crests
@@ -1283,6 +1320,21 @@ export function createSky(
     });
 
     render();
+  };
+  // One bad frame (an error on some device) must never stop the loop: the error is recorded for
+  // ?debug=1 and the next frame still runs, so the sky can't freeze black.
+  let frameErrors = 0;
+  const step = (now: number) => {
+    try {
+      frame(now);
+    } catch (e) {
+      if (frameErrors++ < 3) noteError('frame', e);
+      try {
+        render();
+      } catch {
+        // Nothing more to do for this frame.
+      }
+    }
     if (!still) raf = requestAnimationFrame(step);
   };
   function render() {
@@ -1291,37 +1343,12 @@ export function createSky(
   }
   // A still frame draws once more when the maps have arrived.
   manager.onLoad = () => {
-    if (still && !disposed) render();
-    if (sharp && !disposed) upgrade();
+    if (still && !disposed) {
+      // A still frame has no fade: show the planet at once.
+      pu.uReady.value = 1;
+      render();
+    }
   };
-  // Swap in the 4K maps once everything else has arrived (desktops only).
-  function upgrade() {
-    const hi = new THREE.TextureLoader();
-    const swap = (
-      url: string,
-      apply: (t: THREE.Texture) => THREE.Texture,
-      slot: { value: THREE.Texture },
-    ) =>
-      hi.load(url, (t) => {
-        if (disposed) return t.dispose();
-        const old = slot.value;
-        slot.value = apply(t);
-        old.dispose();
-      });
-    swap('/site-assets/earth/earth_day_4096.jpg', (t) => prepMap(t, true), pu.tDay);
-    swap('/site-assets/earth/earth_night_4096.jpg', (t) => prepMap(t, true), pu.tNight);
-    swap(
-      '/site-assets/earth/earth_bump_roughness_clouds_4096.jpg',
-      (t) => prepMap(t, false),
-      pu.tBRC,
-    );
-    swap(
-      '/site-assets/sky/milkyway_4096.jpg',
-      prepMW,
-      mwMat.uniforms.tMW as { value: THREE.Texture },
-    );
-  }
-
   function failOne() {
     const healthy = stations.map((s, i) => [s, i] as const).filter(([s]) => s.resting <= 0);
     const pick = healthy[Math.floor(rand() * healthy.length)];
