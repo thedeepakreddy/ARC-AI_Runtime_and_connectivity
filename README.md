@@ -171,6 +171,14 @@ pools free tiers like nothing else, and stays in your infrastructure.
   `apps/site/public/site-assets/sky/CREDITS.txt`). A space station orbits with its solar wings
   turned to the sun, and a train of broadband satellites glints across the sky and goes dark in
   Earth's shadow.
+- **The sky, explained:** a section near the end of the page explains the physics behind the
+  scene with the real numbers: parallel sunlight, Rayleigh blue, the twilight band, the forward-
+  scattering arc, ocean glint, orbits and Earth's shadow, the catalogue stars and the Milky Way,
+  and what is enlarged (objects in orbit) or a metaphor (requests as comets).
+- **Loads quickly:** the maps load at 2K first, with download starting as the page opens; the
+  opening holds in its warp until the Earth is ready (5 s at most), the planet fades in rather
+  than showing a black disc, desktops swap in 4K afterwards, and the sky's files are cached for a
+  day.
 - **One continuous flight:** the camera flies a single path around the planet as you scroll,
   each section taking it to its own shot. Headlines rise word by word from behind a mask and
   lean with scroll speed, cards drift at different depths, and an orbit along the top shows how
@@ -179,6 +187,8 @@ pools free tiers like nothing else, and stays in your infrastructure.
   console's own style. The sky acts it out: routes reach out to every candidate station, the
   gates cut theirs in red, the ranked routes brighten, the request travels the best one, that
   station rests and the request falls back to the next, and the record ring pulses.
+- **Type:** Instrument Serif for headlines and figures, Geist for text and controls, Geist Mono
+  for keys (self-hosted, SIL OFL), shared by the site, the dashboard and the console.
 - **Try now** leads to the customer dashboard's sign-in: the page warps out while the sign-in
   loads. Coming back (Back, or a swipe) shows the page as it was, without the warp, and the
   opening plays once per visit, not again on return. Reduced motion shows a still frame.

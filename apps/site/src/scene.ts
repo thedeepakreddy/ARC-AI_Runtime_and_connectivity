@@ -91,7 +91,7 @@ void main(){
 // the centre outward (uReveal) and lets the lights come up (uLights).
 const PLANET_FRAG = /* glsl */ `
 uniform sampler2D tDay, tNight, tBRC;
-uniform vec3 uBlue, uSunDir, uAxis; uniform float uReveal, uLights, uCloudU;
+uniform vec3 uBlue, uSunDir, uAxis; uniform float uReveal, uLights, uCloudU, uReady;
 varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
   vec3 n = normalize(vNw);
@@ -132,7 +132,7 @@ void main(){
   col += vec3(1.0, 0.42, 0.16) * twi * (0.015 + path * 0.35) * day;
   float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
   float reveal = smoothstep(uReveal, uReveal - 0.35, side);
-  col = col * reveal + lights;
+  col = (col * reveal + lights) * uReady;
   gl_FragColor = vec4(col, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -140,7 +140,7 @@ void main(){
 // The cloud shell, drifting a little faster than the ground: white in sunlight, orange at the
 // terminator, dark grey at night (where it hides the city lights below).
 const CLOUD_FRAG = /* glsl */ `
-uniform sampler2D tBRC; uniform vec3 uSunDir; uniform float uReveal;
+uniform sampler2D tBRC; uniform vec3 uSunDir; uniform float uReveal, uReady;
 varying vec3 vNw; varying vec3 vW; varying vec2 vUv;
 void main(){
   vec3 n = normalize(vNw);
@@ -152,7 +152,7 @@ void main(){
   col += vec3(1.0, 0.45, 0.18) * exp(-pow(mu / 0.1, 2.0)) * 0.35;
   float side = abs(atan(vW.x, vW.y - ${PLANET_Y.toFixed(2)}));
   float reveal = smoothstep(uReveal, uReveal - 0.35, side);
-  gl_FragColor = vec4(col, c * (0.55 + day * 0.4) * reveal);
+  gl_FragColor = vec4(col, c * (0.55 + day * 0.4) * reveal * uReady);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
@@ -173,7 +173,7 @@ void main(){
   float mu = dot(normalize(up), uSunDir);
   float lit = smoothstep(-0.3, 0.4, mu);
   float toward = max(dot(rd, uSunDir), 0.0);
-  float mie = pow(toward, 8.0) * 0.9 + pow(toward, 60.0) * 2.4;
+  float mie = pow(toward, 8.0) * 0.9 + pow(toward, 40.0) * 1.1;
   vec3 col = uBlue * (0.25 + 1.6 * lit) * lit * dens;
   col += vec3(1.0, 0.86, 0.64) * mie * dens * smoothstep(-0.4, 0.1, mu) * uSun;
   col += vec3(1.0, 0.45, 0.18) * exp(-pow(mu / 0.14, 2.0)) * dens * 0.9;
@@ -376,10 +376,16 @@ export function createSky(
     celestial.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(gc, pole, third));
   }
   scene.add(celestial);
-  const tMW = loader.load('/site-assets/sky/milkyway_4096.jpg');
-  tMW.colorSpace = THREE.SRGBColorSpace;
-  tMW.generateMipmaps = false; // sampled by direction: mipmaps would show the u seam
-  tMW.minFilter = THREE.LinearFilter;
+  // Maps load at 2K first (quick, and all a phone or tablet needs); capable desktops then swap in
+  // the 4K versions in the background.
+  const sharp = tier === 'high';
+  const prepMW = (t: THREE.Texture) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.generateMipmaps = false; // sampled by direction: mipmaps would show the u seam
+    t.minFilter = THREE.LinearFilter;
+    return t;
+  };
+  const tMW = prepMW(loader.load('/site-assets/sky/milkyway_2048.jpg'));
   const mwMat = new THREE.ShaderMaterial({
     vertexShader: MW_VERT,
     fragmentShader: MW_FRAG,
@@ -441,15 +447,27 @@ export function createSky(
     .catch(() => undefined);
 
   // ---- Earth: real 4K maps, its clouds, and the atmosphere. ----
-  const map = (name: string, srgb: boolean) => {
-    const tex = loader.load(`/site-assets/earth/${name}`);
+  let earthLoaded = 0,
+    earthReady = false,
+    readyAt = 0;
+  const prepMap = (tex: THREE.Texture, srgb: boolean) => {
     if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = Math.min(8, maxAniso);
     return tex;
   };
-  const tDay = map('earth_day_4096.jpg', true);
-  const tNight = map('earth_night_4096.jpg', true);
-  const tBRC = map('earth_bump_roughness_clouds_4096.jpg', false);
+  const map = (name: string, srgb: boolean) =>
+    prepMap(
+      loader.load(`/site-assets/earth/${name}_2048.jpg`, () => {
+        if (++earthLoaded === 3) {
+          earthReady = true;
+          readyAt = performance.now();
+        }
+      }),
+      srgb,
+    );
+  const tDay = map('earth_day', true);
+  const tNight = map('earth_night', true);
+  const tBRC = map('earth_bump_roughness_clouds', false);
   // The sun, far away and just over the limb (from the opening shot): Earth is lit from behind
   // and to the right, so its day side is a crescent and the sunlit air makes an arc of light.
   const sunDir = new THREE.Vector3(0.34, 0.17, -0.925).normalize();
@@ -465,6 +483,7 @@ export function createSky(
     uTime: { value: 0 },
     uSun: { value: opts.intro ? 0 : 1 },
     uLights: { value: opts.intro ? 0 : 1 },
+    uReady: { value: 0 },
     tDay: { value: tDay },
     tNight: { value: tNight },
     tBRC: { value: tBRC },
@@ -981,6 +1000,7 @@ export function createSky(
   const tmp = new THREE.Vector3(),
     tmp2 = new THREE.Vector3();
 
+  const bornAt = performance.now();
   const step = (now: number) => {
     const real = Math.min(0.1, (now - last) / 1000);
     last = now;
@@ -991,14 +1011,20 @@ export function createSky(
     let netOn = 1;
     if (introOn) {
       if (!introClock) introClock = now;
+      // The opening is the load page: it holds in the warp until the Earth's maps are in (5 s at
+      // most), so the limb never ignites over a planet that isn't there yet.
+      if (!earthReady && now - bornAt < 5000 && (now - introClock) / 1000 > 1.25)
+        introClock = now - 1250;
       const it = (now - introClock) / 1000;
       // Out of a warp (0–1.6 s), the limb ignites from the centre (1.4–2.8 s), the sun crests
       // (2.2–3.2 s), the stations light (2.8–4.0 s), the first requests fly (from 3.4 s).
       warp = Math.max(0, 3 * (1 - smooth(Math.min(1, it / 1.6))));
       starMat.uniforms.uFade!.value = Math.min(1, it / 0.6);
       dotMat.opacity = Math.min(DOTS, it / 1.2);
-      mwMat.uniforms.uFade!.value = smooth(Math.min(1, Math.max(0, (it - 0.6) / 1.6)));
-      skyStarMat.uniforms.uFade!.value = smooth(Math.min(1, Math.max(0, (it - 0.3) / 1.2)));
+      // The sky comes up on real time, so a wait for the Earth's maps shows the galaxy, not black.
+      const up = (now - bornAt) / 1000;
+      mwMat.uniforms.uFade!.value = smooth(Math.min(1, Math.max(0, (up - 0.4) / 1.4)));
+      skyStarMat.uniforms.uFade!.value = smooth(Math.min(1, Math.max(0, (up - 0.2) / 1.0)));
       pu.uReveal.value = 3.2 * smooth(Math.min(1, Math.max(0, (it - 1.4) / 1.4)));
       pu.uSun.value = smooth(Math.min(1, Math.max(0, (it - 2.2) / 1.0)));
       pu.uLights.value = smooth(Math.min(1, Math.max(0, (it - 1.8) / 1.6)));
@@ -1212,6 +1238,8 @@ export function createSky(
     ring.scale.setScalar(R_PLANET * 2.05 * (1 + Math.min(1, ringAge / 2.4) * 0.35));
 
     placeOrbiters(dt);
+    // The planet fades in as its maps arrive (never a black disc).
+    if (earthReady) pu.uReady.value = Math.min(1, (now - readyAt) / 600);
     // ---- The sky at infinity, and the sun: they move with the camera, never closer. ----
     celestial.position.copy(camera.position);
     pu.uCloudU.value = (clouds.rotation.y - planet.rotation.y) / (Math.PI * 2);
@@ -1264,7 +1292,35 @@ export function createSky(
   // A still frame draws once more when the maps have arrived.
   manager.onLoad = () => {
     if (still && !disposed) render();
+    if (sharp && !disposed) upgrade();
   };
+  // Swap in the 4K maps once everything else has arrived (desktops only).
+  function upgrade() {
+    const hi = new THREE.TextureLoader();
+    const swap = (
+      url: string,
+      apply: (t: THREE.Texture) => THREE.Texture,
+      slot: { value: THREE.Texture },
+    ) =>
+      hi.load(url, (t) => {
+        if (disposed) return t.dispose();
+        const old = slot.value;
+        slot.value = apply(t);
+        old.dispose();
+      });
+    swap('/site-assets/earth/earth_day_4096.jpg', (t) => prepMap(t, true), pu.tDay);
+    swap('/site-assets/earth/earth_night_4096.jpg', (t) => prepMap(t, true), pu.tNight);
+    swap(
+      '/site-assets/earth/earth_bump_roughness_clouds_4096.jpg',
+      (t) => prepMap(t, false),
+      pu.tBRC,
+    );
+    swap(
+      '/site-assets/sky/milkyway_4096.jpg',
+      prepMW,
+      mwMat.uniforms.tMW as { value: THREE.Texture },
+    );
+  }
 
   function failOne() {
     const healthy = stations.map((s, i) => [s, i] as const).filter(([s]) => s.resting <= 0);

@@ -56,6 +56,8 @@ describe('serving the website', () => {
   writeFileSync(path.join(site, 'index.html'), '<!doctype html><title>ARC</title>');
   writeFileSync(path.join(site, 'site-assets', 'index-AbCdEf12.js'), 'console.log(2)');
   writeFileSync(path.join(site, 'site-assets', 'favicon-32.png'), 'png');
+  mkdirSync(path.join(site, 'site-assets', 'earth'));
+  writeFileSync(path.join(site, 'site-assets', 'earth', 'earth_day_2048.jpg'), 'jpg');
   const app = buildApp({ checks: [], readinessTimeoutMs: 100, siteDir: site });
   afterAll(async () => {
     await app.close();
@@ -75,6 +77,9 @@ describe('serving the website', () => {
     expect(js.headers['cache-control']).toContain('immutable');
     const png = await app.inject({ method: 'GET', url: '/site-assets/favicon-32.png' });
     expect(png.headers['cache-control']).toBe('no-cache');
+    const map = await app.inject({ method: 'GET', url: '/site-assets/earth/earth_day_2048.jpg' });
+    expect(map.statusCode).toBe(200);
+    expect(map.headers['cache-control']).toContain('max-age=86400');
     expect(
       (await app.inject({ method: 'GET', url: '/site-assets/../index.html' })).statusCode,
     ).toBe(404);

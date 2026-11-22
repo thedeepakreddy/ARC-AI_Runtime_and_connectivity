@@ -1,7 +1,7 @@
 /*
  * The ARC website. Same tokens and rules as the console and dashboard (DESIGN.md): true black
- * space, opaque grouped panels, one horizon blue, wide Mona Sans for titles, Hubot Sans for
- * controls, Martian Mono only for keys, IDs and headers. The sky behind is a WebGL canvas.
+ * space, opaque grouped panels, one horizon blue, Instrument Serif for titles and figures, Geist
+ * for reading and controls, Geist Mono only for keys, IDs and headers. The sky behind is a WebGL canvas.
  */
 :root {
   color-scheme: dark;
@@ -35,10 +35,10 @@
   --warn-weak: rgba(255, 179, 64, 0.16);
   --bad: #ff5f57;
   --bad-weak: rgba(255, 95, 87, 0.16);
-  --font:
-    'Mona Sans Variable', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-ui: 'Hubot Sans Variable', 'Mona Sans Variable', -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --display: 'Instrument Serif', 'Iowan Old Style', 'Times New Roman', serif;
+  --font: 'Geist Variable', -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-ui: 'Geist Variable', -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --max: 1240px;
 }
@@ -257,19 +257,27 @@ button {
   letter-spacing: 0.01em;
 }
 .display {
-  font-weight: 720;
-  font-stretch: 125%;
-  letter-spacing: -0.035em;
-  line-height: 0.98;
+  font-family: var(--display);
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: -0.018em;
+  line-height: 0.94;
   margin: 0;
 }
 .h2 {
-  font-weight: 700;
-  font-stretch: 118%;
-  letter-spacing: -0.03em;
-  line-height: 1.02;
+  font-family: var(--display);
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: -0.012em;
+  line-height: 1;
   margin: 0;
-  font-size: clamp(34px, 4.6vw, 62px);
+  font-size: clamp(40px, 5.4vw, 74px);
+}
+/* An italic accent inside a display line (the serif's italic is part of the voice). */
+.display em,
+.h2 em {
+  font-style: italic;
+  color: var(--accent-text);
 }
 .lead {
   color: var(--text-2);
@@ -302,7 +310,7 @@ button {
   padding-top: clamp(64px, 11vh, 130px);
 }
 .hero .display {
-  font-size: clamp(46px, 8.2vw, 124px);
+  font-size: clamp(54px, 9.4vw, 146px);
   max-width: 15ch;
 }
 .hero .lead {
@@ -397,10 +405,11 @@ button {
 .fact b {
   display: block;
   white-space: nowrap;
-  font-weight: 580;
-  font-stretch: 125%;
-  font-size: clamp(26px, 2.5vw, 38px);
-  letter-spacing: -0.02em;
+  font-family: var(--display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(34px, 3.2vw, 48px);
+  letter-spacing: -0.01em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -974,6 +983,13 @@ section.block {
 .card .mono {
   color: var(--text-3);
 }
+/* The sky, explained: each card's law or number, in mono under its title. */
+.card p.eq {
+  margin-top: 8px;
+  color: var(--horizon);
+  font-size: 12.5px;
+  letter-spacing: 0;
+}
 @media (max-width: 960px) {
   .cards,
   .cards.two {
@@ -1004,7 +1020,7 @@ section.block {
   padding: clamp(120px, 20vh, 220px) 0 clamp(80px, 12vh, 140px);
 }
 .closing .display {
-  font-size: clamp(40px, 6.4vw, 92px);
+  font-size: clamp(46px, 7.4vw, 108px);
   margin: 0 auto;
   max-width: 16ch;
 }
@@ -1131,9 +1147,6 @@ footer a:hover {
   display: inline-block;
   transform-origin: 0 100%;
   will-change: transform;
-}
-.wmask + .wmask {
-  margin-left: 0.24em;
 }
 
 /* The scroll position as a thin orbit under the header. */

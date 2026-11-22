@@ -1,5 +1,5 @@
 import { Wordmark } from '@arc/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Flow } from './Flow';
 import { markOpeningSeen } from './opening';
 import type { Sky } from './scene';
@@ -131,9 +131,13 @@ function Words({ text }: { text: string }) {
   return (
     <span aria-label={text}>
       {text.split(' ').map((w, i) => (
-        <span key={i} className="wmask" aria-hidden="true">
-          <span className="w">{w}</span>
-        </span>
+        // A real space between words (not a margin), so a wrapped line doesn't start indented.
+        <Fragment key={i}>
+          {i > 0 && ' '}
+          <span className="wmask" aria-hidden="true">
+            <span className="w">{w}</span>
+          </span>
+        </Fragment>
       ))}
     </span>
   );
@@ -144,6 +148,55 @@ const Arrow = () => (
     <path d="M3 8h10M9 4l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+/** The sky, explained: what the scene models, with the real numbers behind it. */
+const PHYSICS: Array<{ title: string; eq: string; body: string }> = [
+  {
+    title: 'Sunlight from 150 million km',
+    eq: '1 AU ≈ 149.6 million km · light takes 8 min 20 s',
+    body: 'The Sun is so far away that its rays arrive parallel, so one direction lights the whole planet. It sits just behind Earth here, which is why you see a thin sunlit crescent and the night side.',
+  },
+  {
+    title: 'Why the limb is blue',
+    eq: 'Rayleigh scattering ∝ 1/λ⁴ · blue scatters ≈ 6× red',
+    body: 'Air molecules scatter short wavelengths far more than long ones, so sunlit air glows blue against black space. The haze thickens towards the edge, where your line of sight crosses more air.',
+  },
+  {
+    title: 'The orange twilight band',
+    eq: 'air mass at the horizon ≈ 38× overhead',
+    body: 'At the terminator, sunlight skims through almost 40 times more air before it reaches the ground. The blue is scattered away on the way in, and what arrives is orange and red: sunset, seen from orbit.',
+  },
+  {
+    title: 'The arc of light',
+    eq: 'Mie scattering peaks forward · g → 1',
+    body: 'Dust and droplets scatter light mostly onwards, in the direction it was already going. Looking through the limb towards the Sun, the air blazes white-gold: the arc astronauts photograph at every orbital sunrise.',
+  },
+  {
+    title: 'Ocean glint and city lights',
+    eq: 'mirror reflection where n̂ bisects sun and eye',
+    body: 'Calm water reflects the Sun like a mirror, so it shines only where the surface tilts exactly between the Sun and you; land and cloud are too rough. On the night side, city lights glow through gaps in the clouds.',
+  },
+  {
+    title: 'Orbits and Earth’s shadow',
+    eq: 'v = √(GM/r) · 420 km → 7.66 km/s, 92.8 min',
+    body: 'A station at 420 km circles Earth every 93 minutes, broadband satellites at 550 km every 95, launched in a line like a string of pearls. Entering Earth’s shadow, they go dark: about 16 sunsets a day.',
+  },
+  {
+    title: 'Real stars',
+    eq: 'brightness ∝ 10^(−0.4 m) · colour from B−V',
+    body: '25,723 stars from ESA’s Hipparcos catalogue, at their true positions. Each magnitude step is 2.512 times dimmer; colour comes from the star’s temperature, from blue-white giants to orange dwarfs.',
+  },
+  {
+    title: 'The Milky Way',
+    eq: 'galactic centre ≈ 26,000 light-years away',
+    body: 'Our own galaxy’s disc, seen edge-on from inside it, drawn from the Milky Way Outline Catalog. The bright core rises in Sagittarius; the dark rifts are dust clouds blocking the starlight behind them.',
+  },
+  {
+    title: 'Depth, and what is enlarged',
+    eq: 'objects in orbit ≈ 9,000× larger, ≈ 20× faster',
+    body: 'Stars are at infinity, so they never shift as the camera flies; the nearby motes do (parallax). The station and satellites would be invisible specks at true size. The requests fall under inverse-square gravity while steering for a station: a picture of routing, not network physics.',
+  },
+];
 
 export function Site() {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -158,7 +211,8 @@ export function Site() {
     if (!cv) return;
     let cancelled = false,
       cleanup = () => {};
-    const safety = setTimeout(() => setIntro(false), 9000);
+    // The opening can hold up to 5 s for the Earth's maps, then plays for about 4.5 s.
+    const safety = setTimeout(() => setIntro(false), 12000);
     Promise.all([import('./scene'), import('./motion')])
       .then(([{ createSky, skyTier }, { initMotion }]) => {
         if (cancelled) return;
@@ -829,6 +883,33 @@ export function Site() {
                     </a>
                   </p>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <section data-shot="8.5" id="sky" className="block">
+            <div className="wrap">
+              <div className="block-head">
+                <div>
+                  <span className="eyebrow">The sky, explained</span>
+                  <h2 className="h2" data-words>
+                    <Words text="Every light up there follows real physics." />
+                  </h2>
+                </div>
+                <p className="lead" data-reveal>
+                  The stars, the galaxy, the sunlight and the air are modelled from real catalogues
+                  and real optics. Two things are not to scale: objects in orbit are enlarged and
+                  sped up so you can see them, and the requests are a picture of routing.
+                </p>
+              </div>
+              <div className="cards">
+                {PHYSICS.map((c) => (
+                  <div className="card" data-reveal key={c.title}>
+                    <h3>{c.title}</h3>
+                    <p className="eq mono">{c.eq}</p>
+                    <p>{c.body}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </section>
