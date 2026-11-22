@@ -237,6 +237,10 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       list / iptables) the later files stalled for minutes. Caddy now serves HTTP/1.1 and HTTP/2
       only and the compose file no longer maps 443/udp. The planet also shows once its day and
       night maps are in; the clouds/relief map (the largest) fills in, with a neutral stand-in.
+      The sky's maps and star data moved to `src/sky/` and are imported, so the build names them
+      after their contents (bytes unchanged) and the API caches them for a year. The canvas is
+      re-measured every frame: on iOS (a home-screen app, a hiding address bar) it can change size
+      without a resize event, which stretched the Earth into an oval.
 
 ## Phase 6 scope: dashboards and users' own keys
 

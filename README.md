@@ -179,10 +179,12 @@ pools free tiers like nothing else, and stays in your infrastructure.
   maps once (never a 2K set and a 4K set together, which made Safari drop the canvas); software
   renderers get 2K. iOS renders at a slightly lower pixel density. The opening holds in its warp
   until the Earth is ready (9 s at most on a first visit), the planet fades in, and the sky's files
-  are cached for a day. The planet shows as soon as its day and night maps arrive; the clouds and
+  are named after their contents and cached for a year (immutable), so after the first visit they
+  come from the device, across deploys, until a picture itself changes. The planet shows as soon as its day and night maps arrive; the clouds and
   relief map fills in when it lands. Caddy serves HTTP/1.1 and HTTP/2 only (no HTTP/3), so a
   firewall that drops UDP can't stall the page's later files. A frame that throws on some device is recorded and skipped, never stops
-  the sky. Built for every browser with WebGL 2 (Safari/iOS 15+, Chrome, Edge, Firefox). Add
+  the sky; the canvas is re-measured every frame, so a home-screen app or a hiding address bar
+  can't stretch the Earth into an oval. Built for every browser with WebGL 2 (Safari/iOS 15+, Chrome, Edge, Firefox). Add
   `?debug=1` to the address for an on-page diagnostics panel (GPU, tier, maps loaded or failed,
   frames, lost context, errors).
 - **One continuous flight:** the camera flies a single path around the planet as you scroll,

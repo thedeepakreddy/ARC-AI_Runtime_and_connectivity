@@ -9,7 +9,7 @@ Inputs (d3-celestial, BSD-3-Clause, by Olaf Frohn):
   stars.8.json   stars to magnitude 8 from XHIP, the extended Hipparcos compilation (ESA)
   stars.14.json  fainter stars, used only for the band's grain of unresolved starlight
 
-Outputs, in apps/site/public/site-assets/sky/:
+Outputs, in apps/site/src/sky/ (imported by src/skyAssets.ts, so built with hashed names):
   milkyway_4096.jpg  the Milky Way, equirectangular in galactic coordinates (l across, b down)
   stars.bin          Int16 records [x, y, z, mag*1000, bv*1000], brightest first; x, y, z is the
                      star's direction in the scene's galactic frame (scaled by 32767):
@@ -26,7 +26,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 W, H = 4096, 2048
-OUT = Path(__file__).resolve().parent.parent / "public" / "site-assets" / "sky"
+OUT = Path(__file__).resolve().parent.parent / "src" / "sky"
 
 # ICRS (J2000 equatorial) to galactic.
 EQ2GAL = np.array(

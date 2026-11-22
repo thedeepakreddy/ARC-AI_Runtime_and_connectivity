@@ -55,6 +55,7 @@ describe('serving the website', () => {
   mkdirSync(path.join(site, 'site-assets'));
   writeFileSync(path.join(site, 'index.html'), '<!doctype html><title>ARC</title>');
   writeFileSync(path.join(site, 'site-assets', 'index-AbCdEf12.js'), 'console.log(2)');
+  writeFileSync(path.join(site, 'site-assets', 'earth_day_4096-DkcerPt2.jpg'), 'jpg');
   writeFileSync(path.join(site, 'site-assets', 'favicon-32.png'), 'png');
   mkdirSync(path.join(site, 'site-assets', 'earth'));
   writeFileSync(path.join(site, 'site-assets', 'earth', 'earth_day_2048.jpg'), 'jpg');
@@ -77,6 +78,12 @@ describe('serving the website', () => {
     expect(js.headers['cache-control']).toContain('immutable');
     const png = await app.inject({ method: 'GET', url: '/site-assets/favicon-32.png' });
     expect(png.headers['cache-control']).toBe('no-cache');
+    const hashedMap = await app.inject({
+      method: 'GET',
+      url: '/site-assets/earth_day_4096-DkcerPt2.jpg',
+    });
+    expect(hashedMap.headers['content-type']).toBe('image/jpeg');
+    expect(hashedMap.headers['cache-control']).toContain('immutable');
     const map = await app.inject({ method: 'GET', url: '/site-assets/earth/earth_day_2048.jpg' });
     expect(map.statusCode).toBe(200);
     expect(map.headers['cache-control']).toContain('max-age=86400');
