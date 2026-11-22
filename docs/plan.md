@@ -216,6 +216,9 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       outputs committed; ESO/NASA/Wikimedia imagery wasn't reachable, and data beats a photo of
       unclear licence); a space station and a satellite train in orbit, built from geometry,
       lit by the sun and dark in Earth's shadow. Sizes in orbit are exaggerated to be visible.
+      Then speed and an explainer: 2K maps first (preloaded with the page), the opening holds until
+      the Earth is ready, a fade-in instead of a black disc, 4K afterwards on desktops, the sky's
+      files cached for a day; a "The sky, explained" section with the real numbers behind each effect.
 
 ## Phase 6 scope: dashboards and users' own keys
 

@@ -110,9 +110,14 @@ export function serveApp(
  */
 export function serveSite(app: FastifyInstance, dir: string): void {
   const root = path.resolve(dir);
-  const headers = (ext: string, immutable: boolean) => ({
+  const headers = (ext: string, cache: 'immutable' | 'day' | 'revalidate') => ({
     'content-type': TYPES[ext] ?? 'application/octet-stream',
-    'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
+    'cache-control':
+      cache === 'immutable'
+        ? 'public, max-age=31536000, immutable'
+        : cache === 'day'
+          ? 'public, max-age=86400, stale-while-revalidate=604800'
+          : 'no-cache',
     'content-security-policy': CSP,
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'no-referrer',
@@ -121,7 +126,7 @@ export function serveSite(app: FastifyInstance, dir: string): void {
   app.get('/', async (_req, reply) => {
     const body = await readFile(path.join(root, 'index.html')).catch(() => null);
     if (!body) return reply.code(404).send();
-    return reply.headers(headers('.html', false)).send(body);
+    return reply.headers(headers('.html', 'revalidate')).send(body);
   });
   app.get('/site-assets/*', async (req, reply) => {
     const rel = decodeURIComponent((req.params as { '*': string })['*'] ?? '');
@@ -130,8 +135,13 @@ export function serveSite(app: FastifyInstance, dir: string): void {
     if (!file.startsWith(base + path.sep)) return reply.code(404).send();
     const body = await readFile(file).catch(() => null);
     if (!body) return reply.code(404).send();
-    // Hashed bundles are immutable; the few unhashed files (icons, manifest) are revalidated.
+    // Hashed bundles are immutable. The sky's maps and star data are large and rarely change:
+    // cached for a day (served stale while revalidating for a week), so repeat visits draw at
+    // once. The few other unhashed files (icons, manifest) are revalidated.
     const hashed = /-[A-Za-z0-9_-]{8,}\.(js|css|woff2?)$/.test(file);
-    return reply.headers(headers(path.extname(file), hashed)).send(body);
+    const sky = rel.startsWith('earth/') || rel.startsWith('sky/');
+    return reply
+      .headers(headers(path.extname(file), hashed ? 'immutable' : sky ? 'day' : 'revalidate'))
+      .send(body);
   });
 }

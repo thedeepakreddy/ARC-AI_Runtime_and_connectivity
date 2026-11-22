@@ -171,6 +171,14 @@ pools free tiers like nothing else, and stays in your infrastructure.
   `apps/site/public/site-assets/sky/CREDITS.txt`). A space station orbits with its solar wings
   turned to the sun, and a train of broadband satellites glints across the sky and goes dark in
   Earth's shadow.
+- **The sky, explained:** a section near the end of the page explains the physics behind the
+  scene with the real numbers: parallel sunlight, Rayleigh blue, the twilight band, the forward-
+  scattering arc, ocean glint, orbits and Earth's shadow, the catalogue stars and the Milky Way,
+  and what is enlarged (objects in orbit) or a metaphor (requests as comets).
+- **Loads quickly:** the maps load at 2K first, with download starting as the page opens; the
+  opening holds in its warp until the Earth is ready (5 s at most), the planet fades in rather
+  than showing a black disc, desktops swap in 4K afterwards, and the sky's files are cached for a
+  day.
 - **One continuous flight:** the camera flies a single path around the planet as you scroll,
   each section taking it to its own shot. Headlines rise word by word from behind a mask and
   lean with scroll speed, cards drift at different depths, and an orbit along the top shows how

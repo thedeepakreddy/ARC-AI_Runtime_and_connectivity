@@ -974,6 +974,13 @@ section.block {
 .card .mono {
   color: var(--text-3);
 }
+/* The sky, explained: each card's law or number, in mono under its title. */
+.card p.eq {
+  margin-top: 8px;
+  color: var(--horizon);
+  font-size: 12.5px;
+  letter-spacing: 0;
+}
 @media (max-width: 960px) {
   .cards,
   .cards.two {
