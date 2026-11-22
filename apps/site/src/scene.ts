@@ -483,8 +483,10 @@ export function createSky(
     earthReady = false,
     readyAt = 0;
   // A map that fails still counts, so the opening never waits on it (the planet shows what it has).
+  // The planet shows once its day and night maps are in; the bump/roughness/clouds map (the
+  // largest) fills in when it lands, with a neutral stand-in until then.
   const arrived = () => {
-    if (++earthLoaded === 3) {
+    if (++earthLoaded === 2) {
       earthReady = true;
       readyAt = performance.now();
     }
@@ -501,7 +503,18 @@ export function createSky(
     );
   const tDay = map('earth_day', true);
   const tNight = map('earth_night', true);
-  const tBRC = map('earth_bump_roughness_clouds', false);
+  // Stand-in for the bump/roughness/clouds map: flat (bump 0.5), rough land (no glint), no cloud.
+  const brcStandIn = new THREE.DataTexture(new Uint8Array([128, 255, 0, 255]), 1, 1);
+  brcStandIn.needsUpdate = true;
+  const brcLoaded = prepMap(
+    loader.load(`/site-assets/earth/earth_bump_roughness_clouds_${RES}.jpg`, (t) => {
+      if (disposed) return;
+      pu.tBRC.value = t;
+      if (still) render();
+    }),
+    false,
+  );
+  const tBRC: THREE.Texture = brcStandIn;
   // The sun, far away and just over the limb (from the opening shot): Earth is lit from behind
   // and to the right, so its day side is a crescent and the sunlit air makes an arc of light.
   const sunDir = new THREE.Vector3(0.34, 0.17, -0.925).normalize();
@@ -1427,7 +1440,8 @@ export function createSky(
         nodeTex,
         tDay,
         tNight,
-        tBRC,
+        brcStandIn,
+        brcLoaded,
         tMW,
         ringTex,
       ].forEach((x) => x.dispose());

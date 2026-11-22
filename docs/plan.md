@@ -232,6 +232,11 @@ Increment 3 — **Users' own keys through ARC + deploy readiness**: done.
       recorded, the sky keeps drawing), a build target for Safari/iOS 15+, Chrome, Edge and
       Firefox, the intro's name moved above the limb so it stays readable, and a still frame
       (reduced motion) that shows the planet once its maps arrive. Tested on 12 emulated devices.
+- [x] Slow Earth on a real phone (galaxy after minutes, the Earth later): Caddy advertised HTTP/3,
+      Safari switched to it after the first response, and with UDP 443 closed (Oracle security
+      list / iptables) the later files stalled for minutes. Caddy now serves HTTP/1.1 and HTTP/2
+      only and the compose file no longer maps 443/udp. The planet also shows once its day and
+      night maps are in; the clouds/relief map (the largest) fills in, with a neutral stand-in.
 
 ## Phase 6 scope: dashboards and users' own keys
 

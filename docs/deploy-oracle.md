@@ -22,7 +22,8 @@ here. Allow about an hour. (Paid alternative: [deploy-gcp.md](deploy-gcp.md).)
    or 2 OCPU / 12 GB). Add your SSH key. "Out of capacity" is common for free Arm VMs: try
    another availability domain, or retry later.
 2. Networking → the VM's subnet → Security List → add **ingress** TCP 80 and 443 from
-   `0.0.0.0/0` (and UDP 443 for HTTP/3). Leave 8080 closed: ARC listens on loopback only.
+   `0.0.0.0/0`. Leave 8080 closed: ARC listens on loopback only. (Caddy serves HTTP/1.1 and
+   HTTP/2 over TCP only; UDP 443 is not needed.)
 3. Networking → IP management → Reserved public IPs: reserve one (free) and attach it to the VM,
    so the address never changes. Point your domain's A record at it.
 4. On the VM, Oracle's Ubuntu image also firewalls with iptables. Open 80 and 443 there too:
@@ -30,7 +31,6 @@ here. Allow about an hour. (Paid alternative: [deploy-gcp.md](deploy-gcp.md).)
 ```bash
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p udp --dport 443 -j ACCEPT
 sudo netfilter-persistent save
 ```
 

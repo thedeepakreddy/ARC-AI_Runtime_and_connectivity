@@ -222,7 +222,7 @@ services:
         [ -n "$$ARC_DOMAIN" ] && [ -n "$$ACME_EMAIL" ] ||
         { echo 'Set ARC_DOMAIN and ACME_EMAIL in .env' >&2; exit 1; };
         exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
-    ports: ['80:80', '443:443', '443:443/udp']
+    ports: ['80:80', '443:443']
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
