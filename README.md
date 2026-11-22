@@ -154,6 +154,17 @@ pools free tiers like nothing else, and stays in your infrastructure.
 
   You can change any of it, and a change you make is never overwritten.
 
+### Website
+
+- **The front door at `/`** (`apps/site`): the opening is drawn in a three.js sky. Earth's limb
+  ignites in horizon blue, the sun crests, the provider stations light, and requests fly as
+  comets under gravity, steering for the station ARC chose and re-routing when one rests after
+  a rate limit. Scroll speed stretches the stars into a warp; the pointer bends the comets'
+  paths and a click scatters them.
+- **How ARC works:** a pinned walkthrough of one request through the seven steps below, in the
+  console's own style.
+- **Try now** leads to the customer dashboard's sign-in. Reduced motion shows a still frame.
+
 ### Multi-tenant platform
 
 - **Owner console** (`/console`):
@@ -240,6 +251,7 @@ to date in the background, off the request path. See
 apps/api          Fastify + Zod: /v1 inference, control plane, the worker (src/worker)
 apps/console      Owner console (React 19 + Vite), served at /console
 apps/dashboard    Customer dashboard (React 19 + Vite), served at /dashboard
+apps/site         Public website (React 19 + Vite + three.js + GSAP), served at /
 packages/ui       ARC's design system, shared by both apps (see DESIGN.md)
 packages/shared   Config validation and log redaction shared by services
 apps/api/bench    Load test and regression gate

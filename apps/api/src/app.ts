@@ -10,7 +10,7 @@ import { catalogueRoutes } from './routes/catalogue.js';
 import { consoleRoutes } from './routes/console.js';
 import { customerRoutes } from './routes/customers.js';
 import { securityRoutes } from './routes/security.js';
-import { serveApp } from './console-static.js';
+import { serveApp, serveSite } from './console-static.js';
 import type { AdminDeps } from './routes/deps.js';
 import { type InferenceDeps, inferenceRoutes } from './routes/inference.js';
 import { routingRoutes } from './routes/routing.js';
@@ -28,6 +28,8 @@ export interface BuildAppOptions {
   /** Built console (apps/console/dist), served at /console. */
   consoleDir?: string | undefined;
   dashboardDir?: string | undefined;
+  /** Built public website (apps/site/dist), served at /. */
+  siteDir?: string | undefined;
   /** Google AdSense in the dashboard (off when absent). */
   ads?: { client: string; slot: string } | undefined;
 }
@@ -90,6 +92,7 @@ export function buildApp(opts: BuildAppOptions): FastifyInstance {
 
   if (opts.consoleDir) serveApp(app, '/console', opts.consoleDir);
   if (opts.dashboardDir) serveApp(app, '/dashboard', opts.dashboardDir, { ads: !!opts.ads });
+  if (opts.siteDir) serveSite(app, opts.siteDir);
   // AdSense requires ads.txt at the site root, naming the publisher.
   const ads = opts.ads;
   if (ads) {

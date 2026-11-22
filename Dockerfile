@@ -13,6 +13,7 @@ COPY packages/ui/package.json packages/ui/
 COPY apps/api/package.json apps/api/
 COPY apps/console/package.json apps/console/
 COPY apps/dashboard/package.json apps/dashboard/
+COPY apps/site/package.json apps/site/
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY packages packages
@@ -27,10 +28,12 @@ WORKDIR /app
 
 FROM runtime AS api
 COPY --from=build --chown=node:node /out/api ./
-# The owner's console at /console and the customer dashboard at /dashboard, served by the API.
+# The website at /, the owner's console at /console and the customer dashboard at /dashboard,
+# all served by the API.
+COPY --from=build --chown=node:node /repo/apps/site/dist ./site
 COPY --from=build --chown=node:node /repo/apps/console/dist ./console
 COPY --from=build --chown=node:node /repo/apps/dashboard/dist ./dashboard
-ENV CONSOLE_DIR=/app/console DASHBOARD_DIR=/app/dashboard
+ENV SITE_DIR=/app/site CONSOLE_DIR=/app/console DASHBOARD_DIR=/app/dashboard
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1

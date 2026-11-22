@@ -14,8 +14,8 @@
 		-Server
 	}
 
-	# The front door is the customer dashboard; the owner console stays at /console.
-	redir / /dashboard/ 302
+	# The front door is the website at / (served by ARC); Try now leads to the customer dashboard's
+	# sign-in at /dashboard, and the owner console stays at /console.
 
 	reverse_proxy api:8080 {
 		# Stream model output as it arrives (server-sent events): never buffer.
